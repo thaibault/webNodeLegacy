@@ -23,7 +23,6 @@ __version__ = '1.0'
 import copy
 from datetime import datetime as DateTime
 from datetime import timedelta as TimeDelta
-import hashlib
 import inspect
 import json
 import logging
@@ -47,6 +46,7 @@ from boostNode.runnable.server import Web as WebServer
 from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
 
+from controller import Main as Controller
 from restController import Response as RestResponse
 
 # endregion
@@ -298,6 +298,7 @@ class Main(Class, Runnable):
         self._append_validation_to_options()
         self.__class__.index_html_file = FileHandler(
             self.options['index_html_file_path'])
+        self.__class__.controller = None
 
             # endregion
 
@@ -327,6 +328,7 @@ class Main(Class, Runnable):
         __logger__.info(
             'Initialize database on "%s".', self.options['database_file_path'])
         self._initialize_model()
+        self.__class__.controller = Controller(web_handler=self)
         return self._start_web_server()
 
         # endregion
@@ -436,14 +438,14 @@ class Main(Class, Runnable):
 ##                 value_wrapper=lambda key, value: TemplateParser(
 ##                     value, string=True
 ##                 ).render(
-##                     mapping=mapping, module_name=__name__
+##                     mapping=mapping, module_name=__name__, web_handler=cls
 ##                 ).output if isinstance(value, str) else value
 ##             ).content
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     value, string=True
                 ).render(
-                    mapping=mapping, module_name=__name__
+                    mapping=mapping, module_name=__name__, web_handler=cls
                 ).output if isinstance(value, (unicode, str)) else value
             ).content
 ##
@@ -474,30 +476,7 @@ class Main(Class, Runnable):
         cls.model.Model.metadata.create_all(cls.engine)
         cls.session = create_sql_session(bind=cls.engine)()
         cls._check_database_schema_version()
-
-                # region insert database mockups
-
-        if not cls.session.query(cls.model.User).filter(
-            cls.model.User.first_name == 'hans'
-        ).count():
-            cls.session.add(cls.model.User(
-                first_name='hans', last_name='peter',
-                e_mail_address='hans@hans.com',
-                password=hashlib.md5('hans').hexdigest()))
-        if not cls.session.query(cls.model.Event).filter(
-            cls.model.Event.name == 'test_a_en_us'
-        ).count():
-            cls.session.add(cls.model.Event(name='test_a_en_us', owner_id=1))
-            cls.session.add(cls.model.Event(
-                name='test_a_de_de', owner_id=1, language='de_de'))
-        if not cls.session.query(cls.model.UserEvent).filter(
-            cls.model.UserEvent.user_id == 1
-        ).count():
-            cls.session.add(cls.model.UserEvent(user_id=1, event_id=1))
-            cls.session.add(cls.model.UserEvent(user_id=1, event_id=2))
-
-                # endregion
-
+        cls.controller.insert_database_mockups()
         cls.session.commit()
         return cls
 
