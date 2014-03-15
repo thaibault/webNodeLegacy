@@ -48,24 +48,27 @@ Copy this folder to your projects directory and write something like:
 
     #!/usr/bin/env python
 
-    TODO
+    from webNode import Main
 
-Have Fun with boostNode!
-<!--deDE:Viel Spass mit boostNode!-->
+    if __name__ == '__main__':
+        Main.run()
+
+Have Fun with webNode!
+<!--deDE:Viel Spass mit webNode!-->
 
 <!--|deDE:Urheberrecht-->
 Copyright
 ---------
 
-see header in ./\_\_init\_\_.py
-<!--deDE:Siehe Header in ./\_\_init\_\_.py-->
+see header in boostNode/\_\_init\_\_.py
+<!--deDE:Siehe Header in boostNode/\_\_init\_\_.py-->
 
 <!--|deDE:Lizenz-->
 License
 -------
 
-see header in ./\_\_init\_\_.py
-<!--deDE:Siehe Header in ./\_\_init\_\_.py-->
+see header in boostNode/\_\_init\_\_.py
+<!--deDE:Siehe Header in boostNode/\_\_init\_\_.py-->
 
 <!-- region vim modline
 

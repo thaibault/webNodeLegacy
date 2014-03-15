@@ -14,18 +14,14 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-from datetime import datetime as DateTimeNative
 import inspect
 
 from sqlalchemy.ext.declarative import declarative_base as ModelFactory
 from sqlalchemy.ext.declarative.api import DeclarativeMeta
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import validates
-from sqlalchemy.schema import Column
-from sqlalchemy.types import String, Integer, DateTime, Boolean
 
 from boostNode.extension.native import Module
-from boostNode.extension.native import AuthenticationModel
 from boostNode.extension.native import Model as BaseModel
 from boostNode.extension.type import Model as MetaModel
 from boostNode.paradigm.aspectOrientation import FunctionDecorator
@@ -67,7 +63,7 @@ def determine_language_specific_default_value(context):
 
 # region classes
 
-class ApplicationMetaModel(DeclarativeMeta, MetaModel):
+class ApplicationMetaModel(MetaModel, DeclarativeMeta):
 
     '''Class that invokes for each model class generation.'''
 
@@ -103,29 +99,6 @@ class ApplicationMetaModel(DeclarativeMeta, MetaModel):
         )(cls, class_name, base_classes, class_scope, *arguments, **keywords)
 
 Model = ModelFactory(cls=BaseModel, metaclass=ApplicationMetaModel)
-
-
-class BaseUser(AuthenticationModel):
-
-    '''Saves all registered users.'''
-
-    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    register_date_time = Column(DateTime, default=DateTimeNative.now)
-    enabled = Column(Boolean, default=True)
-
-    session_token = Column(
-        String(2 * OPTIONS['session_token_length']), default=None)
-    application_session_token = Column(
-        String(2 * OPTIONS['session_token_length']), default=None)
-    session_expiration_date_time = Column(DateTime, default=DateTimeNative.now)
-
-    _password_salt_length = OPTIONS['password_salt_length']
-    _password_pepper = OPTIONS['password_pepper']
-    _password_info = OPTIONS['password_info']
-    password_salt = Column(String(2 * OPTIONS['password_salt_length']))
-    password_hash = Column(String(
-        160 + 2 * OPTIONS['password_salt_length'] + len(
-            OPTIONS['password_pepper'])))
 
 # endregion
 
