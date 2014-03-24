@@ -22,8 +22,8 @@ pass
 import inspect
 import json
 
-from boostNode.extension.native import Module, PropertyInitializer, String, \
-    Object
+from boostNode.extension.native import Module, InstancePropertyInitializer, \
+    String, Object
 from boostNode.paradigm.objectOrientation import Class
 
 # endregion
@@ -39,27 +39,27 @@ class Response(Class):
 
         # region special
 
-    @PropertyInitializer
-    def __init__(self, web_handler):
+    @InstancePropertyInitializer
+    def __init__(self, request):
         '''Retrieves request meta data.'''
 
             # region properties
 
         '''Saves current selected model.'''
         self.model = getattr(
-            self.web_handler.model, self.web_handler.request['get']['model'])
+            self.request.model, self.request.data['get']['model'])
         '''A mapping to wrapper for each respond to server.'''
         self.data_wrapper = {
             'key_wrapper': lambda key, value:
-            self.web_handler._convert_for_client(String(
+            self.request.convert_for_client(String(
                 key
             ).delimited_to_camel_case().content),
-            'value_wrapper': self.web_handler._convert_for_client
+            'value_wrapper': self.request.convert_for_client
         }
 
             # endregion
 
-        del self.web_handler.request['get']['model']
+        del self.request.data['get']['model']
 
         # endregion
 
@@ -69,21 +69,21 @@ class Response(Class):
     def get_output(self):
         '''Computes the json response object.'''
         if self.model is None:
-            self.web_handler.request['handler'].send_response(510)
+            self.request.data['handler'].send_response(510)
             return{
                 'statuscode': 510, 'message': 'Not Extended', 'data': {},
                 'description': 'Requested model "%s" doesn\'t exist.' %
-                self.web_handler.request['get']['model']}
+                self.request.data['get']['model']}
         method = getattr(
-            self, 'process_%s' % self.web_handler.request['request_type'])
-        if self.web_handler.request['request_type'] == 'get':
-            result = method(data=self.web_handler.request['get'])
+            self, 'process_%s' % self.request.data['request_type'])
+        if self.request.data['request_type'] == 'get':
+            result = method(data=self.request.data['get'])
         else:
             result = method(
-                get=self.web_handler.request['get'],
-                data=self.web_handler.request['data'])
+                get=self.request.data['get'],
+                data=self.request.data['data'])
         if result is None:
-            self.web_handler.request['handler'].send_response(401)
+            self.request.data['handler'].send_response(401)
             result = {
                 'statuscode': 401, 'message': 'Unauthorized', 'data': {},
                 'description': 'The request is not authorized.'}

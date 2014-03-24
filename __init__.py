@@ -22,6 +22,8 @@ __version__ = '1.0'
 
 import copy
 from datetime import datetime as DateTime
+from datetime import time as Time
+from datetime import date as Date
 from datetime import timedelta as TimeDelta
 import inspect
 import json
@@ -32,6 +34,7 @@ import sys
 ## python3.3 pass
 import time
 
+from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy import create_engine as create_sql_engine
 from sqlalchemy.orm import sessionmaker as create_sql_session
 from sqlalchemy.schema import CreateTable, DropTable, Table, MetaData
@@ -100,6 +103,8 @@ class Main(Class, Runnable):
 
         # region static
 
+            # region boolean
+
     @classmethod
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
@@ -111,7 +116,121 @@ class Main(Class, Runnable):
     @classmethod
     def is_cached(cls, cache_file):
         '''Determines weather given file is a valid usable cache file.'''
-        return (sys.flags.optimize and not cls.debug) and cache_file
+        return(sys.flags.optimize and not cls.debug) and cache_file
+
+            # endregion
+
+            # region helper
+
+    @classmethod
+    def clear_web_cache(cls):
+        '''Clears all web cache files.'''
+        __logger__.info(
+            'Clear web cache in "%s".', cls.options['location']['web_cache'])
+        for file in FileHandler(cls.options['location']['web_cache']):
+            if cls.is_valid_web_asset(file):
+                file.remove_deep()
+        return cls
+
+    @classmethod
+    def convert_byte_to_string(cls, value):
+        '''Converts a byte object to a python string.'''
+## python3.3
+##         if isinstance(value, bytes):
+##             return value.decode(cls.options['encoding'])
+        if isinstance(value, unicode):
+            return value.encode(cls.options['encoding'])
+##
+        return value
+
+    @classmethod
+    def convert_for_client(cls, key, value=Null):
+        '''Returns the serialized version of given value.'''
+        key = cls.convert_byte_to_string(key)
+        value = cls.convert_byte_to_string(value)
+        if value is Null:
+            value = key
+        else:
+            if isinstance(value, (DateTime, Date)):
+## python3.3                 return value.timestamp()
+                return time.mktime(value.timetuple())
+            if isinstance(value, Time):
+                return time.microseconds
+            if(key == 'language' or key.endswith('_language')) and re.compile(
+                '[a-z]{2}_[a-z]{2}$'
+            ).match(value):
+                return String(value).delimited_to_camel_case(
+                ).content[:-1] + value[-1].upper()
+        if isinstance(value, str):
+            # TODO solve this problem in generic way.
+            return re.compile('([a-z])Id([A-Z]|$)').sub('\\1ID\\2', value)
+        elif value is None:
+            return ''
+        elif not isinstance(value, (int, float)):
+            return str(value)
+        return value
+
+    @classmethod
+    def convert_for_backend(cls, key, value=Null):
+        '''Converts data from client to python specific data objects.'''
+        key = cls.convert_byte_to_string(key)
+        value = cls.convert_byte_to_string(value)
+        if value is Null:
+            value = key
+        elif isinstance(key, str):
+            if key == 'date_time' or key.endswith('_date_time'):
+                if isinstance(value, int):
+                    return DateTime.fromtimestamp(value)
+                elif isinstance(value, str):
+                    # TODO
+                    for delimiter in ('.', '/'):
+                        for date_format in ('%x',):
+                            try:
+                                return DateTime.strptime(value, date_format)
+                            except ValueError:
+                                pass
+            if key == 'date' or key.endswith('_date'):
+                if isinstance(value, int):
+                    return Date.fromtimestamp(value)
+                elif isinstance(value, str):
+                    for delimiter in ('.', '/'):
+                        for date_format in (
+                            '%x', '%d{delimiter}%m{delimiter}%Y',
+                            '%d{delimiter}%m{delimiter}%y',
+                            '%w{delimiter}%m{delimiter}%y',
+                            '%w{delimiter}%m{delimiter}%Y'
+                        ):
+                            try:
+## python3.3
+##                                 return Time.fromtimestamp(DateTime.strptime(
+##                                     value, date_format.format(delimiter=delimiter)
+##                                 ).timestamp())
+                                return Date.fromtimestamp(time.mktime(
+                                    DateTime.strptime(value, date_format.format(
+                                        delimiter=delimiter
+                                    )).timetuple()))
+##
+                            except ValueError:
+                                pass
+            if key == 'time' or key.endswith('_time'):
+                # TODO Time has no fromtimestamp method
+                pass
+                #return Time(hour=, minute=, second=, microsecond=)
+            if(key == 'language' or key.endswith('_language')) and re.compile(
+                '[a-z]{2}[A-Z]{2}'
+            ).match(value):
+                return String(value).camel_case_to_delimited().content
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except(TypeError, ValueError):
+                try:
+                    return float(value)
+                except(TypeError, ValueError):
+                    return value
+        return value
+
+            # endregion
 
         # endregion
 
@@ -125,7 +244,7 @@ class Main(Class, Runnable):
         '''
         paths = []
         if path is None:
-            path = cls.options['web_asset_path']
+            path = cls.options['location']['web_asset']
             cls._root_asset_path_len = len(FileHandler(path).path)
         for file in FileHandler(path):
             if cls.is_valid_web_asset(file):
@@ -183,28 +302,31 @@ class Main(Class, Runnable):
                 if file.is_file():
                     asset_files.append(file)
                 return True
-        FileHandler(self.options['web_asset_path']).iterate_directory(
+        FileHandler(self.options['location']['web_asset']).iterate_directory(
             add_asset_file, recursive=True)
         offline_manifest_template_file = FileHandler(
-            self.options['offline_manifest_template_file_path'])
-        '''Dynamic request should be handled by frontend cache.'''
-        requests = ()
+            self.options['location']['offline_manifest_template_file'])
         account_state = 1
+        account_data = {}
         if user is not None:
             account_state = hash(
                 Dictionary(user.dictionary).get_immutable())
+            account_data = user.dictionary
         return TemplateParser(
             offline_manifest_template_file,
             template_context_default_indent=
             self.options['default_indent_level']
         ).render(
-            asset_files=asset_files, requests=requests,
-            index_html_file=self.index_html_file,
-            asset_version=self.get_timestamps(self.options['web_asset_path']),
+            asset_files=asset_files, index_html_file=self.index_html_file,
+            asset_version=self.get_timestamps(
+                self.options['location']['web_asset']),
             version='%s - %d' % (__version__, FileHandler(Module.get_name(
                 path=True, extension=True, frame=inspect.currentframe()
             )).timestamp), account_state=account_state,
-            request_file_name=__name__, host=self.request['handler'].host
+            request_file_name=__name__, host=self.data['handler'].host,
+            account_data=account_data,
+            offline_manifest_template_file=offline_manifest_template_file,
+            mapping=self.controller.get_manifest_scope(request=self, user=user)
         ).output
 
     # endregion
@@ -218,47 +340,46 @@ class Main(Class, Runnable):
 
             # region properties
 
-        self.request = __request_arguments__
+        self.data = __request_arguments__
         self.new_cookie = {}
         '''Normalize get and payload data.'''
 ## python3.3
-##         self.request['get'] = Dictionary(self.request['get']).convert(
+##         self.data['get'] = Dictionary(self.data['get']).convert(
 ##             key_wrapper=lambda key, value: String(
 ##                 key
 ##             ).camel_case_to_delimited().content if isinstance(
 ##                 key, str
-##             ) else self._convert_for_backend(key),
-##             value_wrapper=self._convert_for_backend
+##             ) else self.convert_for_backend(key),
+##             value_wrapper=self.convert_for_backend
 ##         ).content
-##         self.request['data'] = Dictionary(self.request['data']).convert(
+##         self.data['data'] = Dictionary(self.data['data']).convert(
 ##             key_wrapper=lambda key, value: String(
 ##                 key
 ##             ).camel_case_to_delimited().content if isinstance(
 ##                 key, str
-##             ) else self._convert_for_backend(key),
-##             value_wrapper=self._convert_for_backend
+##             ) else self.convert_for_backend(key),
+##             value_wrapper=self.convert_for_backend
 ##         ).content
-        self.request['get'] = Dictionary(self.request['get']).convert(
+        self.data['get'] = Dictionary(self.data['get']).convert(
             key_wrapper=lambda key, value: String(
                 key
             ).camel_case_to_delimited().content if isinstance(
                 key, (str, unicode)
-            ) else self._convert_for_backend(key),
-            value_wrapper=self._convert_for_backend
+            ) else self.convert_for_backend(key),
+            value_wrapper=self.convert_for_backend
         ).content
-        self.request['data'] = Dictionary(self.request['data']).convert(
+        self.data['data'] = Dictionary(self.data['data']).convert(
             key_wrapper=lambda key, value: String(
                 key
             ).camel_case_to_delimited().content if isinstance(
                 key, (str, unicode)
-            ) else self._convert_for_backend(key),
-            value_wrapper=self._convert_for_backend
+            ) else self.convert_for_backend(key),
+            value_wrapper=self.convert_for_backend
         ).content
 ##
         '''Holds the current request handler server instance.'''
         self.session = create_sql_session(bind=self.engine)()
-        if self.options['authentication'] == 'advanced':
-            self.authorized_user = self._authenticate()
+        self.authorized_user = self._authenticate()
 
             # endregion
 
@@ -266,7 +387,7 @@ class Main(Class, Runnable):
             self._web_controller()
         except TemplateError as exception:
             if self.debug:
-                self.request['handler'].send_error(
+                self.data['handler'].send_error(
                     500, '%s: "%s"' % (
                         exception.__class__.__name__, str(exception)))
             else:
@@ -287,6 +408,7 @@ class Main(Class, Runnable):
             output_with_root_prefix=True
         ).directory_path).directory_path)
         self.__class__.ROOT_PATH = FileHandler.get_root().path
+        self.__class__.controller = Controller(main=self.__class__)
         self._set_options()
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
@@ -295,10 +417,9 @@ class Main(Class, Runnable):
         self.__class__.debug = \
             sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
         self.__class__.model = __import__('model')
-        self._append_validation_to_options()
+        self._append_model_informations_to_options()
         self.__class__.index_html_file = FileHandler(
-            self.options['index_html_file_path'])
-        self.__class__.controller = None
+            self.options['location']['index_html_file'])
 
             # endregion
 
@@ -309,26 +430,27 @@ class Main(Class, Runnable):
         if(self.debug or self.given_command_line_arguments.render_template or
            not self.index_html_file):
             __logger__.info('Render main entry html file.')
-            self.index_html_file.content = TemplateParser(
-                self.options['template_index_file_path'],
-                template_context_default_indent=
-                self.options['default_indent_level']
-            ).render(
-                request_file_name=__name__, options=self.options['frontend'],
-                debug=self.debug,
-                deployment=self.given_command_line_arguments.render_template
-            ).output
+            index_file = FileHandler(
+                self.options['location']['template_index_file'])
+            if index_file.is_file():
+                self.index_html_file.content = TemplateParser(
+                    self.options['location']['template_index_file'],
+                    template_context_default_indent=
+                    self.options['default_indent_level']
+                ).render(
+                    options=self.options['frontend'],
+                    debug=self.debug, deployment=
+                    self.given_command_line_arguments.render_template,
+                    mapping=self.controller.get_frontend_scope()
+                ).output
         if self.given_command_line_arguments.render_template:
             return self
+        self.clear_web_cache()
         __logger__.info(
-            'Clear web cache in "%s".', self.options['web_cache_path'])
-        for file in FileHandler(self.options['web_cache_path']):
-            if self.is_valid_web_asset(file):
-                file.remove_deep()
-        __logger__.info(
-            'Initialize database on "%s".', self.options['database_file_path'])
+            'Initialize database on "%s".',
+            self.options['location']['database_file'])
         self._initialize_model()
-        self.__class__.controller = Controller(web_handler=self)
+        self.controller.initialize()
         return self._start_web_server()
 
         # endregion
@@ -341,7 +463,7 @@ class Main(Class, Runnable):
     def _check_database_schema_version(cls):
         '''Checke if the database schema has changed.'''
         database_schema_file = FileHandler(
-            cls.options['database_schema_file_path'])
+            cls.options['location']['database_schema_file'])
         old_schemas = {}
         if database_schema_file:
 ## python3.3
@@ -352,10 +474,10 @@ class Main(Class, Runnable):
                 database_schema_file.content,
                 encoding=cls.options['encoding'])
             ).convert(
-                key_wrapper=lambda key, value: cls._convert_byte_to_string(
+                key_wrapper=lambda key, value: cls.convert_byte_to_string(
                     key),
                 value_wrapper=
-                lambda key, value: cls._convert_byte_to_string(value)
+                lambda key, value: cls.convert_byte_to_string(value)
             ).content
 ##
         new_schemas = {}
@@ -388,43 +510,91 @@ class Main(Class, Runnable):
         return cls
 
     @classmethod
-    def _append_validation_to_options(cls):
+    def _append_model_informations_to_options(cls):
         '''Appends validation strings to the global options object.'''
-        cls.options['both']['model'] = {}
+        cls.options['both']['type'] = {}
         for model_name, model in Module.get_defined_objects(cls.model):
             if isinstance(model, type) and issubclass(model, cls.model.Model):
-                cls.options['both']['model'][model_name] = {}
+                cls.options['both']['type'][model_name] = {}
                 for property in model.__table__.columns:
+                    cls.options['both']['type'][model_name][property.name] = {}
                     if property.info:
-                        cls.options['both']['model'][model_name][
+                        cls.options['both']['type'][model_name][
                             property.name
-                        ] = property.info
-                        cls.options['both']['model'][model_name][
-                            property.name
-                        ].update({
-                            'maximum_length': 2 ** 32, 'minimum_length': 0})
+                        ] = copy.copy(property.info)
                         if hasattr(property.type, 'length') and isinstance(
                             property.type.length, int
                         ):
-                            cls.options['both']['model'][model_name][
+                            cls.options['both']['type'][model_name][
                                 property.name
                             ]['maximum_length'] = property.type.length
-        return cls._set_options()
+                        if(hasattr(property, 'default') and
+                           property.default is not None):
+                            default_value = property.default.arg
+                            if callable(default_value):
+                                if default_value == cls.model\
+                                   .determine_language_specific_default_value:
+                                    default_value = Dictionary(cls.options[
+                                        'model'
+                                    ]['generic']['language_specific'][
+                                        'default'
+                                    ][property.name]).convert(
+                                        key_wrapper=lambda key, value:
+                                            cls.convert_for_client(
+                                                String(
+                                                    key
+                                                ).delimited_to_camel_case(
+                                                ).content)
+                                    ).content
+                                else:
+                                    default_value = property.default.arg(
+                                        DefaultExecutionContext())
+                                    default_value = cls.convert_for_client(
+                                        key=property.name, value=default_value)
+                            else:
+                                default_value = cls.convert_for_client(
+                                    key=property.name, value=default_value)
+                            cls.options['both']['type'][model_name][
+                                property.name
+                            ]['default_value'] = default_value
+        cls._merge_options()
+        '''
+            NOTE: Frontend options could only be extended after they where \
+            merged. So don't exchange these lines.
+        '''
+        cls.options['frontend'] = Dictionary(
+            cls.options['frontend']
+        ).convert(
+            key_wrapper=lambda key, value: cls.convert_for_client(String(
+                key
+            ).delimited_to_camel_case().content)
+        ).content
+        return cls
+
+    @classmethod
+    def _merge_options(cls):
+        '''Merge frontend and backend options.'''
+        cls.options = Dictionary(cls.options).update(
+            cls.options['both']
+        ).update(cls.options['backend']).content
+        cls.options['frontend'] = Dictionary(cls.options['both']).update(
+            cls.options['frontend']
+        ).content
+        return cls
 
     @classmethod
     def _set_options(cls):
         '''Renders backend and frontend options.'''
         global OPTIONS
-        if not cls.options:
-            cls.options = json.loads(
-                FileHandler(cls.CONFIGURATION_FILE_PATH).content)
-        cls.options.update(cls.options['both'])
-        cls.options.update(cls.options['backend'])
-        cls.options['frontend'].update(cls.options['both'])
-        cls.options['moduleName'] = __name__
+        cls.options = Dictionary(json.loads(FileHandler(
+            '/%s/%s' % (__name__, cls.CONFIGURATION_FILE_PATH)
+        ).content)).update(json.loads(
+            FileHandler(cls.CONFIGURATION_FILE_PATH).content
+        )).content
+        cls._merge_options().options['moduleName'] = __name__
         cls.options = Dictionary(cls.options).convert(
-            key_wrapper=lambda key, value: cls._convert_for_backend(key),
-            value_wrapper=cls._convert_for_backend
+            key_wrapper=lambda key, value: cls.convert_for_backend(key),
+            value_wrapper=cls.convert_for_backend
         ).content
         mapping = copy.copy(cls.options['frontend'])
         mapping.update(cls.options)
@@ -438,31 +608,43 @@ class Main(Class, Runnable):
 ##                 value_wrapper=lambda key, value: TemplateParser(
 ##                     value, string=True
 ##                 ).render(
-##                     mapping=mapping, module_name=__name__, web_handler=cls
+##                     mapping=mapping, module_name=__name__, main=cls
 ##                 ).output if isinstance(value, str) else value
 ##             ).content
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     value, string=True
                 ).render(
-                    mapping=mapping, module_name=__name__, web_handler=cls
+                    mapping=mapping, module_name=__name__, main=cls
                 ).output if isinstance(value, (unicode, str)) else value
             ).content
 ##
         cls.options = Dictionary(cls.options).convert(
             key_wrapper=lambda key, value: String(key).camel_case_to_delimited(
-            ).content, value_wrapper=cls._convert_for_backend
+            ).content, value_wrapper=cls.convert_for_backend
         ).content
         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
-            key_wrapper=lambda key, value: cls._convert_for_client(String(
+            key_wrapper=lambda key, value: cls.convert_for_client(String(
                 key
             ).delimited_to_camel_case().content)
         ).content
-        cls.options['session_expiration_time'] = TimeDelta(
-            minutes=cls.options['session_expiration_time_in_minutes'])
+        cls.options['session']['expiration_interval'] = TimeDelta(
+            minutes=cls.options['session']['expiration_time_in_minutes'])
+        if 'authentication_handler' in cls.options['web_server']:
+## python3.3
+##             cls.options['web_server']['authentication_handler'] = exec(
+##                 cls.options['web_server']['authentication_handler'],
+##                 {'controller': cls.controller})
+            cls.options['web_server']['authentication_handler'] = eval(
+                cls.options['web_server']['authentication_handler'],
+                {'controller': cls.controller})
+##
+        cls.options['model']['generic']['language']['default'] = String(
+            cls.options['model']['generic']['language']['default']
+        ).camel_case_to_delimited().content
         '''
-            Export Options to global scope to make accessible for other \
-            modules like the model.
+            Export options to global scope to make them accessible for other \
+            modules like model or controller.
         '''
         OPTIONS = cls.options
         return cls
@@ -470,65 +652,17 @@ class Main(Class, Runnable):
     @classmethod
     def _initialize_model(cls):
         '''Initializes the model.'''
-        cls.engine = create_sql_engine('sqlite:///%s%s' % (
-            cls.ROOT_PATH, cls.options['database_file_path']
+        cls.engine = create_sql_engine('%s%s%s' % (
+            cls.options['database_engine_prefix'], cls.ROOT_PATH,
+            cls.options['location']['database_file']
         ), echo=cls.debug)
         cls.model.Model.metadata.create_all(cls.engine)
         cls.session = create_sql_session(bind=cls.engine)()
         cls._check_database_schema_version()
-        cls.controller.insert_database_mockups()
+        if cls.debug:
+            cls.controller.insert_database_mockup()
         cls.session.commit()
         return cls
-
-    @classmethod
-    def _convert_byte_to_string(cls, value):
-        '''Converts a byte object to a python string.'''
-## python3.3
-##         if isinstance(value, bytes):
-##             return value.decode(cls.options['encoding'])
-        if isinstance(value, unicode):
-            return value.encode(cls.options['encoding'])
-##
-        return value
-
-    @classmethod
-    def _convert_for_client(cls, key, value=Null):
-        '''Returns the serialized version of given value.'''
-        key = cls._convert_byte_to_string(key)
-        value = cls._convert_byte_to_string(value)
-        if value is Null:
-            value = key
-        else:
-            if isinstance(value, DateTime):
-## python3.3                 return value.timestamp()
-                return time.mktime(value.timetuple())
-            if key == 'language' or key.endswith('_language'):
-                return String(value).delimited_to_camel_case(
-                ).content[:-1] + value[-1].upper()
-        if isinstance(value, str):
-            return re.compile('([a-z])Id([A-Z]|$)').sub('\\1ID\\2', value)
-        elif value is None:
-            return ''
-        elif not isinstance(value, int):
-            return str(value)
-        return value
-
-    @classmethod
-    def _convert_for_backend(cls, key, value=Null):
-        '''Converts data from client to python specific data objects.'''
-        key = cls._convert_byte_to_string(key)
-        value = cls._convert_byte_to_string(value)
-        if value is Null:
-            value = key
-        elif isinstance(key, str):
-            if key == 'date_time' or key.endswith('_date_time'):
-                return DateTime.fromtimestamp(value)
-            if key == 'language' or key.endswith('_language'):
-                return String(value).camel_case_to_delimited().content
-        try:
-            return int(value)
-        except(TypeError, ValueError):
-            return value
 
             # endregion
 
@@ -536,35 +670,48 @@ class Main(Class, Runnable):
         '''
             Authenticates a user by potential sent header identification data.
         '''
+        user_id = session_token = None
+        if self.options['authentication_method'] == 'header':
 ## python3.3
-##         user_id = self.request['handler'].headers.get(
-##             '%s-User-ID' % self.options['session_data_description_prefix'])
-##         session_token = self.request['handler'].headers.get(
-##             '%s-Session-Token' %
-##             self.options['session_data_description_prefix'])
-        user_id = self.request['handler'].headers.getheader(
-            '%s-User-ID' % self.options['session_data_description_prefix'])
-        session_token = self.request['handler'].headers.getheader(
-            '%s-Session-Token' %
-            self.options['session_data_description_prefix'])
+##             user_id = self.data['handler'].headers.get(String(
+##                 self.options['session']['key']['user_id']
+##             ).camel_case_to_delimited(delimiter='-').content
+##             session_token = self.data['handler'].headers.get(String(
+##                 self.options['session']['key']['token'])
+##             ).camel_case_to_delimited(delimiter='-').content
+            user_id = self.data['handler'].headers.getheader(String(
+                self.options['session']['key']['user_id']
+            ).camel_case_to_delimited(delimiter='-').content)
+            session_token = self.data['handler'].headers.getheader(String(
+                self.options['session']['key']['token']
+            ).camel_case_to_delimited(delimiter='-').content)
 ##
+        elif(self.options['authentication_method'] == 'cookie' and
+             self.options['session']['key']['user_id'] in self.data[
+                'cookie'
+             ] and self.options['session']['key']['token_key'] in self.data[
+                'cookie']):
+            user_id = self.data['cookie'][self.options['session']['key'][
+                'user_id']]
+            session_token = \
+                self.data['cookie'][self.options['session']['key']['token']]
         result = None
         if user_id and session_token:
-            users = self.session.query(
-                self.model.User
-            ).filter(
+            users = self.session.query(self.model.User).filter(
                 self.model.User.id == user_id,
                 self.model.User.session_token == session_token,
                 self.model.User.session_expiration_date_time > DateTime.now())
             if users.count():
                 result = users.one()
                 result.session_expiration_date_time = DateTime.now(
-                ) + self.options['session_expiration_time']
+                ) + self.options['session']['expiration_interval']
                 __logger__.info(
                     'Authorize user "%s" (id: %d) for %d hours.',
                     result.e_mail_address, result.id, (
-                        self.options['session_expiration_time'].total_seconds()
-                        / 60) / 60)
+                        self.options['session'][
+                            'expiration_interval'
+                        ].total_seconds() / 60
+                    ) / 60)
         return result
 
         # endregion
@@ -584,46 +731,51 @@ class Main(Class, Runnable):
         output = ''
         mime_type = 'text/html'
         cache_control = 'public, max-age=0'
-        if 'manifest' in self.request['get']:
+        if 'manifest' in self.data['get']:
             mime_type = 'text/cache-manifest'
             cache_control = 'no-cache'
             '''Dynamic request should be handled by frontend cache.'''
             user = None
             manifest_name = 'generic'
-            if(self.options['user_id_key'] in self.request['cookie'] and
-               self.options['session_token_key'] in self.request['cookie']):
+            if(self.options['session']['key']['user_id'] in self.data['cookie'] and
+               self.options['session']['key']['token'] in self.data['cookie']):
                 user = self.session.query(self.model.Model).filter(
                     self.model.User.id ==
-                    self.request['cookie'][self.options['user_id_key']],
+                    self.data['cookie'][self.options['user_id_key']],
                     self.model.User.session_token ==
-                    self.request['cookie'][self.options['session_token_key']]
+                    self.data['cookie'][self.options['session']['key']['token']]
                 ).one().dictionary
                 manifest_name = user.id
             cache_file = FileHandler(
                 '%s%s.appcache' %
-                (self.options['web_cache_path'], manifest_name))
+                (self.options['location']['web_cache'], manifest_name))
             if(self.given_command_line_arguments.web_cache and
                self.is_cached(cache_file)):
                 __logger__.info('Response cache from "%s".', cache_file.path)
             else:
                 cache_file.content = self.get_manifest(user)
-        elif 'model' in self.request['get']:
+        elif 'model' in self.data['get']:
             mime_type = 'application/json'
-            output = RestResponse(web_handler=self).output
-        elif 'offline' in self.request['get']:
+            output = RestResponse(request=self).output
+        elif 'offline' in self.data['get']:
             __logger__.critical(
                 'Ressource "%s" couldn\'t be determined by client.',
-                self.request['get']['offline'])
+                self.data['get']['offline'])
+        else:
+            output, mime_type, cache_control, cache_file = \
+                self.controller.response(
+                    request=self, output=output, mime_type=mime_type,
+                    cache_control=cache_control, cache_file=cache_file)
         if cache_file:
             self._produce_cache_file_headers(
                 cache_file, mime_type, cache_control)
             output = cache_file.content
         else:
-            self.request['handler'].send_content_type_header(
+            self.data['handler'].send_content_type_header(
                 mime_type=mime_type
             ).send_static_file_cache_header(cache_control=cache_control)
         if self.new_cookie:
-            self.request['handler'].send_cookie(
+            self.data['handler'].send_cookie(
                 self.new_cookie, maximum_age_in_seconds=
                 self.options['maximumCookieAgeInSeconds'])
         Print(output, end='')
@@ -636,22 +788,22 @@ class Main(Class, Runnable):
         cache_timestamp = cache_file.timestamp
 ## python3.3
 ##         if(mime_type != 'text/cache-manifest' and
-##            self.request['handler'].headers.get('If-Modified-Since') ==
-##            self.request['handler'].date_time_string(cache_timestamp)):
+##            self.data['handler'].headers.get('If-Modified-Since') ==
+##            self.data['handler'].date_time_string(cache_timestamp)):
         if(mime_type != 'text/cache-manifest' and
-           self.request['handler'].headers.getheader(
+           self.data['handler'].headers.getheader(
                'If-Modified-Since'
-           ) == self.request['handler'].date_time_string(
+           ) == self.data['handler'].date_time_string(
                 cache_timestamp)):
 ##
             __logger__.info(
                 'Sent not modified header (304) for "%s".',
                 cache_file.path)
-            return self.request['handler'].send_content_type_header(
+            return self.data['handler'].send_content_type_header(
                 response_code=304, mime_type=mime_type
             ).send_static_file_cache_header(
                 timestamp=cache_timestamp, cache_control=cache_control)
-        self.request['handler'].send_content_type_header(
+        self.data['handler'].send_content_type_header(
             mime_type=mime_type
         ).send_static_file_cache_header(
             timestamp=cache_timestamp, cache_control=cache_control)

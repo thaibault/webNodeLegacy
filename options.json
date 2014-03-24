@@ -1,38 +1,58 @@
 {
-    "frontend": {},
+    "frontend": {"requestFileName": "<% moduleName %>"},
     "both": {
-        "defaultLanguage": "enUS",
-        "sessionDataDescriptionPrefix": "application",
-        "sessionTokenKey": "<% sessionDataDescriptionPrefix %>SessionToken",
-        "sessionExpirationTimeInMinutes": 1440,
-        "userIDKey": "<% sessionDataDescriptionPrefix %>UserID",
+        "session": {
+            "dataDescriptionPrefix": "application",
+            "expirationTimeInMinutes": 1440,
+            "key": {
+                "token": "<% session['dataDescriptionPrefix'] %>SessionToken",
+                "userID": "<% session['dataDescriptionPrefix'] %>UserID",
+                "expirationDateTime": "<% session['dataDescriptionPrefix'] %>SessionExpirationDateTime"
+            }
+        },
 
-        "webAssetPath": "/webAsset/",
-        "templatePath": "<% webAssetPath %>template/",
+        "location": {
+            "webAsset": "/webAsset/",
+            "template": "<% location['webAsset'] %>template/"
+        },
 
         "encoding": "utf_8",
-        "passwordInfo": {
-            "minimumLength": 4,
-            "maximumLength": 100,
-            "pattern": ".{4}"
+
+        "model": {
+            "generic": {"language": {"default": "enUS"}},
+            "authentication": {
+                "password": {
+                    "minimumLength": 4,
+                    "maximumLength": 100,
+                    "pattern": ".{4}"
+                }
+            }
         }
     },
     "backend": {
-        "defaultLanguageSpecificValues": {},
-        "maximumEMailAddressLength": 100,
+        "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,
-        "passwordSaltLength": 32,
+        "model": {
+            "generic": {
+                "eMailAddress": {"maximumLength": 100},
+                "languageSpecific": {"default": {}}
+            },
+            "authentication": {
+                "sessionToken": {"length": 32},
+                "password": {
+                    "salt": {"length": 32}, "pepper": "pepperExample"
+                }
+            }
+        },
         "defaultIndentLevel": 4,
-        "sessionTokenLength": 32,
-        "passwordPepper": "pepperExample",
-        "authentication": "advanced",
+        "authenticationMethod": "header",
 
         "delimiterPattern": "(!|\\?)",
         "webServer": {
-            "root": "/", "default": "<% indexHTMLFilePath %>",
-            "request_whitelist": [
+            "root": "/", "default": "<% location['indexHTMLFile'] %>",
+            "requestWhitelist": [
                 "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+$",
-                "GET:(/|<% webAssetPath %>.+)$"
+                "GET:(/|<% location['webAsset'] %>.+)$"
             ],
             "sameThreadRequestWhitelist": ["GET /<% moduleName %><% delimiterPattern %>.+ .+$"],
             "publicKeyFilePath": "",
@@ -41,14 +61,16 @@
             "authenticationFileName": "", "stopOrder": "",
             "directoryListing": false, "maximumNumberOfProcesses": 4
         },
-
-        "indexHTMLFilePath": "/index.html",
-        "offlineManifestTemplateFilePath": "<% templatePath %>offlineManifest.tpl",
-        "templateIndexFilePath": "<% templatePath %>index.html.tpl",
-        "webCachePath": "/cache/",
-        "certificateFilePath": "/certificate/example.pem",
-        "databaseFilePath": "/database/data",
-        "databaseSchemaFilePath": "/database/schema.json",
+        "location": {
+            "indexHTMLFile": "/index.html",
+            "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
+            "templateIndexFile": "<% location['template'] %>index.html.tpl",
+            "webCache": "/cache/",
+            "certificateFile": "/certificate/example.pem",
+            "databaseFolder": "/database/",
+            "databaseFile": "<% location['databaseFolder'] %>data",
+            "databaseSchemaFile": "<% location['databaseFolder'] %>schema.json"
+        },
 
         "ignoreWebAssetPattern": [".*\\.swp$", "\\..*$"],
 

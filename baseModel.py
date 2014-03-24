@@ -38,7 +38,7 @@ def determine_language_specific_default_value(context):
         Determines a language specific default value depending on given \
         context.
     '''
-    language = OPTIONS['default_language']
+    language = OPTIONS['model']['generic']['language']['default']
     if('language' in context.current_parameters and
        context.current_parameters['language'] is not None):
         language = context.current_parameters['language']
@@ -47,13 +47,13 @@ def determine_language_specific_default_value(context):
             Take this method type by another instance of this class via \
             introspection.
         '''
-        if(column.default.arg is
-           globals()[inspect.stack()[0][3]] and
+        if(column.default.arg is globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
 ## python3.3
-##             return OPTIONS['default_language_specific_values'][
-##                 column.name][language]
-            return OPTIONS['default_language_specific_values'][
+##             return OPTIONS['model']['generic']['language_specific'][
+##                 'default'
+##             ][column.name][language]
+            return OPTIONS['model']['generic']['language_specific']['default'][
                 column.name
             ][language].decode(OPTIONS['encoding'])
 ##
@@ -74,10 +74,15 @@ class ApplicationMetaModel(MetaModel, DeclarativeMeta):
             Triggers if a new instance is created. Sets a property validator \
             and sqlalchemy's getter and setter methods.
         '''
+        '''
+            Use sqlalchemy's validation decorator to validate each model \
+            modification.
+        '''
         class_scope['__validate_property__'] = validates(
             *class_scope.keys()
         )(lambda *arguments: BaseModel.validate_property(
-            *arguments, info_determiner=lambda model_instance, name: getattr(
+            *arguments,
+            information_determiner=lambda model_instance, name: getattr(
                 model_instance.__class__, name
             ).info))
         '''Set magic getter and setter.'''
