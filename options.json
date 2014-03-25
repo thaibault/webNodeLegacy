@@ -30,11 +30,23 @@
         }
     },
     "backend": {
+        "abbreviations": ["id", "url"],
         "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
             "generic": {
-                "eMailAddress": {"maximumLength": 100},
+                "eMailAddress": {
+                    "minimumLength": 5,
+                    "maximumLength": 100,
+                    "pattern": "[_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$"
+                },
+                "phoneNumber": {
+                    "minimumLength": 1,
+                    "maximumLength": 50,
+                    "minimum": 0,
+                    "maximum": 9999999999999999999999999999999999999999999999,
+                    "pattern": "([0-9-+()]+(/|-)?[0-9-+]+)?$"
+                },
                 "languageSpecific": {"default": {}}
             },
             "authentication": {

@@ -20,7 +20,7 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-import copy
+from copy import copy
 from datetime import datetime as DateTime
 from datetime import time as Time
 from datetime import date as Date
@@ -96,6 +96,8 @@ class Main(Class, Runnable):
     '''
     index_html_file = None
     '''Holds the main entry file for bootstrapping the web application.'''
+    data_wrapper = {}
+    '''Holds a mapping to convert dictionaries for frontend.'''
 
     # endregion
 
@@ -151,20 +153,22 @@ class Main(Class, Runnable):
         if value is Null:
             value = key
         else:
-            if isinstance(value, (DateTime, Date)):
-## python3.3                 return value.timestamp()
+## python3.3
+##             if isinstance(value, Date):
+##                 return time.mktime(value.timetuple())
+##             if isinstance(value, DateTime):
+##                 return value.timestamp()
+            if isinstance(value, (Date, DateTime)):
                 return time.mktime(value.timetuple())
+##
             if isinstance(value, Time):
-                return time.microseconds
+                return 60 ** 2 * value.hour + 60 * value.minute + value.second
             if(key == 'language' or key.endswith('_language')) and re.compile(
                 '[a-z]{2}_[a-z]{2}$'
             ).match(value):
                 return String(value).delimited_to_camel_case(
                 ).content[:-1] + value[-1].upper()
-        if isinstance(value, str):
-            # TODO solve this problem in generic way.
-            return re.compile('([a-z])Id([A-Z]|$)').sub('\\1ID\\2', value)
-        elif value is None:
+        if value is None:
             return ''
         elif not isinstance(value, (int, float)):
             return str(value)
@@ -202,7 +206,7 @@ class Main(Class, Runnable):
                         ):
                             try:
 ## python3.3
-##                                 return Time.fromtimestamp(DateTime.strptime(
+##                                 return Date.fromtimestamp(DateTime.strptime(
 ##                                     value, date_format.format(delimiter=delimiter)
 ##                                 ).timestamp())
                                 return Date.fromtimestamp(time.mktime(
@@ -420,6 +424,16 @@ class Main(Class, Runnable):
         self._append_model_informations_to_options()
         self.__class__.index_html_file = FileHandler(
             self.options['location']['index_html_file'])
+        self.__class__.frontend_data_wrapper = {
+            'key_wrapper': lambda key, value: self.convert_for_client(String(
+                key
+            ).delimited_to_camel_case().content),
+            'value_wrapper': self.convert_for_client}
+        self.__class__.backend_data_wrapper = {
+            'key_wrapper': lambda key, value: self.convert_for_backend(String(
+                key
+            ).camel_case_to_delimited().content),
+            'value_wrapper': self.convert_for_backend}
 
             # endregion
 
@@ -512,22 +526,21 @@ class Main(Class, Runnable):
     @classmethod
     def _append_model_informations_to_options(cls):
         '''Appends validation strings to the global options object.'''
-        cls.options['both']['type'] = {}
+        cls.options['type'] = {}
         for model_name, model in Module.get_defined_objects(cls.model):
             if isinstance(model, type) and issubclass(model, cls.model.Model):
-                cls.options['both']['type'][model_name] = {}
+                cls.options['type'][model_name] = {}
                 for property in model.__table__.columns:
-                    cls.options['both']['type'][model_name][property.name] = {}
+                    cls.options['type'][model_name][property.name] = {}
                     if property.info:
-                        cls.options['both']['type'][model_name][
-                            property.name
-                        ] = copy.copy(property.info)
+                        cls.options['type'][model_name][property.name] = copy(
+                            property.info)
                         if hasattr(property.type, 'length') and isinstance(
                             property.type.length, int
                         ):
-                            cls.options['both']['type'][model_name][
-                                property.name
-                            ]['maximum_length'] = property.type.length
+                            cls.options['type'][model_name][property.name][
+                                'maximum_length'
+                            ] = property.type.length
                         if(hasattr(property, 'default') and
                            property.default is not None):
                             default_value = property.default.arg
@@ -554,16 +567,17 @@ class Main(Class, Runnable):
                             else:
                                 default_value = cls.convert_for_client(
                                     key=property.name, value=default_value)
-                            cls.options['both']['type'][model_name][
-                                property.name
-                            ]['default_value'] = default_value
-        cls._merge_options()
+                            cls.options['type'][model_name][property.name][
+                                'default_value'
+                            ] = default_value
+        cls.options['both']['type'] = cls.options['frontend']['type'] = \
+            cls.options['type']
         '''
             NOTE: Frontend options could only be extended after they where \
             merged. So don't exchange these lines.
         '''
-        cls.options['frontend'] = Dictionary(
-            cls.options['frontend']
+        cls.options['frontend']['type'] = Dictionary(
+            cls.options['frontend']['type']
         ).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(String(
                 key
@@ -596,7 +610,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
         ).content
-        mapping = copy.copy(cls.options['frontend'])
+        mapping = copy(cls.options['frontend'])
         mapping.update(cls.options)
         '''
             NOTE: We have to run over options twice to handle cyclic \
@@ -623,6 +637,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: String(key).camel_case_to_delimited(
             ).content, value_wrapper=cls.convert_for_backend
         ).content
+        String.abbreviations = cls.options['abbreviations']
         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(String(
                 key

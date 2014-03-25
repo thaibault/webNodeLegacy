@@ -23,7 +23,7 @@ import inspect
 import json
 
 from boostNode.extension.native import Module, InstancePropertyInitializer, \
-    String, Object
+    Object
 from boostNode.paradigm.objectOrientation import Class
 
 # endregion
@@ -48,14 +48,11 @@ class Response(Class):
         '''Saves current selected model.'''
         self.model = getattr(
             self.request.model, self.request.data['get']['model'])
-        '''A mapping to wrapper for each respond to server.'''
-        self.data_wrapper = {
-            'key_wrapper': lambda key, value:
-            self.request.convert_for_client(String(
-                key
-            ).delimited_to_camel_case().content),
-            'value_wrapper': self.request.convert_for_client
-        }
+        '''
+            A mapping to wrap reach respond to server. Can be overridden in \
+            subclasses.
+        '''
+        self.data_wrapper = self.request.frontend_data_wrapper
 
             # endregion
 
