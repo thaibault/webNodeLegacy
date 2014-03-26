@@ -155,11 +155,11 @@ class Main(Class, Runnable):
         else:
 ## python3.3
 ##             if isinstance(value, Date):
-##                 return time.mktime(value.timetuple())
+##                 return int(time.mktime(value.timetuple()))
 ##             if isinstance(value, DateTime):
 ##                 return value.timestamp()
             if isinstance(value, (Date, DateTime)):
-                return time.mktime(value.timetuple())
+                return int(time.mktime(value.timetuple()))
 ##
             if isinstance(value, Time):
                 return 60 ** 2 * value.hour + 60 * value.minute + value.second
@@ -186,40 +186,65 @@ class Main(Class, Runnable):
                 if isinstance(value, int):
                     return DateTime.fromtimestamp(value)
                 elif isinstance(value, str):
-                    # TODO
                     for delimiter in ('.', '/'):
-                        for date_format in ('%x',):
-                            try:
-                                return DateTime.strptime(value, date_format)
-                            except ValueError:
-                                pass
+                        for year_format in ('%y', '%Y'):
+                            for microsecond_format in ('', ':%f'):
+                                for date_time_format in (
+                                    '%c',
+                                    '%d{delimiter}%m{delimiter}{year} '
+                                    '%X{microsecond}',
+                                    '%m{delimiter}%d{delimiter}{year} '
+                                    '%X{microsecond}',
+                                    '%w{delimiter}%m{delimiter}{year} '
+                                    '%X{microsecond}',
+                                ):
+                                    try:
+                                        return DateTime.strptime(
+                                            value, date_time_format.format(
+                                                delimiter=delimiter,
+                                                year=year_format,
+                                                microsecond=microsecond_format))
+                                    except ValueError:
+                                        pass
             if key == 'date' or key.endswith('_date'):
                 if isinstance(value, int):
                     return Date.fromtimestamp(value)
                 elif isinstance(value, str):
                     for delimiter in ('.', '/'):
-                        for date_format in (
-                            '%x', '%d{delimiter}%m{delimiter}%Y',
-                            '%d{delimiter}%m{delimiter}%y',
-                            '%w{delimiter}%m{delimiter}%y',
-                            '%w{delimiter}%m{delimiter}%Y'
-                        ):
-                            try:
+                        for year_format in ('%y', '%Y'):
+                            for date_format in (
+                                '%x', '%d{delimiter}%m{delimiter}{year}',
+                                '%m{delimiter}%d{delimiter}{year}',
+                                '%w{delimiter}%m{delimiter}{year}'
+                            ):
+                                try:
 ## python3.3
-##                                 return Date.fromtimestamp(DateTime.strptime(
-##                                     value, date_format.format(delimiter=delimiter)
-##                                 ).timestamp())
-                                return Date.fromtimestamp(time.mktime(
-                                    DateTime.strptime(value, date_format.format(
-                                        delimiter=delimiter
-                                    )).timetuple()))
+##                                     return Date.fromtimestamp(
+##                                         DateTime.strptime(
+##                                             value, date_format.format(
+##                                                 delimiter=delimiter,
+##                                                 year=year_format
+##                                             )).timestamp())
+                                    return Date.fromtimestamp(time.mktime(
+                                        DateTime.strptime(
+                                            value, date_format.format(
+                                                delimiter=delimiter,
+                                                year=year_format
+                                            )).timetuple()))
 ##
-                            except ValueError:
-                                pass
+                                except ValueError:
+                                    pass
             if key == 'time' or key.endswith('_time'):
-                # TODO Time has no fromtimestamp method
-                pass
-                #return Time(hour=, minute=, second=, microsecond=)
+                if isinstance(value, int):
+                    return DateTime.fromtimestamp(value).time()
+                elif isinstance(value, str):
+                    for microsecond_format in ('', ':%f'):
+                        try:
+                            return DateTime.strptime(
+                                value, '%X{microsecond}'.format(
+                                    microsecond=microsecond_format))
+                        except ValueError:
+                            pass
             if(key == 'language' or key.endswith('_language')) and re.compile(
                 '[a-z]{2}[A-Z]{2}'
             ).match(value):
@@ -535,41 +560,42 @@ class Main(Class, Runnable):
                     if property.info:
                         cls.options['type'][model_name][property.name] = copy(
                             property.info)
-                        if hasattr(property.type, 'length') and isinstance(
-                            property.type.length, int
-                        ):
-                            cls.options['type'][model_name][property.name][
-                                'maximum_length'
-                            ] = property.type.length
-                        if(hasattr(property, 'default') and
-                           property.default is not None):
-                            default_value = property.default.arg
-                            if callable(default_value):
-                                if default_value == cls.model\
-                                   .determine_language_specific_default_value:
-                                    default_value = Dictionary(cls.options[
-                                        'model'
-                                    ]['generic']['language_specific'][
-                                        'default'
-                                    ][property.name]).convert(
-                                        key_wrapper=lambda key, value:
-                                            cls.convert_for_client(
-                                                String(
-                                                    key
-                                                ).delimited_to_camel_case(
-                                                ).content)
-                                    ).content
-                                else:
-                                    default_value = property.default.arg(
-                                        DefaultExecutionContext())
-                                    default_value = cls.convert_for_client(
-                                        key=property.name, value=default_value)
+                    if hasattr(property.type, 'length') and isinstance(
+                        property.type.length, int
+                    ):
+                        cls.options['type'][model_name][property.name][
+                            'maximum_length'
+                        ] = property.type.length
+                    if(hasattr(property, 'default') and
+                       property.default is not None):
+                        default_value = property.default.arg
+                        if callable(default_value):
+                            if hasattr(
+                                cls.model,
+                                'determine_language_specific_default_value'
+                            ) and default_value == cls.model\
+                                    .determine_language_specific_default_value:
+                                default_value = Dictionary(cls.options[
+                                    'model'
+                                ]['generic']['language_specific'][
+                                    'default'
+                                ][property.name]).convert(
+                                    key_wrapper=lambda key, value: cls
+                                    .convert_for_client(String(
+                                        key
+                                    ).delimited_to_camel_case().content)
+                                ).content
                             else:
+                                default_value = property.default.arg(
+                                    DefaultExecutionContext())
                                 default_value = cls.convert_for_client(
                                     key=property.name, value=default_value)
-                            cls.options['type'][model_name][property.name][
-                                'default_value'
-                            ] = default_value
+                        else:
+                            default_value = cls.convert_for_client(
+                                key=property.name, value=default_value)
+                        cls.options['type'][model_name][property.name][
+                            'default_value'
+                        ] = default_value
         cls.options['both']['type'] = cls.options['frontend']['type'] = \
             cls.options['type']
         '''
