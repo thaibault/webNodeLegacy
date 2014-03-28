@@ -17,10 +17,10 @@ Use case
 --------
 
 webNode is a high level python library. This library supports python2.7+ and
-python3.3+ environments.
+python3.4+ environments.
 <!--deDE:
     webNode ist eine sehr einfach zu verwendende intuitive python Bibliothek.
-    Momentan unterstützt sie sowohl python2.7+ als auch python3.3+ Umgebungen.
+    Momentan unterstützt sie sowohl python2.7+ als auch python3.4+ Umgebungen.
 -->
 
 <!--|deDE:Inhalt-->

@@ -18,8 +18,8 @@
 
         "encoding": "utf_8",
 
+        "defaultLanguage": "enUS",
         "model": {
-            "generic": {"language": {"default": "enUS"}},
             "authentication": {
                 "password": {
                     "minimumLength": 4,
@@ -30,6 +30,8 @@
         }
     },
     "backend": {
+        "secretDjangoKey": "",
+        "templateEngine": "internal",
         "abbreviations": ["id", "url"],
         "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,

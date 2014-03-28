@@ -8,7 +8,7 @@
     and starts the web socket.
 '''
 
-## python3.3 pass
+## python3.4 pass
 from __future__ import print_function
 
 __author__ = 'Torben Sickert'
@@ -31,8 +31,14 @@ import logging
 import multiprocessing
 import re
 import sys
-## python3.3 pass
 import time
+
+try:
+    from django.conf import settings as django_settings
+    from django.template import Context as DjangoTemplateContext
+    from django.template import Template as DjangoTemplateParser
+except:
+    DjangoTemplateParser = DjangoTemplateContext = None
 
 from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy import create_engine as create_sql_engine
@@ -137,7 +143,7 @@ class Main(Class, Runnable):
     @classmethod
     def convert_byte_to_string(cls, value):
         '''Converts a byte object to a python string.'''
-## python3.3
+## python3.4
 ##         if isinstance(value, bytes):
 ##             return value.decode(cls.options['encoding'])
         if isinstance(value, unicode):
@@ -153,7 +159,7 @@ class Main(Class, Runnable):
         if value is Null:
             value = key
         else:
-## python3.3
+## python3.4
 ##             if isinstance(value, Date):
 ##                 return int(time.mktime(value.timetuple()))
 ##             if isinstance(value, DateTime):
@@ -218,7 +224,7 @@ class Main(Class, Runnable):
                                 '%w{delimiter}%m{delimiter}{year}'
                             ):
                                 try:
-## python3.3
+## python3.4
 ##                                     return Date.fromtimestamp(
 ##                                         DateTime.strptime(
 ##                                             value, date_format.format(
@@ -372,7 +378,7 @@ class Main(Class, Runnable):
         self.data = __request_arguments__
         self.new_cookie = {}
         '''Normalize get and payload data.'''
-## python3.3
+## python3.4
 ##         self.data['get'] = Dictionary(self.data['get']).convert(
 ##             key_wrapper=lambda key, value: String(
 ##                 key
@@ -472,16 +478,31 @@ class Main(Class, Runnable):
             index_file = FileHandler(
                 self.options['location']['template_index_file'])
             if index_file.is_file():
-                self.index_html_file.content = TemplateParser(
-                    self.options['location']['template_index_file'],
-                    template_context_default_indent=
-                    self.options['default_indent_level']
-                ).render(
-                    options=self.options['frontend'],
-                    debug=self.debug, deployment=
-                    self.given_command_line_arguments.render_template,
-                    mapping=self.controller.get_frontend_scope()
-                ).output
+                mapping = {
+                    'options': self.options['frontend'],
+                    'debug': self.debug, 'deployment':
+                    self.given_command_line_arguments.render_template}
+                mapping.update(self.controller.get_frontend_scope())
+                if(django_settings is None or
+                   self.options['template_engine'] == 'internal'):
+                    self.index_html_file.content = TemplateParser(
+                        self.options['location']['template_index_file'],
+                        template_context_default_indent=
+                        self.options['default_indent_level']
+                    ).render(mapping=mapping).output
+                else:
+                    django_settings.configure(
+                        TEMPLATE_DIRS='%s%s' % (
+                            self.ROOT_PATH,
+                            self.options['location']['database_folder']
+                        ), DEBUG=self.debug, TEMPLATE_DEBUG=self.debug,
+                        LANGUAGE_CODE=self.options['default_language'])
+                    mapping['optionsAsJSON'] = json.dumps(mapping['options'])
+                    self.index_html_file.content = str(DjangoTemplateParser(
+                        FileHandler(
+                            self.options['location']['template_index_file']
+                        ).content
+                    ).render(DjangoTemplateContext(mapping)))
         if self.given_command_line_arguments.render_template:
             return self
         self.clear_web_cache()
@@ -505,7 +526,7 @@ class Main(Class, Runnable):
             cls.options['location']['database_schema_file'])
         old_schemas = {}
         if database_schema_file:
-## python3.3
+## python3.4
 ##             old_schemas = json.loads(
 ##                 database_schema_file.content,
 ##                 encoding=cls.options['encoding'])
@@ -538,7 +559,7 @@ class Main(Class, Runnable):
                 __logger__.info('Table "%s" has been removed.', table_name)
                 cls.session.execute(DropTable(Table(table_name, MetaData(
                     bind=cls.engine))))
-## python3.3
+## python3.4
 ##         database_schema_file.content = json.dumps(
 ##             new_schemas, sort_keys=True,
 ##             indent=cls.options['default_indent_level'])
@@ -643,7 +664,7 @@ class Main(Class, Runnable):
             dependencies.
         '''
         for number in range(2):
-## python3.3
+## python3.4
 ##             cls.options = Dictionary(cls.options).convert(
 ##                 value_wrapper=lambda key, value: TemplateParser(
 ##                     value, string=True
@@ -672,16 +693,16 @@ class Main(Class, Runnable):
         cls.options['session']['expiration_interval'] = TimeDelta(
             minutes=cls.options['session']['expiration_time_in_minutes'])
         if 'authentication_handler' in cls.options['web_server']:
-## python3.3
-##             cls.options['web_server']['authentication_handler'] = exec(
+## python3.4
+##             cls.options['web_server']['authentication_handler'] = eval(
 ##                 cls.options['web_server']['authentication_handler'],
 ##                 {'controller': cls.controller})
             cls.options['web_server']['authentication_handler'] = eval(
                 cls.options['web_server']['authentication_handler'],
                 {'controller': cls.controller})
 ##
-        cls.options['model']['generic']['language']['default'] = String(
-            cls.options['model']['generic']['language']['default']
+        cls.options['default_language'] = String(
+            cls.options['default_language']
         ).camel_case_to_delimited().content
         '''
             Export options to global scope to make them accessible for other \
@@ -713,13 +734,13 @@ class Main(Class, Runnable):
         '''
         user_id = session_token = None
         if self.options['authentication_method'] == 'header':
-## python3.3
+## python3.4
 ##             user_id = self.data['handler'].headers.get(String(
 ##                 self.options['session']['key']['user_id']
-##             ).camel_case_to_delimited(delimiter='-').content
+##             ).camel_case_to_delimited(delimiter='-').content)
 ##             session_token = self.data['handler'].headers.get(String(
-##                 self.options['session']['key']['token'])
-##             ).camel_case_to_delimited(delimiter='-').content
+##                 self.options['session']['key']['token']
+##             ).camel_case_to_delimited(delimiter='-').content)
             user_id = self.data['handler'].headers.getheader(String(
                 self.options['session']['key']['user_id']
             ).camel_case_to_delimited(delimiter='-').content)
@@ -827,7 +848,7 @@ class Main(Class, Runnable):
     ):
         '''Produces http headers for given server sided cache file.'''
         cache_timestamp = cache_file.timestamp
-## python3.3
+## python3.4
 ##         if(mime_type != 'text/cache-manifest' and
 ##            self.data['handler'].headers.get('If-Modified-Since') ==
 ##            self.data['handler'].date_time_string(cache_timestamp)):

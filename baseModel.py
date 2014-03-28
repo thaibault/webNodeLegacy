@@ -38,7 +38,7 @@ def determine_language_specific_default_value(context):
         Determines a language specific default value depending on given \
         context.
     '''
-    language = OPTIONS['model']['generic']['language']['default']
+    language = OPTIONS['default_language']
     if('language' in context.current_parameters and
        context.current_parameters['language'] is not None):
         language = context.current_parameters['language']
@@ -49,7 +49,7 @@ def determine_language_specific_default_value(context):
         '''
         if(column.default.arg is globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
-## python3.3
+## python3.4
 ##             return OPTIONS['model']['generic']['language_specific'][
 ##                 'default'
 ##             ][column.name][language]

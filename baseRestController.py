@@ -5,7 +5,7 @@
 
 '''Provides a generic Response object for any web based web application.'''
 
-## python3.3 pass
+## python3.4 pass
 from __future__ import print_function
 
 __author__ = 'Torben Sickert'
@@ -17,7 +17,7 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-## python3.3 from base64 import b64encode as base64encode
+## python3.4 from base64 import b64encode as base64encode
 pass
 import inspect
 import json
