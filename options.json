@@ -37,6 +37,7 @@
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
             "generic": {
+                "text": {"pattern": ".*$"},
                 "eMailAddress": {
                     "minimumLength": 5,
                     "maximumLength": 100,

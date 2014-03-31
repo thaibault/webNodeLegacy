@@ -37,6 +37,7 @@ try:
     from django.conf import settings as django_settings
     from django.template import Context as DjangoTemplateContext
     from django.template import Template as DjangoTemplateParser
+    from django.utils.safestring import mark_safe as marke_safe_string
 except:
     DjangoTemplateParser = DjangoTemplateContext = None
 
@@ -497,7 +498,8 @@ class Main(Class, Runnable):
                             self.options['location']['database_folder']
                         ), DEBUG=self.debug, TEMPLATE_DEBUG=self.debug,
                         LANGUAGE_CODE=self.options['default_language'])
-                    mapping['optionsAsJSON'] = json.dumps(mapping['options'])
+                    mapping['optionsAsJSON'] = marke_safe_string(json.dumps(
+                        mapping['options']))
                     self.index_html_file.content = str(DjangoTemplateParser(
                         FileHandler(
                             self.options['location']['template_index_file']
