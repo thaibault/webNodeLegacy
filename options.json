@@ -83,7 +83,7 @@
             "webCache": "/cache/",
             "certificateFile": "/certificate/example.pem",
             "databaseFolder": "/database/",
-            "databaseFile": "<% location['databaseFolder'] %>data",
+            "databaseURL": "<% location['databaseFolder'] %>data",
             "databaseSchemaFile": "<% location['databaseFolder'] %>schema.json"
         },
 

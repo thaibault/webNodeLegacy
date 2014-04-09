@@ -103,8 +103,12 @@ class Main(Class, Runnable):
     '''
     index_html_file = None
     '''Holds the main entry file for bootstrapping the web application.'''
-    data_wrapper = {}
+    frontend_data_wrapper = {}
     '''Holds a mapping to convert dictionaries for frontend.'''
+    backend_data_wrapper = {}
+    '''Holds a mapping to convert dictionaries for backend.'''
+    django_settings_set = False
+    '''Indicates if django is already configured.'''
 
     # endregion
 
@@ -130,6 +134,43 @@ class Main(Class, Runnable):
             # endregion
 
             # region helper
+
+    @classmethod
+    def render_main_index_html_file(cls):
+        '''Renders the main index html file.'''
+        index_file = FileHandler(
+            cls.options['location']['template_index_file'])
+        if index_file.is_file():
+            mapping = {
+                'options': cls.options['frontend'],
+                'debug': cls.debug, 'deployment':
+                cls.given_command_line_arguments.render_template}
+            mapping = Dictionary(mapping).update(
+                cls.controller.get_frontend_scope(mapping)
+            ).content
+            if(django_settings is None or
+               cls.options['template_engine'] == 'internal'):
+                cls.index_html_file.content = TemplateParser(
+                    cls.options['location']['template_index_file'],
+                    template_context_default_indent=
+                    cls.options['default_indent_level']
+                ).render(mapping=mapping).output
+            else:
+                if not cls.django_settings_set:
+                    cls.django_settings_set = True
+                    django_settings.configure(
+                        TEMPLATE_DIRS='%s%s' % (
+                            cls.ROOT_PATH,
+                            cls.options['location']['database_folder']
+                        ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
+                        LANGUAGE_CODE=cls.options['default_language'])
+                mapping['optionsAsJSON'] = marke_safe_string(json.dumps(
+                    mapping['options']))
+                cls.index_html_file.content = str(DjangoTemplateParser(
+                    FileHandler(
+                        cls.options['location']['template_index_file']
+                    ).content
+                ).render(DjangoTemplateContext(mapping)))
 
     @classmethod
     def clear_web_cache(cls):
@@ -180,6 +221,28 @@ class Main(Class, Runnable):
         elif not isinstance(value, (int, float)):
             return str(value)
         return value
+
+    @classmethod
+    def convert_dictionary_for_backend(cls, data):
+        '''Converts a given dictionary in backend compatible data types.'''
+## python3.4
+##         return Dictionary(data).convert(
+##             key_wrapper=lambda key, value: String(
+##                 key
+##             ).camel_case_to_delimited().content if isinstance(
+##                 key, str
+##             ) else cls.convert_for_backend(key),
+##             value_wrapper=cls.convert_for_backend
+##         ).content
+        return Dictionary(data).convert(
+            key_wrapper=lambda key, value: String(
+                key
+            ).camel_case_to_delimited().content if isinstance(
+                key, (str, unicode)
+            ) else cls.convert_for_backend(key),
+            value_wrapper=cls.convert_for_backend
+        ).content
+##
 
     @classmethod
     def convert_for_backend(cls, key, value=Null):
@@ -345,9 +408,9 @@ class Main(Class, Runnable):
         account_state = 1
         account_data = {}
         if user is not None:
-            account_state = hash(
-                Dictionary(user.dictionary).get_immutable())
             account_data = user.dictionary
+            account_state = hash(
+                Dictionary(account_data).get_immutable())
         return TemplateParser(
             offline_manifest_template_file,
             template_context_default_indent=
@@ -379,40 +442,15 @@ class Main(Class, Runnable):
         self.data = __request_arguments__
         self.new_cookie = {}
         '''Normalize get and payload data.'''
-## python3.4
-##         self.data['get'] = Dictionary(self.data['get']).convert(
-##             key_wrapper=lambda key, value: String(
-##                 key
-##             ).camel_case_to_delimited().content if isinstance(
-##                 key, str
-##             ) else self.convert_for_backend(key),
-##             value_wrapper=self.convert_for_backend
-##         ).content
-##         self.data['data'] = Dictionary(self.data['data']).convert(
-##             key_wrapper=lambda key, value: String(
-##                 key
-##             ).camel_case_to_delimited().content if isinstance(
-##                 key, str
-##             ) else self.convert_for_backend(key),
-##             value_wrapper=self.convert_for_backend
-##         ).content
-        self.data['get'] = Dictionary(self.data['get']).convert(
-            key_wrapper=lambda key, value: String(
-                key
-            ).camel_case_to_delimited().content if isinstance(
-                key, (str, unicode)
-            ) else self.convert_for_backend(key),
-            value_wrapper=self.convert_for_backend
-        ).content
-        self.data['data'] = Dictionary(self.data['data']).convert(
-            key_wrapper=lambda key, value: String(
-                key
-            ).camel_case_to_delimited().content if isinstance(
-                key, (str, unicode)
-            ) else self.convert_for_backend(key),
-            value_wrapper=self.convert_for_backend
-        ).content
-##
+        self.data['get'] = self.convert_dictionary_for_backend(
+            self.data['get'])
+        if isinstance(self.data['data'], list):
+            for index, item in enumerate(self.data['data']):
+                self.data['data'][index] = self.convert_dictionary_for_backend(
+                    item)
+        else:
+            self.data['data'] = self.convert_dictionary_for_backend(
+                self.data['data'])
         '''Holds the current request handler server instance.'''
         self.session = create_sql_session(bind=self.engine)()
         self.authorized_user = self._authenticate()
@@ -473,47 +511,21 @@ class Main(Class, Runnable):
         __logger__.info(
             'Application is running in %s mode.',
             'performance' if sys.flags.optimize else 'normal')
+        if not self.given_command_line_arguments.render_template:
+            self.clear_web_cache()
+            __logger__.info(
+                'Initialize database on "%s".',
+                self.options['location']['database_url'])
+            self._initialize_model()
+        self.__class__.options = self.controller.initialize()
         if(self.debug or self.given_command_line_arguments.render_template or
            not self.index_html_file):
-            __logger__.info('Render main entry html file.')
-            index_file = FileHandler(
+            __logger__.info(
+                'Render main entry html file "%s".',
                 self.options['location']['template_index_file'])
-            if index_file.is_file():
-                mapping = {
-                    'options': self.options['frontend'],
-                    'debug': self.debug, 'deployment':
-                    self.given_command_line_arguments.render_template}
-                mapping.update(self.controller.get_frontend_scope())
-                if(django_settings is None or
-                   self.options['template_engine'] == 'internal'):
-                    self.index_html_file.content = TemplateParser(
-                        self.options['location']['template_index_file'],
-                        template_context_default_indent=
-                        self.options['default_indent_level']
-                    ).render(mapping=mapping).output
-                else:
-                    django_settings.configure(
-                        TEMPLATE_DIRS='%s%s' % (
-                            self.ROOT_PATH,
-                            self.options['location']['database_folder']
-                        ), DEBUG=self.debug, TEMPLATE_DEBUG=self.debug,
-                        LANGUAGE_CODE=self.options['default_language'])
-                    mapping['optionsAsJSON'] = marke_safe_string(json.dumps(
-                        mapping['options']))
-                    self.index_html_file.content = str(DjangoTemplateParser(
-                        FileHandler(
-                            self.options['location']['template_index_file']
-                        ).content
-                    ).render(DjangoTemplateContext(mapping)))
-        if self.given_command_line_arguments.render_template:
-            return self
-        self.clear_web_cache()
-        __logger__.info(
-            'Initialize database on "%s".',
-            self.options['location']['database_file'])
-        self._initialize_model()
-        self.controller.initialize()
-        return self._start_web_server()
+            self.render_main_index_html_file()
+        if not self.given_command_line_arguments.render_template:
+            return self._start_web_server()
 
         # endregion
 
@@ -559,6 +571,7 @@ class Main(Class, Runnable):
         for table_name in old_schemas:
             if not table_name in new_schemas:
                 __logger__.info('Table "%s" has been removed.', table_name)
+                # TODO only drop table if exist.
                 cls.session.execute(DropTable(Table(table_name, MetaData(
                     bind=cls.engine))))
 ## python3.4
@@ -579,9 +592,10 @@ class Main(Class, Runnable):
             if isinstance(model, type) and issubclass(model, cls.model.Model):
                 cls.options['type'][model_name] = {}
                 for property in model.__table__.columns:
-                    cls.options['type'][model_name][property.name] = {}
+                    cls.options['type'][model_name][property.name] = {
+                        'required': True}
                     if property.info:
-                        cls.options['type'][model_name][property.name] = copy(
+                        cls.options['type'][model_name][property.name].update(
                             property.info)
                     if hasattr(property.type, 'length') and isinstance(
                         property.type.length, int
@@ -591,6 +605,9 @@ class Main(Class, Runnable):
                         ] = property.type.length
                     if(hasattr(property, 'default') and
                        property.default is not None):
+                        cls.options['type'][model_name][property.name][
+                            'required'
+                        ] = False
                         default_value = property.default.arg
                         if callable(default_value):
                             if hasattr(
@@ -619,6 +636,10 @@ class Main(Class, Runnable):
                         cls.options['type'][model_name][property.name][
                             'default_value'
                         ] = default_value
+                    elif hasattr(property, 'nullable') and property.nullable:
+                        cls.options['type'][model_name][property.name][
+                            'required'
+                        ] = False
         cls.options['both']['type'] = cls.options['frontend']['type'] = \
             cls.options['type']
         '''
@@ -718,7 +739,7 @@ class Main(Class, Runnable):
         '''Initializes the model.'''
         cls.engine = create_sql_engine('%s%s%s' % (
             cls.options['database_engine_prefix'], cls.ROOT_PATH,
-            cls.options['location']['database_file']
+            cls.options['location']['database_url']
         ), echo=cls.debug)
         cls.model.Model.metadata.create_all(cls.engine)
         cls.session = create_sql_session(bind=cls.engine)()
