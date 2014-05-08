@@ -1,5 +1,9 @@
 {
-    "frontend": {"requestFileName": "<% moduleName %>"},
+    "frontend": {
+        "requestFileName": "<% moduleName %>",
+        "freeSpaceInByte": "<% FileHandler(location='/').free_space %>",
+        "usedSpaceInByte": "<% FileHandler(location='/').disk_used_space %>"
+    },
     "both": {
         "session": {
             "dataDescriptionPrefix": "application",
@@ -13,7 +17,8 @@
 
         "location": {
             "webAsset": "/webAsset/",
-            "template": "<% location['webAsset'] %>template/"
+            "template": "<% location['webAsset'] %>template/",
+            "media": "<% location['webAsset'] %>media/"
         },
 
         "encoding": "utf_8",
@@ -24,15 +29,33 @@
                 "password": {
                     "minimumLength": 4,
                     "maximumLength": 100,
-                    "pattern": ".{4}"
+                    "pattern": ".{4}.*"
                 }
             }
+        },
+
+        "exportableFileAttributes": [
+            "path", "name", "basename", "encoding", "extension",
+            "extension_suffix", "timestamp", "size", "human_readable_size",
+            "type", "mime_type", "directory_path"
+        ],
+
+        "allowedTypes": {
+            "image": [
+                "image/jpg", "image/jpeg", "image/pjpeg", "image/png",
+                "image/svg+xml", "image/svg", "image/vnd.microsoft.icon",
+                "image/x-icon"
+            ],
+            "video": ["video/webm"],
+            "data": ["text/plain", "application/xml", "text/csv"]
         }
     },
     "backend": {
         "secretDjangoKey": "",
+        "removeDuplicatedRequestKey": false,
+        "postSupportsNativeTypes": true,
         "templateEngine": "internal",
-        "abbreviations": ["id", "url"],
+        "abbreviations": ["id", "url", "us"],
         "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
@@ -41,7 +64,7 @@
                 "eMailAddress": {
                     "minimumLength": 5,
                     "maximumLength": 100,
-                    "pattern": "[_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$"
+                    "pattern": "((admin)|([_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})))"
                 },
                 "phoneNumber": {
                     "minimumLength": 1,
@@ -66,8 +89,9 @@
         "webServer": {
             "root": "/", "default": "<% location['indexHTMLFile'] %>",
             "requestWhitelist": [
-                "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+$",
-                "GET:(/|<% location['webAsset'] %>.+)$"
+                "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+",
+                "GET:(/|<% location['webAsset'] %>.+)",
+                "PUT:<% location['media'] %>?"
             ],
             "sameThreadRequestWhitelist": ["GET /<% moduleName %><% delimiterPattern %>.+ .+$"],
             "publicKeyFilePath": "",

@@ -5,9 +5,6 @@
 
 '''Provides a simple web controller.'''
 
-## python3.4 pass
-from __future__ import print_function
-
 __author__ = 'Torben Sickert'
 __copyright__ = 'see module docstring'
 __credits__ = 'Torben Sickert',
@@ -19,50 +16,75 @@ __version__ = '1.0'
 
 import inspect
 
-from boostNode.extension.native import ClassPropertyInitializer, Module
+from boostNode.extension.native import Dictionary, Module
 
 # endregion
 
 
 # region classes
 
-class Main:
+class Main(object):
 
     '''Contains the main application specific business logic.'''
 
-    @ClassPropertyInitializer(classmethod)
+    # region public method
+
+    # # region static
+
+    # # # region special
+
+    @classmethod
     def __init__(cls, main):
         '''Initializes the main application controller properties.'''
+        cls.main = main
+
+    # # # endregion
 
     @classmethod
     def initialize(cls):
         '''
             Initializes the main application controller (options are already \
-            rendered).
+            rendered but can be manipulates by returning a modified version).
         '''
         return cls.main.options
 
     @classmethod
+    def insert_needed_database_record(cls):
+        '''Inserts some needed initialisation records to the database.'''
+        return cls
+
+    @classmethod
     def insert_database_mockup(cls):
         '''Inserts some example data to the database.'''
+        return cls
 
     @classmethod
     def get_frontend_scope(cls, current_scope):
-        '''Returns additional manifest template scope variables.'''
+        '''Returns additional main index html template scope variables.'''
         return {}
 
     @classmethod
     def convert_for_database(cls, data):
         '''Converts given data to database compatible values.'''
+        if cls.main.options['database_engine_prefix'].startswith('sqlite:'):
+            return Dictionary(data).convert(
+                value_wrapper=lambda key, value: unicode(
+                    value, cls.main.options['encoding']
+                ) if isinstance(value, str) else value
+            ).content
         return data
 
-    def response(self, request):
+        # endregion
+
+    def response(self, request, output, mime_type, cache_control, cache_file):
         '''Handles a non rest or static web request.'''
-        return ''
+        return''
 
     def get_manifest_scope(self, request, user):
         '''Returns additional manifest template scope variables.'''
-        return {}
+        return{}
+
+    # endregion
 
 # endregion
 
