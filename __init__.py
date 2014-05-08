@@ -57,8 +57,11 @@ from boostNode.runnable.server import Web as WebServer
 from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
 
-from controller import Main as Controller
-from restController import Response as RestResponse
+try:
+    from controller import Main as Controller
+    from restController import Response as RestResponse
+except ImportError:
+    Controller = RestResponse = None
 
 # endregion
 
@@ -110,6 +113,8 @@ class Main(Class, Runnable):
     '''Holds a mapping to convert dictionaries for backend.'''
     django_settings_set = False
     '''Indicates if django is already configured.'''
+    package_name = ''
+    '''Saves dynamically determined package name.'''
 
     # endregion
 
@@ -507,13 +512,17 @@ class Main(Class, Runnable):
 
         # # region properties
 
+        self.__class__.package_name = Module.get_package_name(
+            frame=inspect.currentframe())
         FileHandler.set_root(location=FileHandler(FileHandler(
             Module.get_name(
                 frame=inspect.currentframe(), path=True, extension=True),
             output_with_root_prefix=True
         ).directory_path).directory_path)
         self.__class__.ROOT_PATH = FileHandler.get_root().path
-        self.__class__.controller = Controller(main=self.__class__)
+        self.__class__.controller = None
+        if Controller is not None:
+            self.__class__.controller = Controller(main=self.__class__)
         self._set_options()
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
@@ -521,7 +530,10 @@ class Main(Class, Runnable):
                 module_name=__name__)
         self.__class__.debug = \
             sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
-        self.__class__.model = __import__('model')
+        try:
+            self.__class__.model = __import__('model')
+        except ImportError:
+            self.__class__.model = None
         self._append_model_informations_to_options()
         self.__class__.index_html_file = FileHandler(
             self.options['location']['index_html_file'])
@@ -548,7 +560,8 @@ class Main(Class, Runnable):
                 'Initialize database on "%s".',
                 self.options['location']['database_url'])
             self._initialize_model()
-        self.__class__.options = self.controller.initialize()
+        if self.controller is not None:
+            self.__class__.options = self.controller.initialize()
         if(self.debug or self.given_command_line_arguments.render_template or
            not self.index_html_file):
             __logger__.info(
@@ -639,13 +652,14 @@ class Main(Class, Runnable):
                 cls.session.execute(DropTable(Table(table_name, MetaData(
                     bind=cls.engine))))
                 __logger__.info('Table "%s" has been removed.', table_name)
+        if cls.model is not None:
 # # python3.4
-# #         database_schema_file.content = json.dumps(
-# #             new_schemas, sort_keys=True,
-# #             indent=cls.options['default_indent_level'])
-        database_schema_file.content = json.dumps(
-            new_schemas, encoding=cls.options['encoding'], sort_keys=True,
-            indent=cls.options['default_indent_level'])
+# #             database_schema_file.content = json.dumps(
+# #                 new_schemas, sort_keys=True,
+# #                 indent=cls.options['default_indent_level'])
+            database_schema_file.content = json.dumps(
+                new_schemas, encoding=cls.options['encoding'],
+                sort_keys=True, indent=cls.options['default_indent_level'])
 # #
         return cls
 
@@ -736,10 +750,12 @@ class Main(Class, Runnable):
         '''Renders backend and frontend options.'''
         global OPTIONS
         cls.options = Dictionary(json.loads(FileHandler(
-            '/%s/%s' % (__name__, cls.CONFIGURATION_FILE_PATH)
-        ).content)).update(json.loads(
-            FileHandler(cls.CONFIGURATION_FILE_PATH).content
-        )).content
+            location='/%s/%s' % (cls.package_name, cls.CONFIGURATION_FILE_PATH)
+        ).content))
+        configuration_file = FileHandler(location=cls.CONFIGURATION_FILE_PATH)
+        if configuration_file:
+            cls.options.update(json.loads(configuration_file.content))
+        cls.options = cls.options.content
         cls._merge_options().options['moduleName'] = __name__
         cls.options = Dictionary(cls.options).convert(
             key_wrapper=lambda key, value: cls.convert_for_backend(key),
@@ -812,13 +828,15 @@ class Main(Class, Runnable):
             cls.options['database_engine_prefix'], cls.ROOT_PATH,
             cls.options['location']['database_url']
         ), echo=__logger__.isEnabledFor(logging.DEBUG))
-        cls.model.Model.metadata.create_all(cls.engine)
+        if cls.model is not None:
+            cls.model.Model.metadata.create_all(cls.engine)
         cls.session = create_database_session(bind=cls.engine)()
         cls._check_database_schema_version()
         cls._check_database_file_references()
-        cls.controller.insert_needed_database_record()
-        if cls.debug:
-            cls.controller.insert_database_mockup()
+        if cls.controller is not None:
+            cls.controller.insert_needed_database_record()
+            if cls.debug:
+                cls.controller.insert_database_mockup()
         cls.session.commit()
         return cls
 
@@ -830,20 +848,12 @@ class Main(Class, Runnable):
         '''
         user_id = session_token = None
         if self.options['authentication_method'] == 'header':
-# # python3.4
-# #             user_id = self.data['handler'].headers.get(String(
-# #                 self.options['session']['key']['user_id']
-# #             ).camel_case_to_delimited(delimiter='-').content)
-# #             session_token = self.data['handler'].headers.get(String(
-# #                 self.options['session']['key']['token']
-# #             ).camel_case_to_delimited(delimiter='-').content)
-            user_id = self.data['handler'].headers.getheader(String(
+            user_id = self.data['handler'].headers.get(String(
                 self.options['session']['key']['user_id']
             ).camel_case_to_delimited(delimiter='-').content)
-            session_token = self.data['handler'].headers.getheader(String(
+            session_token = self.data['handler'].headers.get(String(
                 self.options['session']['key']['token']
             ).camel_case_to_delimited(delimiter='-').content)
-# #
         elif(self.options['authentication_method'] == 'cookie' and
              self.options['session']['key']['user_id'] in self.data['cookie']
              and self.options['session']['key']['token_key'] in
@@ -944,16 +954,10 @@ class Main(Class, Runnable):
     ):
         '''Produces http headers for given server sided cache file.'''
         cache_timestamp = cache_file.timestamp
-# # python3.4
-# #         if(mime_type != 'text/cache-manifest' and
-# #            self.data['handler'].headers.get('If-Modified-Since') ==
-# #            self.data['handler'].date_time_string(cache_timestamp)):
         if(mime_type != 'text/cache-manifest' and
-           self.data['handler'].headers.getheader(
-               'If-Modified-Since'
-           ) == self.data['handler'].date_time_string(
-                cache_timestamp)):
-# #
+           self.data['handler'].headers.get(
+               'if-modified-since'
+           ) == self.data['handler'].date_time_string(cache_timestamp)):
             __logger__.info(
                 'Sent not modified header (304) for "%s".',
                 cache_file.path)
