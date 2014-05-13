@@ -87,10 +87,11 @@
 
         "delimiterPattern": "(!|\\?)",
         "webServer": {
-            "root": "/", "default": "<% location['indexHTMLFile'] %>",
+            "root": "/",
+            "default": "<% location['indexHTMLFile']['frontend'] %>",
             "requestWhitelist": [
                 "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+",
-                "GET:(/|<% location['webAsset'] %>.+)",
+                "GET:(/|(<% location['webAsset'] %>.+))",
                 "PUT:<% location['media'] %>?"
             ],
             "sameThreadRequestWhitelist": ["GET /<% moduleName %><% delimiterPattern %>.+ .+$"],
@@ -101,7 +102,10 @@
             "directoryListing": false, "maximumNumberOfProcesses": 4
         },
         "location": {
-            "indexHTMLFile": "/index.html",
+            "indexHTMLFile": {
+                "frontend": "/index.html",
+                "backend": "/admin.html"
+            },
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
             "templateIndexFile": "<% location['template'] %>index.html.tpl",
             "webCache": "/cache/",
