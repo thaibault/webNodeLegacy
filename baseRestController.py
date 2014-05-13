@@ -54,7 +54,7 @@ class Response(Class):
         self.method_in_rest_controller = True
         if('__method__' in self.request.data['get'] and
            self.request.data['get']['__method__'] in (
-                'get', 'put', 'post', 'patch', 'delete')):
+               'get', 'put', 'post', 'patch', 'delete')):
             self.request.data['request_type'] = self.request.data['get'][
                 '__method__']
             del self.request.data['get']['__method__']

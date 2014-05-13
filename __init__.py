@@ -151,9 +151,7 @@ class Main(Class, Runnable):
                 'options': deepcopy(cls.options['frontend']),
                 'debug': cls.debug, 'deployment':
                 cls.given_command_line_arguments.render_template}
-            mapping = Dictionary(mapping).update(
-                cls.controller.get_frontend_scope(mapping)
-            ).content
+            mapping = cls.controller.get_frontend_scope(mapping)
             if(django_settings is None or
                cls.options['template_engine'] == 'internal'):
                 cls.index_html_file.content = TemplateParser(

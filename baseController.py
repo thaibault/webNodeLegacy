@@ -60,18 +60,21 @@ class Main(object):
 
     @classmethod
     def get_frontend_scope(cls, current_scope):
-        '''Returns additional main index html template scope variables.'''
-        return {}
+        '''Returns manipulated main index html template scope variables.'''
+        return current_scope
 
     @classmethod
     def convert_for_database(cls, data):
         '''Converts given data to database compatible values.'''
-        if cls.main.options['database_engine_prefix'].startswith('sqlite:'):
-            return Dictionary(data).convert(
-                value_wrapper=lambda key, value: unicode(
-                    value, cls.main.options['encoding']
-                ) if isinstance(value, str) else value
-            ).content
+# # python3.4 # #         if cls.main.options['database_engine_prefix'].startswith(
+
+# #             'sqlite:'
+# #         ):
+# #             return Dictionary(data).convert(
+# #                 value_wrapper=lambda key, value: unicode(
+# #                     value, cls.main.options['encoding']
+# #                 ) if isinstance(value, str) else value
+# #             ).content
         return data
 
         # endregion
