@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
@@ -35,7 +35,7 @@ try:
     from django.template import Context as DjangoTemplateContext
     from django.template import Template as DjangoTemplateParser
     from django.utils.safestring import mark_safe as marke_safe_string
-except:
+except ImportError:
     DjangoTemplateParser = DjangoTemplateContext = None
 
 from sqlalchemy.engine.default import DefaultExecutionContext
@@ -153,43 +153,51 @@ class Main(Class, Runnable):
                 cls.given_command_line_arguments.render_template}
             mapping = cls.controller.get_frontend_scope(mapping)
             for site in ('frontend', 'backend'):
-                mapping['backend'] = site == 'backend'
-                if(django_settings is None or
-                   cls.options['template_engine'] == 'internal'):
-                    getattr(
-                        cls, '%s_index_html_file' % site
-                    ).content = TemplateParser(
-                        cls.options['location']['template_index_file'],
-                        template_context_default_indent=cls.options[
-                            'default_indent_level']
-                    ).render(mapping=mapping).output
-                else:
-                    if not cls.django_settings_set:
-                        cls.django_settings_set = True
-                        django_settings.configure(
-                            TEMPLATE_DIRS='%s%s' % (
-                                cls.ROOT_PATH,
-                                cls.options['location']['database_folder']
-                            ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
-                            LANGUAGE_CODE=cls.options['default_language'])
-                    mapping['optionsAsJSON'] = marke_safe_string(json.dumps(
-                        mapping['options']))
-# # python3.3
+                has_admin_area = 'admin' in cls.options['frontend']
+                if has_admin_area:
+                    if site == 'backend':
+                        mapping['options'] = Dictionary(
+                            mapping['options']
+                        ).update(cls.options['frontend']['admin']).content
+                    else:
+                        del mapping['options']['admin']
+                if not mapping['backend'] or has_admin_area:
+                    if(django_settings is None or
+                       cls.options['template_engine'] == 'internal'):
+                        getattr(
+                            cls, '%s_index_html_file' % site
+                        ).content = TemplateParser(
+                            cls.options['location']['template_index_file'],
+                            template_context_default_indent=cls.options[
+                                'default_indent_level']
+                        ).render(mapping=mapping).output
+                    else:
+                        if not cls.django_settings_set:
+                            cls.django_settings_set = True
+                            django_settings.configure(
+                                TEMPLATE_DIRS='%s%s' % (
+                                    cls.ROOT_PATH,
+                                    cls.options['location']['database_folder']
+                                ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
+                                LANGUAGE_CODE=cls.options['default_language'])
+                        mapping['optionsAsJSON'] = marke_safe_string(
+                            json.dumps(mapping['options']))
+# # python2.7
 # #                     getattr(
 # #                         cls, '%s_index_html_file' % site
 # #                     ).content = DjangoTemplateParser(
 # #                         FileHandler(
 # #                             cls.options['location']['template_index_file']
 # #                         ).content
-# #                     ).render(DjangoTemplateContext(mapping))
+# #                     ).render(DjangoTemplateContext(mapping)).encode(
+# #                         cls.options['encoding'])
                     getattr(
                         cls, '%s_index_html_file' % site
                     ).content = DjangoTemplateParser(
                         FileHandler(
                             cls.options['location']['template_index_file']
                         ).content
-                    ).render(DjangoTemplateContext(mapping)).encode(
-                        cls.options['encoding'])
+                    ).render(DjangoTemplateContext(mapping))
 # #
 
     @classmethod
@@ -205,11 +213,11 @@ class Main(Class, Runnable):
     @classmethod
     def convert_byte_to_string(cls, value):
         '''Converts a byte object to a python string.'''
-# # python3.4
-# #         if isinstance(value, bytes):
-# #             return value.decode(cls.options['encoding'])
-        if isinstance(value, unicode):
-            return value.encode(cls.options['encoding'])
+# # python2.7
+# #         if isinstance(value, unicode):
+# #             return value.encode(cls.options['encoding'])
+        if isinstance(value, bytes):
+            return value.decode(cls.options['encoding'])
 # #
         return value
 
@@ -221,18 +229,18 @@ class Main(Class, Runnable):
         if value is Null:
             value = key
         else:
-# # python3.4
+# # python2.7
 # #             if isinstance(value, Date):
 # #                 return time.mktime(value.timetuple())
 # #             if isinstance(value, DateTime):
-# #                 return value.timestamp(
-# #                 ) + value.microsecond / 1000 ** 2
+# #                 return(
+# #                     time.mktime(value.timetuple()) +
+# #                     value.microsecond / 1000 ** 2)
             if isinstance(value, Date):
                 return time.mktime(value.timetuple())
             if isinstance(value, DateTime):
-                return(
-                    time.mktime(value.timetuple()) +
-                    value.microsecond / 1000 ** 2)
+                return value.timestamp(
+                ) + value.microsecond / 1000 ** 2
 # #
             if isinstance(value, Time):
                 return(
@@ -252,12 +260,12 @@ class Main(Class, Runnable):
     @classmethod
     def convert_dictionary_for_backend(cls, data):
         '''Converts a given dictionary in backend compatible data types.'''
-# # python3.4
+# # python2.7
 # #         return Dictionary(data).convert(
 # #             key_wrapper=lambda key, value: String(
 # #                 key
 # #             ).camel_case_to_delimited().content if isinstance(
-# #                 key, str
+# #                 key, (str, unicode)
 # #             ) else cls.convert_for_backend(key),
 # #             value_wrapper=cls.convert_for_backend
 # #         ).content
@@ -265,7 +273,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: String(
                 key
             ).camel_case_to_delimited().content if isinstance(
-                key, (str, unicode)
+                key, str
             ) else cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
         ).content
@@ -316,19 +324,19 @@ class Main(Class, Runnable):
                                 '%w{delimiter}%m{delimiter}{year}'
                             ):
                                 try:
-# # python3.4
-# #                                     return Date.fromtimestamp(
+# # python2.7
+# #                                     return Date.fromtimestamp(time.mktime(
 # #                                         DateTime.strptime(
 # #                                             value, date_format.format(
 # #                                                 delimiter=delimiter,
 # #                                                 year=year_format
-# #                                             )).timestamp())
-                                    return Date.fromtimestamp(time.mktime(
+# #                                             )).timetuple()))
+                                    return Date.fromtimestamp(
                                         DateTime.strptime(
                                             value, date_format.format(
                                                 delimiter=delimiter,
                                                 year=year_format
-                                            )).timetuple()))
+                                            )).timestamp())
 # #
                                 except ValueError:
                                     pass
@@ -627,19 +635,19 @@ class Main(Class, Runnable):
             cls.options['location']['database_schema_file'])
         old_schemas = {}
         if database_schema_file:
-# # python3.4
-# #             old_schemas = json.loads(
+# # python2.7
+# #             old_schemas = Dictionary(json.loads(
 # #                 database_schema_file.content,
 # #                 encoding=cls.options['encoding'])
-            old_schemas = Dictionary(json.loads(
+# #             ).convert(
+# #                 key_wrapper=lambda key, value: cls.convert_byte_to_string(
+# #                     key),
+# #                 value_wrapper=lambda key, value: cls.convert_byte_to_string(
+# #                     value)
+# #             ).content
+            old_schemas = json.loads(
                 database_schema_file.content,
                 encoding=cls.options['encoding'])
-            ).convert(
-                key_wrapper=lambda key, value: cls.convert_byte_to_string(
-                    key),
-                value_wrapper=lambda key, value: cls.convert_byte_to_string(
-                    value)
-            ).content
 # #
         new_schemas = {}
         for model_name, model in Module.get_defined_objects(cls.model):
@@ -662,13 +670,13 @@ class Main(Class, Runnable):
                     bind=cls.engine))))
                 __logger__.info('Table "%s" has been removed.', table_name)
         if cls.model is not None:
-# # python3.4
+# # python2.7
 # #             database_schema_file.content = json.dumps(
-# #                 new_schemas, sort_keys=True,
-# #                 indent=cls.options['default_indent_level'])
+# #                 new_schemas, encoding=cls.options['encoding'],
+# #                 sort_keys=True, indent=cls.options['default_indent_level'])
             database_schema_file.content = json.dumps(
-                new_schemas, encoding=cls.options['encoding'],
-                sort_keys=True, indent=cls.options['default_indent_level'])
+                new_schemas, sort_keys=True,
+                indent=cls.options['default_indent_level'])
 # #
         return cls
 
@@ -777,20 +785,20 @@ class Main(Class, Runnable):
             dependencies.
         '''
         for number in range(2):
-# # python3.4
+# # python2.7
 # #             cls.options = Dictionary(cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
 # #                     value, string=True
 # #                 ).render(
 # #                     mapping=mapping, module_name=__name__, main=cls
-# #                 ).output if isinstance(value, str) else value
+# #                 ).output if isinstance(value, (unicode, str)) else value
 # #             ).content
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     value, string=True
                 ).render(
                     mapping=mapping, module_name=__name__, main=cls
-                ).output if isinstance(value, (unicode, str)) else value
+                ).output if isinstance(value, str) else value
             ).content
 # #
         cls.options = Dictionary(cls.options).convert(
@@ -807,7 +815,7 @@ class Main(Class, Runnable):
         cls.options['session']['expiration_interval'] = TimeDelta(
             minutes=cls.options['session']['expiration_time_in_minutes'])
         if 'authentication_handler' in cls.options['web_server']:
-# # python3.4
+# # python2.7
 # #             cls.options['web_server']['authentication_handler'] = eval(
 # #                 cls.options['web_server']['authentication_handler'],
 # #                 {'controller': cls.controller})

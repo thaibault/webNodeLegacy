@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
@@ -54,15 +54,15 @@ def determine_language_specific_default_value(context):
         '''
         if(column.default.arg is globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
-# # python3.4
+# # python2.7
 # # 
-# #              return OPTIONS['model']['generic']['language_specific'][
-# #                 'default'
-# #             ][column.name][language]
+# #              return OPTIONS['model']['generic']['language_specific']['default'][
+# #                 column.name
+# #             ][language].decode(OPTIONS['encoding'])
 
-             return OPTIONS['model']['generic']['language_specific']['default'][
-                column.name
-            ][language].decode(OPTIONS['encoding'])
+             return OPTIONS['model']['generic']['language_specific'][
+                'default'
+            ][column.name][language]
 # #
 
 # endregion
