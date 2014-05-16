@@ -128,7 +128,8 @@ class Main(Class, Runnable):
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
         for pattern in cls.options['ignore_web_asset_pattern']:
-            if re.compile(pattern).match(file.name):
+# # python3.4             if re.compile(pattern).fullmatch(file.name):
+            if re.compile('%s$' % pattern).match(file.name):
                 return False
         return True
 
@@ -151,53 +152,51 @@ class Main(Class, Runnable):
                 'options': deepcopy(cls.options['frontend']),
                 'debug': cls.debug, 'deployment':
                 cls.given_command_line_arguments.render_template}
+            del mapping['options']['admin']
             mapping = cls.controller.get_frontend_scope(mapping)
             for site in ('frontend', 'backend'):
-                has_admin_area = 'admin' in cls.options['frontend']
-                if has_admin_area:
-                    if site == 'backend':
-                        mapping['options'] = Dictionary(
-                            mapping['options']
-                        ).update(cls.options['frontend']['admin']).content
-                    else:
-                        del mapping['options']['admin']
-                if not mapping['backend'] or has_admin_area:
-                    if(django_settings is None or
-                       cls.options['template_engine'] == 'internal'):
-                        getattr(
-                            cls, '%s_index_html_file' % site
-                        ).content = TemplateParser(
-                            cls.options['location']['template_index_file'],
-                            template_context_default_indent=cls.options[
-                                'default_indent_level']
-                        ).render(mapping=mapping).output
-                    else:
-                        if not cls.django_settings_set:
-                            cls.django_settings_set = True
-                            django_settings.configure(
-                                TEMPLATE_DIRS='%s%s' % (
-                                    cls.ROOT_PATH,
-                                    cls.options['location']['database_folder']
-                                ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
-                                LANGUAGE_CODE=cls.options['default_language'])
-                        mapping['optionsAsJSON'] = marke_safe_string(
-                            json.dumps(mapping['options']))
-# # python3.4
-# #                     getattr(
-# #                         cls, '%s_index_html_file' % site
-# #                     ).content = DjangoTemplateParser(
-# #                         FileHandler(
-# #                             cls.options['location']['template_index_file']
-# #                         ).content
-# #                     ).render(DjangoTemplateContext(mapping))
+                mapping['backend'] = (
+                    site == 'backend' and 'admin' in cls.options['frontend'])
+                if mapping['backend']:
+                    mapping['options'] = Dictionary(
+                        mapping['options']
+                    ).update(cls.options['frontend']['admin']).content
+                if(django_settings is None or
+                   cls.options['template_engine'] == 'internal'):
                     getattr(
                         cls, '%s_index_html_file' % site
-                    ).content = DjangoTemplateParser(
-                        FileHandler(
-                            cls.options['location']['template_index_file']
-                        ).content
-                    ).render(DjangoTemplateContext(mapping)).encode(
-                        cls.options['encoding'])
+                    ).content = TemplateParser(
+                        cls.options['location']['template_index_file'],
+                        template_context_default_indent=cls.options[
+                            'default_indent_level']
+                    ).render(mapping=mapping).output
+                else:
+                    if not cls.django_settings_set:
+                        cls.django_settings_set = True
+                        django_settings.configure(
+                            TEMPLATE_DIRS='%s%s' % (
+                                cls.ROOT_PATH,
+                                cls.options['location']['database_folder']
+                            ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
+                            LANGUAGE_CODE=cls.options['default_language'])
+                    mapping['optionsAsJSON'] = marke_safe_string(
+                        json.dumps(mapping['options']))
+# # python3.4
+# #                 getattr(
+# #                     cls, '%s_index_html_file' % site
+# #                 ).content = DjangoTemplateParser(
+# #                     FileHandler(
+# #                         cls.options['location']['template_index_file']
+# #                     ).content
+# #                 ).render(DjangoTemplateContext(mapping))
+                getattr(
+                    cls, '%s_index_html_file' % site
+                ).content = DjangoTemplateParser(
+                    FileHandler(
+                        cls.options['location']['template_index_file']
+                    ).content
+                ).render(DjangoTemplateContext(mapping)).encode(
+                    cls.options['encoding'])
 # #
 
     @classmethod
@@ -247,10 +246,16 @@ class Main(Class, Runnable):
                     1000 ** 2 * 60 ** 2 * value.hour +
                     1000 ** 2 * 60 * value.minute +
                     1000 ** 2 * value.second + value.microsecond / 1000 ** 2)
+# # python3.4
+# #             if(isinstance(key, str) and (
+# #                 key == 'language' or key.endswith('_language') or
+# #                 key.endswith('Language')
+# #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
             if(isinstance(key, str) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
+# #
                 return String(value).delimited_to_camel_case(
                 ).content[:-1] + value[-1].upper()
         if not isinstance(value, (int, float, type(None))):
@@ -351,9 +356,14 @@ class Main(Class, Runnable):
                                     microsecond=microsecond_format))
                         except ValueError:
                             pass
+# # python3.4
+# #            if(key == 'language' or key.endswith('_language') or
+# #               key.endswith('Language')
+# #               ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
             if(key == 'language' or key.endswith('_language') or
                key.endswith('Language')
-               ) and re.compile('[a-z]{2}[A-Z]{2}').match(value):
+               ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
+# #
                 return String(value).camel_case_to_delimited().content
         if isinstance(value, str):
             try:
