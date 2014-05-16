@@ -357,9 +357,9 @@ class Main(Class, Runnable):
                         except ValueError:
                             pass
 # # python3.4
-# #            if(key == 'language' or key.endswith('_language') or
-# #               key.endswith('Language')
-# #               ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
+# #             if(key == 'language' or key.endswith('_language') or
+# #                key.endswith('Language')
+# #                ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
             if(key == 'language' or key.endswith('_language') or
                key.endswith('Language')
                ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
