@@ -81,7 +81,7 @@ class Main(object):
 
     def response(self, request, output, mime_type, cache_control, cache_file):
         '''Handles a non rest or static web request.'''
-        return''
+        return output, mime_type, cache_control, cache_file
 
     def get_manifest_scope(self, request, user):
         '''Returns additional manifest template scope variables.'''

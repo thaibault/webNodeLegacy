@@ -129,7 +129,7 @@ class Main(Class, Runnable):
         '''Checks if the given file is a valid web application asset.'''
         for pattern in cls.options['ignore_web_asset_pattern']:
 # # python3.4             if re.compile(pattern).fullmatch(file.name):
-            if re.compile('%s$' % pattern).match(file.name):
+            if re.compile('(?:%s)$' % pattern).match(file.name):
                 return False
         return True
 
@@ -148,55 +148,57 @@ class Main(Class, Runnable):
         index_template_file = FileHandler(
             location=cls.options['location']['template_index_file'])
         if index_template_file.is_file():
-            mapping = {
+            root_mapping = {
                 'options': deepcopy(cls.options['frontend']),
                 'debug': cls.debug, 'deployment':
                 cls.given_command_line_arguments.render_template}
-            del mapping['options']['admin']
-            mapping = cls.controller.get_frontend_scope(mapping)
+            del root_mapping['options']['admin']
             for site in ('frontend', 'backend'):
-                mapping['backend'] = (
+                root_mapping['backend'] = (
                     site == 'backend' and 'admin' in cls.options['frontend'])
+                mapping = cls.controller.get_frontend_scope(deepcopy(
+                    root_mapping))
                 if mapping['backend']:
                     mapping['options'] = Dictionary(
                         mapping['options']
                     ).update(cls.options['frontend']['admin']).content
-                if(django_settings is None or
-                   cls.options['template_engine'] == 'internal'):
+                if site == 'frontend' or root_mapping['backend']:
+                    if(django_settings is None or
+                       cls.options['template_engine'] == 'internal'):
+                        getattr(
+                            cls, '%s_index_html_file' % site
+                        ).content = TemplateParser(
+                            cls.options['location']['template_index_file'],
+                            template_context_default_indent=cls.options[
+                                'default_indent_level']
+                        ).render(mapping=mapping).output
+                    else:
+                        if not cls.django_settings_set:
+                            cls.django_settings_set = True
+                            django_settings.configure(
+                                TEMPLATE_DIRS='%s%s' % (
+                                    cls.ROOT_PATH,
+                                    cls.options['location']['database_folder']
+                                ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
+                                LANGUAGE_CODE=cls.options['default_language'])
+                        mapping['optionsAsJSON'] = marke_safe_string(
+                            json.dumps(mapping['options']))
+# # python3.4
+# #                     getattr(
+# #                         cls, '%s_index_html_file' % site
+# #                     ).content = DjangoTemplateParser(
+# #                         FileHandler(
+# #                             cls.options['location']['template_index_file']
+# #                         ).content
+# #                     ).render(DjangoTemplateContext(mapping))
                     getattr(
                         cls, '%s_index_html_file' % site
-                    ).content = TemplateParser(
-                        cls.options['location']['template_index_file'],
-                        template_context_default_indent=cls.options[
-                            'default_indent_level']
-                    ).render(mapping=mapping).output
-                else:
-                    if not cls.django_settings_set:
-                        cls.django_settings_set = True
-                        django_settings.configure(
-                            TEMPLATE_DIRS='%s%s' % (
-                                cls.ROOT_PATH,
-                                cls.options['location']['database_folder']
-                            ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
-                            LANGUAGE_CODE=cls.options['default_language'])
-                    mapping['optionsAsJSON'] = marke_safe_string(
-                        json.dumps(mapping['options']))
-# # python3.4
-# #                 getattr(
-# #                     cls, '%s_index_html_file' % site
-# #                 ).content = DjangoTemplateParser(
-# #                     FileHandler(
-# #                         cls.options['location']['template_index_file']
-# #                     ).content
-# #                 ).render(DjangoTemplateContext(mapping))
-                getattr(
-                    cls, '%s_index_html_file' % site
-                ).content = DjangoTemplateParser(
-                    FileHandler(
-                        cls.options['location']['template_index_file']
-                    ).content
-                ).render(DjangoTemplateContext(mapping)).encode(
-                    cls.options['encoding'])
+                    ).content = DjangoTemplateParser(
+                        FileHandler(
+                            cls.options['location']['template_index_file']
+                        ).content
+                    ).render(DjangoTemplateContext(mapping)).encode(
+                        cls.options['encoding'])
 # #
 
     @classmethod

@@ -304,7 +304,7 @@ class Response(Class):
             ignored = False
             for pattern in self.request.options['ignore_web_asset_pattern']:
 # # python3.4                 if re.compile(pattern).fullmatch(file.name):
-                if re.compile('%s$' % pattern).match(file.name):
+                if re.compile('(?:%s)$' % pattern).match(file.name):
                     ignored = True
                     break
             if ignored:
