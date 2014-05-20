@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
 # region header
@@ -14,8 +14,8 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python2.7 pass
-from base64 import b64encode as base64encode
+# # python3.4 from base64 import b64encode as base64encode
+pass
 from copy import copy
 from datetime import datetime as DateTime
 import inspect
@@ -178,17 +178,17 @@ class Response(Class):
                             Save session token in database with expiration \
                             time.
                         '''
-# # python2.7
-# #                         model.session_token = os.urandom(
+# # python3.4
+# #                         model.session_token = base64encode(os.urandom(
 # #                             self.request.options['model'][
 # #                                 'authentication'
 # #                             ]['session_token']['length']
-# #                         ).encode('base_64').strip()
-                        model.session_token = base64encode(os.urandom(
+# #                         )).decode('utf8').strip()
+                        model.session_token = os.urandom(
                             self.request.options['model'][
                                 'authentication'
                             ]['session_token']['length']
-                        )).decode('utf8').strip()
+                        ).encode('base_64').strip()
 # #
                         model.session_expiration_date_time = DateTime.now(
                         ) + self.request.options['session'][
@@ -303,8 +303,8 @@ class Response(Class):
         ):
             ignored = False
             for pattern in self.request.options['ignore_web_asset_pattern']:
-# # python2.7                 if re.compile('(?:%s)$' % pattern).match(file.name):
-                if re.compile(pattern).fullmatch(file.name):
+# # python3.4                 if re.compile(pattern).fullmatch(file.name):
+                if re.compile('(?:%s)$' % pattern).match(file.name):
                     ignored = True
                     break
             if ignored:
