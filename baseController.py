@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
@@ -66,8 +66,8 @@ class Main(object):
     @classmethod
     def convert_for_database(cls, data):
         '''Converts given data to database compatible values.'''
-# # python3.4 # #         if cls.main.options['database_engine_prefix'].startswith(
-
+# # python2.7
+# #         if cls.main.options['database_engine_prefix'].startswith(
 # #             'sqlite:'
 # #         ):
 # #             return Dictionary(data).convert(
