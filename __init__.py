@@ -105,8 +105,9 @@ class Main(Class, Runnable):
         A lock to acquire if workers should be finished before application \
         can be closed.
     '''
-    index_html_file = None
-    '''Holds the main entry file for bootstrapping the web application.'''
+    frontend_html_file = None
+    backend_html_file = None
+    '''Holds the main entry files for bootstrapping the web application.'''
     frontend_data_wrapper = {}
     '''Holds a mapping to convert dictionaries for frontend.'''
     backend_data_wrapper = {}
@@ -143,63 +144,18 @@ class Main(Class, Runnable):
         # # region helper
 
     @classmethod
-    def render_main_index_html_file(cls):
+    def render_templates(cls):
         '''Renders the main index html file.'''
-        index_template_file = FileHandler(
-            location=cls.options['location']['template_index_file'])
-        if index_template_file.is_file():
-            root_mapping = {
-                'options': deepcopy(cls.options['frontend']),
-                'debug': cls.debug, 'deployment':
-                cls.given_command_line_arguments.render_template}
-            del root_mapping['options']['admin']
-            for site in ('frontend', 'backend'):
-                root_mapping['backend'] = (
-                    site == 'backend' and 'admin' in cls.options['frontend'])
-                mapping = cls.controller.get_frontend_scope(deepcopy(
-                    root_mapping))
-                if mapping['backend']:
-                    mapping['options'] = Dictionary(
-                        mapping['options']
-                    ).update(cls.options['frontend']['admin']).content
-                if site == 'frontend' or root_mapping['backend']:
-                    if(django_settings is None or
-                       cls.options['template_engine'] == 'internal'):
-                        getattr(
-                            cls, '%s_index_html_file' % site
-                        ).content = TemplateParser(
-                            cls.options['location']['template_index_file'],
-                            template_context_default_indent=cls.options[
-                                'default_indent_level']
-                        ).render(mapping=mapping).output
-                    else:
-                        if not cls.django_settings_set:
-                            cls.django_settings_set = True
-                            django_settings.configure(
-                                TEMPLATE_DIRS='%s%s' % (
-                                    cls.ROOT_PATH,
-                                    cls.options['location']['database_folder']
-                                ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
-                                LANGUAGE_CODE=cls.options['default_language'])
-                        mapping['optionsAsJSON'] = marke_safe_string(
-                            json.dumps(mapping['options']))
-# # python3.4
-# #                     getattr(
-# #                         cls, '%s_index_html_file' % site
-# #                     ).content = DjangoTemplateParser(
-# #                         FileHandler(
-# #                             cls.options['location']['template_index_file']
-# #                         ).content
-# #                     ).render(DjangoTemplateContext(mapping))
-                    getattr(
-                        cls, '%s_index_html_file' % site
-                    ).content = DjangoTemplateParser(
-                        FileHandler(
-                            cls.options['location']['template_index_file']
-                        ).content
-                    ).render(DjangoTemplateContext(mapping)).encode(
-                        cls.options['encoding'])
-# #
+        mapping = {
+            'options': deepcopy(cls.options['frontend']),
+            'debug': cls.debug, 'deployment':
+            cls.given_command_line_arguments.render_template}
+        del mapping['options']['admin']
+        FileHandler(
+            location=cls.options['location']['web_asset']
+        ).iterate_directory(
+            function=cls._render_template, recursive=True, mapping=mapping)
+        return cls
 
     @classmethod
     def clear_web_cache(cls):
@@ -464,7 +420,7 @@ class Main(Class, Runnable):
             template_context_default_indent=self.options[
                 'default_indent_level']
         ).render(
-            asset_files=asset_files, index_html_file=self.index_html_file,
+            asset_files=asset_files, html_file=self.frontend_html_file,
             asset_version=self.get_timestamps(
                 self.options['location']['web_asset']),
             version='%s - %d' % (__version__, FileHandler(Module.get_name(
@@ -561,10 +517,10 @@ class Main(Class, Runnable):
         except ImportError:
             self.__class__.model = None
         self._append_model_informations_to_options()
-        self.__class__.frontend_index_html_file = FileHandler(
-            self.options['location']['index_html_file']['frontend'])
-        self.__class__.backend_index_html_file = FileHandler(
-            self.options['location']['index_html_file']['backend'])
+        self.__class__.frontend_html_file = FileHandler(
+            self.options['location']['html_file']['frontend'])
+        self.__class__.backend_html_file = FileHandler(
+            self.options['location']['html_file']['backend'])
         self.__class__.frontend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_client(String(
                 key
@@ -591,12 +547,9 @@ class Main(Class, Runnable):
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
         if(self.debug or self.given_command_line_arguments.render_template or
-           not self.frontend_index_html_file or
-           not self.backend_index_html_file):
-            __logger__.info(
-                'Render main entry html file "%s".',
-                self.options['location']['template_index_file'])
-            self.render_main_index_html_file()
+           not (self.frontend_html_file and self.backend_html_file)):
+            __logger__.info('Render template files.')
+            self.render_templates()
         if not self.given_command_line_arguments.render_template:
             return self._start_web_server()
 
@@ -605,6 +558,67 @@ class Main(Class, Runnable):
         # region helper methods
 
             # region static
+
+    @classmethod
+    def _render_template(cls, file, mapping):
+        '''
+            Renders each template and distinguishes between backend and \
+            frontend templates.
+        '''
+        if file.extension == 'tpl' and FileHandler(
+            location='%s%s' % (file.directory_path, file.basename)
+        ).extension:
+            if file.basename == 'index.html':
+                for site in ('frontend', 'backend'):
+                    if(site == 'frontend' or
+                       'admin' in cls.options['frontend']):
+                        getattr(
+                            cls, '%s_html_file' % site
+                        ).content = cls._render_template_helper(
+                            file, mapping, force_backend=site == 'backend')
+            else:
+                FileHandler(location='%s%s' % (
+                    file.directory_path, file.name[:-len('.tpl')])
+                ).content = cls._render_template_helper(file, mapping)
+        return cls
+
+    @classmethod
+    def _render_template_helper(cls, file, mapping, force_backend=False):
+        '''Renders a concrete template file.'''
+        __logger__.debug('Render "%s".', file.path)
+        mapping['backend'] = ((force_backend or file.name.startswith(
+            'backend'
+        )) and 'admin' in cls.options['frontend'])
+        mapping = cls.controller.get_template_scope(deepcopy(mapping))
+        if mapping['backend']:
+            mapping['options'] = Dictionary(
+                mapping['options']
+            ).update(cls.options['frontend']['admin']).content
+        if(django_settings is None or
+           cls.options['template_engine'] == 'internal' or FileHandler(
+               location='%s%s' % (file.directory_path, file.basename)
+           ).extension != 'html'):
+            return TemplateParser(
+                file, template_context_default_indent=cls.options[
+                    'default_indent_level']
+            ).render(mapping=mapping).output
+        if not cls.django_settings_set:
+            cls.django_settings_set = True
+            django_settings.configure(
+                TEMPLATE_DIRS='%s%s' % (
+                    cls.ROOT_PATH,
+                    cls.options['location']['database_folder']
+                ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
+                LANGUAGE_CODE=cls.options['default_language'])
+        mapping['optionsAsJSON'] = marke_safe_string(
+            json.dumps(mapping['options']))
+# # python3.4
+# #         return DjangoTemplateParser(file.content).render(
+# #             DjangoTemplateContext(mapping))
+        return DjangoTemplateParser(file.content).render(
+            DjangoTemplateContext(mapping)
+        ).encode(cls.options['encoding'])
+# #
 
     @classmethod
     def _check_database_file_references(cls):

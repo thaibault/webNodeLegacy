@@ -16,7 +16,7 @@ __version__ = '1.0'
 
 import inspect
 
-from boostNode.extension.native import Dictionary, Module
+from boostNode.extension.native import Module
 
 # endregion
 
@@ -59,7 +59,7 @@ class Main(object):
         return cls
 
     @classmethod
-    def get_frontend_scope(cls, current_scope):
+    def get_template_scope(cls, current_scope):
         '''Returns manipulated main index html template scope variables.'''
         return current_scope
 

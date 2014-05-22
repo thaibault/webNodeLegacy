@@ -92,10 +92,7 @@ class Response(Class):
             self.request.data['handler'].send_response(
                 510, 'Requested model "%s" doesn\'t exist.' %
                 self.request.data['get']['__model__'])
-            result = {
-                'statuscode': 510, 'message': 'Not Extended', 'data': {},
-                'description': 'Requested model "%s" doesn\'t exist.' %
-                self.request.data['get']['__model__']}
+            result = {}
         else:
             if not self.model.__name__.endswith('_file_model'):
                 if isinstance(self.request.data['data'], list):
@@ -121,11 +118,7 @@ class Response(Class):
                     self.request.data['handler'].send_response(
                         400, '%s: "%s"' % (
                             exception.__class__.__name__, str(exception)))
-                    result = {
-                        'statuscode': 400, 'message': 'Bad Request',
-                        'data': {},
-                        'description': '%s: %s' % (
-                            exception.__class__.__name__, str(exception))}
+                    result = {}
             elif self.request.data['request_type'] == 'get':
                 if self.method_in_rest_controller:
                     result = self.model(data=self.request.data['get'])
@@ -142,15 +135,7 @@ class Response(Class):
                     data=self.request.data['data'], rest_controller=self)
             if result is None:
                 self.request.data['handler'].send_response(401)
-                result = {
-                    'statuscode': 401, 'message': 'Unauthorized', 'data': {},
-                    'description': 'The request is not authorized.'}
-            elif not isinstance(result, dict) or result.get(
-                'statuscode'
-            ) is None:
-                result = {
-                    'statuscode': 200, 'message': 'OK', 'data': result,
-                    'description': 'The request was successfully proceeded.'}
+                result = {}
         return json.dumps(result)
 
         # endregion
@@ -286,9 +271,7 @@ class Response(Class):
             return{} if file.remove_file() else None
         self.request.data['handler'].send_response(
             510, 'Requested file "%s" doesn\'t exist.' % get['path'])
-        return{
-            'statuscode': 510, 'message': 'Not Extended', 'data': {},
-            'description': 'Requested file "%s" doesn\'t exist.' % get['path']}
+        return{}
 
     def get_available_model(self, data):
         '''Returns all defined models.'''

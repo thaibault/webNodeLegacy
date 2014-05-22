@@ -55,7 +55,7 @@
         "removeDuplicatedRequestKey": false,
         "postSupportsNativeTypes": true,
         "templateEngine": "internal",
-        "abbreviations": ["id", "url", "us"],
+        "abbreviations": ["id", "url", "us", "de"],
         "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
@@ -88,7 +88,7 @@
         "delimiterPattern": "(!|\\?)",
         "webServer": {
             "root": "/",
-            "default": "<% location['indexHTMLFile']['frontend'] %>",
+            "default": "<% location['htmlFile']['frontend'] %>",
             "requestWhitelist": [
                 "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+",
                 "GET:(/|(<% location['webAsset'] %>.+))",
@@ -102,12 +102,11 @@
             "directoryListing": false, "maximumNumberOfProcesses": 4
         },
         "location": {
-            "indexHTMLFile": {
+            "htmlFile": {
                 "frontend": "/index.html",
                 "backend": "/admin.html"
             },
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
-            "templateIndexFile": "<% location['template'] %>index.html.tpl",
             "webCache": "/cache/",
             "certificateFile": "/certificate/example.pem",
             "databaseFolder": "/database/",
