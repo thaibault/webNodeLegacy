@@ -586,11 +586,11 @@ class Main(Class, Runnable):
     def _render_template_helper(cls, file, mapping, force_backend=False):
         '''Renders a concrete template file.'''
         __logger__.debug('Render "%s".', file.path)
-        mapping['backend'] = ((force_backend or file.name.startswith(
-            'backend'
-        )) and 'admin' in cls.options['frontend'])
+        mapping['options']['admin'] = ((
+            force_backend or file.name.startswith('backend')
+        ) and 'admin' in cls.options['frontend'])
         mapping = cls.controller.get_template_scope(deepcopy(mapping))
-        if mapping['backend']:
+        if mapping['options']['admin']:
             mapping['options'] = Dictionary(
                 mapping['options']
             ).update(cls.options['frontend']['admin']).content
