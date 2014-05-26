@@ -689,20 +689,25 @@ class Main(Class, Runnable):
                      new_schemas[model.__tablename__]):
                     __logger__.info('Model "%s" has changed.', model_name)
                     # TODO implement
-        for table_name in old_schemas:
-            if(table_name not in new_schemas and
-               cls.engine.dialect.has_table(cls.engine.connect(), table_name)):
-                cls.session.execute(DropTable(Table(table_name, MetaData(
-                    bind=cls.engine))))
-                __logger__.info('Table "%s" has been removed.', table_name)
+        '''Load all existing table names from current database.'''
+        cls.model.Model.metadata.reflect(cls.engine)
         if cls.model is not None:
+            for table_name in cls.model.Model.metadata.tables.keys():
+# # python3.4                 pass
+                table_name = table_name.encode(cls.options['encoding'])
+                if(table_name not in new_schemas and
+                   cls.engine.dialect.has_table(
+                       cls.engine.connect(), table_name)):
+                    cls.session.execute(DropTable(Table(table_name, MetaData(
+                        bind=cls.engine))))
+                    __logger__.info('Table "%s" has been removed.', table_name)
 # # python3.4
-# #             database_schema_file.content = json.dumps(
-# #                 new_schemas, sort_keys=True,
-# #                 indent=cls.options['default_indent_level'])
-            database_schema_file.content = json.dumps(
-                new_schemas, encoding=cls.options['encoding'],
-                sort_keys=True, indent=cls.options['default_indent_level'])
+# #                 database_schema_file.content = json.dumps(
+# #                     new_schemas, sort_keys=True,
+# #                     indent=cls.options['default_indent_level'])
+                database_schema_file.content = json.dumps(
+                    new_schemas, encoding=cls.options['encoding'],
+                    sort_keys=True, indent=cls.options['default_indent_level'])
 # #
         return cls
 
