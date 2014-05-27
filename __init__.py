@@ -515,7 +515,10 @@ class Main(Class, Runnable):
         try:
             self.__class__.model = __import__('model')
         except ImportError:
-            self.__class__.model = None
+            if __test_mode__:
+                self.__class__.model = None
+            else:
+                raise
         self._append_model_informations_to_options()
         self.__class__.frontend_html_file = FileHandler(
             self.options['location']['html_file']['frontend'])
