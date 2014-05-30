@@ -692,6 +692,10 @@ class Main(Class, Runnable):
                      new_schemas[model.__tablename__]):
                     __logger__.info('Model "%s" has changed.', model_name)
                     # TODO implement
+                    # 1. Copy table to a backup table
+                    # 2. Delete old table.
+                    # 3. Create new table
+                    # 4. Insert rows from backup table
         '''Load all existing table names from current database.'''
         cls.model.Model.metadata.reflect(cls.engine)
         if cls.model is not None:

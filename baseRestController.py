@@ -327,7 +327,9 @@ class Response(Class):
         for model_name, model in Module.get_defined_objects(
             self.request.model
         ):
-            if model_name != get['source']:
+            if isinstance(model, type) and issubclass(
+                model, self.request.model.Model
+            ) and model_name != get['source']:
                 column_names = list(map(
                     lambda property: property.name, model.__table__.columns))
                 is_referenced = True
@@ -342,8 +344,10 @@ class Response(Class):
                         internal caching bug. Additionally this workaround \
                         brings a little performance.
                     '''
-                    property_names = tuple(map(
-                        lambda column: column.name, model.__table__.columns))
+                    property_names = []
+                    for column in model.__table__.columns:
+                        if column.name != 'id':
+                            property_names.append(column.name)
                     for record in self.request.session.query(
                         model
                     ).filter_by(**keys):
