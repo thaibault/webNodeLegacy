@@ -55,7 +55,7 @@
         "removeDuplicatedRequestKey": false,
         "postSupportsNativeTypes": true,
         "templateEngine": "internal",
-        "abbreviations": ["id", "url", "us", "de"],
+        "abbreviations": ["html", "id", "url", "us", "de"],
         "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,
         "model": {

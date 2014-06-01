@@ -273,6 +273,12 @@ class Response(Class):
             510, 'Requested file "%s" doesn\'t exist.' % get['path'])
         return{}
 
+    def get_system_model(self, data):
+        '''Returns all defined models.'''
+        return{
+            'freeSpaceInByte': FileHandler(location='/').free_space,
+            'usedSpaceInByte': FileHandler(location='/').disk_used_space}
+
     def get_available_model(self, data):
         '''Returns all defined models.'''
         return list(map(lambda model: model[0], Module.get_defined_objects(
