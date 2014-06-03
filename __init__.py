@@ -504,12 +504,12 @@ class Main(Class, Runnable):
         self.__class__.ROOT_PATH = FileHandler.get_root().path
         self.__class__.controller = None
         self._set_options()
-        if Controller is not None:
-            self.__class__.controller = Controller(main=self.__class__)
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
                 arguments=self.options['command_line_arguments'],
                 module_name=__name__)
+        if Controller is not None:
+            self.__class__.controller = Controller(main=self.__class__)
         self.__class__.debug = \
             sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
         try:
