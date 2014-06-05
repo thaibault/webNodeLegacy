@@ -2,7 +2,8 @@
     "frontend": {
         "requestFileName": "<% moduleName %>",
         "freeSpaceInByte": "<% FileHandler(location='/').free_space %>",
-        "usedSpaceInByte": "<% FileHandler(location='/').disk_used_space %>"
+        "usedSpaceInByte": "<% FileHandler(location='/').disk_used_space %>",
+        "startTimeStamp": "<% __time_stamp__ %>"
     },
     "both": {
         "session": {
