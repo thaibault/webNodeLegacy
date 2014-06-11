@@ -831,6 +831,8 @@ class Main(Class, Runnable):
 # #                     mapping=mapping, module_name=__name__, main=cls
 # #                 ).output if isinstance(value, str) else value
 # #             ).content
+            # TODO do this in a generic way.
+            cls.options['webServer']['internalRedirects'][1][1] = cls.options['webServer']['internalRedirects'][1][1].replace('\\', 4 * '\\')
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     value, string=True
@@ -945,6 +947,7 @@ class Main(Class, Runnable):
         self.__class__.web_server = WebServer(
             port=self.given_command_line_arguments.port,
             **self.options['web_server'])
+        self.controller.initialize_frontend()
         return self.wait_for_order()
 
     def _web_controller(self):

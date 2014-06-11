@@ -22,6 +22,7 @@ import inspect
 import json
 import os
 import re
+import shutil
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -311,11 +312,14 @@ class Response(Class):
 
     def put_file_model(self, get, data):
         '''Saves given files.'''
+        import sys
         for items in data.values():
             for item in items:
-                FileHandler(
-                    self.request.options['location']['media'] + item['name']
-                ).set_content(content=item['content'], mode='w+b')
+                if item.done != -1:
+                    shutil.copyfileobj(item.file, open(FileHandler(
+                        self.request.options['location']['media'] +
+                        item.filename
+                    )._path, 'wb'))
         return{}
 
     def put_copy_model(self, get, data):
