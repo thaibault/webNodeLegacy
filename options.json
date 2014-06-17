@@ -104,8 +104,7 @@
         },
         "location": {
             "htmlFile": {
-                "frontend": "/index.html",
-                "backend": "/admin.html"
+                "frontend": "/index.html", "backend": "/admin.html"
             },
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
             "webCache": "/cache/",
