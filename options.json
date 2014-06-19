@@ -30,7 +30,7 @@
                 "password": {
                     "minimumLength": 4,
                     "maximumLength": 100,
-                    "pattern": ".{4}.*"
+                    "pattern": "....+"
                 }
             }
         },
@@ -61,7 +61,7 @@
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
             "generic": {
-                "text": {"pattern": ".*$"},
+                "text": {"pattern": ".*"},
                 "eMailAddress": {
                     "minimumLength": 5,
                     "maximumLength": 100,
