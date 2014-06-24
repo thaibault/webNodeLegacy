@@ -17,6 +17,8 @@ __version__ = '1.0'
 import inspect
 
 from boostNode.extension.native import Module
+# # python3.4 pass
+from boostNode.extension.native import Dictionary
 
 # endregion
 
@@ -66,15 +68,17 @@ class Main(object):
     @classmethod
     def convert_for_database(cls, data):
         '''Converts given data to database compatible values.'''
-# # python3.4 # #         if cls.main.options['database_engine_prefix'].startswith(
-
-# #             'sqlite:'
-# #         ):
-# #             return Dictionary(data).convert(
-# #                 value_wrapper=lambda key, value: unicode(
-# #                     value, cls.main.options['encoding']
-# #                 ) if isinstance(value, str) else value
-# #             ).content
+# # python3.4
+# #         pass
+        if cls.main.options['database_engine_prefix'].startswith(
+            'sqlite:'
+        ):
+            return Dictionary(data).convert(
+                value_wrapper=lambda key, value: unicode(
+                    value, cls.main.options['encoding']
+                ) if isinstance(value, str) else value
+            ).content
+# #
         return data
 
         # endregion

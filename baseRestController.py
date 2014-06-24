@@ -98,6 +98,7 @@ class Response(Class):
             if not self.model.__name__.endswith('_file_model'):
                 if isinstance(self.request.data['data'], list):
                     for index, item in enumerate(self.request.data['data']):
+                        # TODO get_dictionary macht den convert wieder kaputt!
                         self.request.data['data'][index] = \
                             self.request.controller.convert_for_database(item)
                 else:
@@ -315,7 +316,7 @@ class Response(Class):
         import sys
         for items in data.values():
             for item in items:
-                if item.done != -1:
+                if item.done != -1 and item.filename:
                     shutil.copyfileobj(item.file, open(FileHandler(
                         self.request.options['location']['media'] +
                         item.filename

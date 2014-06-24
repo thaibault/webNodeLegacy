@@ -150,7 +150,8 @@ class Main(Class, Runnable):
             'options': deepcopy(cls.options['frontend']),
             'debug': cls.debug, 'deployment':
             cls.given_command_line_arguments.render_template}
-        del mapping['options']['admin']
+        if 'admin' in mapping['options']:
+            del mapping['options']['admin']
         FileHandler(
             location=cls.options['location']['web_asset']
         ).iterate_directory(
@@ -510,6 +511,17 @@ class Main(Class, Runnable):
                 module_name=__name__)
         if Controller is not None:
             self.__class__.controller = Controller(main=self.__class__)
+            if 'authentication_handler' in self.options['web_server']:
+# # python3.4
+# #                 self.options['web_server']['authentication_handler'] = \
+# #                 eval(
+# #                     self.options['web_server']['authentication_handler'],
+# #                     {'controller': self.controller})
+                self.options['web_server']['authentication_handler'] = \
+                eval(
+                    self.options['web_server']['authentication_handler'],
+                    {'controller': self.controller})
+# #
         self.__class__.debug = \
             sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
         try:
@@ -635,9 +647,14 @@ class Main(Class, Runnable):
             if isinstance(model, type) and issubclass(model, cls.model.Model):
                 for property in model.__table__.columns:
                     if property.info and 'file_reference' in property.info:
-                        for model in cls.session.query(model):
+                        for model_instance in cls.session.query(model):
                             file_path = property.info['file_reference'] % \
-                                getattr(model, property.name)
+                                getattr(model_instance, property.name)
+# # python3.4
+# #                             pass
+                            file_path = file_path.encode(
+                                cls.options['encoding'])
+# #
                             if(not (
                                 file_path in checked_paths or FileHandler(
                                     file_path)
@@ -645,10 +662,10 @@ class Main(Class, Runnable):
                                 'Model "%s" (%s) has a dead file reference via'
                                 ' attribute "%s" to "%s". Do you want to '
                                 'delete this record? {boolean_arguments}: ' % (
-                                    repr(model), model_name, property.name,
-                                    file_path))
+                                    repr(model_instance), model_name,
+                                    property.name, file_path))
                             ):
-                                cls.session.delete(model)
+                                cls.session.delete(model_instance)
                             elif(file_path not in checked_paths or
                                  checked_paths[file_path] != model_name):
                                 checked_paths[file_path] = model_name
@@ -826,19 +843,19 @@ class Main(Class, Runnable):
 # # python3.4
 # #             cls.options = Dictionary(cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
-# #                     value, string=True
+# #                     value.replace('\\', 2 * '\\'), string=True
 # #                 ).render(
 # #                     mapping=mapping, module_name=__name__, main=cls
 # #                 ).output if isinstance(value, str) else value
 # #             ).content
-            # TODO do this in a generic way.
-            cls.options['webServer']['internalRedirects'][1][1] = cls.options['webServer']['internalRedirects'][1][1].replace('\\', 4 * '\\')
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
-                    value, string=True
+                    value.replace('\\', 2 * '\\'), string=True
                 ).render(
                     mapping=mapping, module_name=__name__, main=cls
-                ).output if isinstance(value, (unicode, str)) else value
+                ).output if isinstance(
+                    value, (unicode, str)
+                ) else value
             ).content
 # #
         cls.options = Dictionary(cls.options).convert(
@@ -854,15 +871,6 @@ class Main(Class, Runnable):
         ).content
         cls.options['session']['expiration_interval'] = TimeDelta(
             minutes=cls.options['session']['expiration_time_in_minutes'])
-        if 'authentication_handler' in cls.options['web_server']:
-# # python3.4
-# #             cls.options['web_server']['authentication_handler'] = eval(
-# #                 cls.options['web_server']['authentication_handler'],
-# #                 {'controller': cls.controller})
-            cls.options['web_server']['authentication_handler'] = eval(
-                cls.options['web_server']['authentication_handler'],
-                {'controller': cls.controller})
-# #
         '''
             Export options to global scope to make them accessible for other \
             modules like model or controller.
@@ -947,7 +955,8 @@ class Main(Class, Runnable):
         self.__class__.web_server = WebServer(
             port=self.given_command_line_arguments.port,
             **self.options['web_server'])
-        self.controller.initialize_frontend()
+        if callable(getattr(self.controller, 'initialize_frontend', None)):
+            self.controller.initialize_frontend()
         return self.wait_for_order()
 
     def _web_controller(self):

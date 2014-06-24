@@ -61,6 +61,11 @@
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
             "generic": {
+                "filePath": {
+                    "minimumLength": 1, "maximumLength": 32000,
+                    "pattern": ".+",
+                    "file_reference": "<% location['media'] %>%s"
+                },
                 "text": {"pattern": ".*"},
                 "eMailAddress": {
                     "minimumLength": 5,
