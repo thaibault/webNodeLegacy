@@ -19,7 +19,7 @@
         "location": {
             "webAsset": "/webAsset/",
             "template": "<% location['webAsset'] %>template/",
-            "media": "<% location['webAsset'] %>media/"
+            "medium": "<% location['webAsset'] %>medium/"
         },
 
         "encoding": "utf_8",
@@ -64,7 +64,7 @@
                 "filePath": {
                     "minimumLength": 1, "maximumLength": 32000,
                     "pattern": ".+",
-                    "file_reference": "<% location['media'] %>%s"
+                    "file_reference": "<% location['medium'] %>%s"
                 },
                 "text": {"pattern": ".*"},
                 "eMailAddress": {
@@ -98,7 +98,7 @@
             "requestWhitelist": [
                 "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+",
                 "GET:(/|(<% location['webAsset'] %>.+))",
-                "PUT:<% location['media'] %>?"
+                "PUT:<% location['medium'] %>?"
             ],
             "sameThreadRequestWhitelist": ["GET /<% moduleName %><% delimiterPattern %>.+ .+"],
             "publicKeyFilePath": "",

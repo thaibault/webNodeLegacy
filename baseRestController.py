@@ -316,9 +316,9 @@ class Response(Class):
         import sys
         for items in data.values():
             for item in items:
-                if item.done != -1 and item.filename:
+                if hasattr(item, 'file') and item.filename and item.done != -1:
                     shutil.copyfileobj(item.file, open(FileHandler(
-                        self.request.options['location']['media'] +
+                        self.request.options['location']['medium'] +
                         item.filename
                     )._path, 'wb'))
         return{}

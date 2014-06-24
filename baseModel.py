@@ -1,6 +1,9 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
+# TODO check if base module prefix is necessary since we understand import
+# better.
+
 # region header
 
 '''Provides the orm models for the application.'''
@@ -137,15 +140,13 @@ class UpdateTriggerModel(object):
         onupdate=DateTimeNative.now)
 
 
-class AuthenticationModel(BaseAuthenticationModel):
+class AuthenticationModel(BaseAuthenticationModel, UpdateTriggerModel):
 
     '''
         Provides columns for saving authentication tokens and password \
         properties.
     '''
 
-    register_date_time = Column(
-        DateTime, default=DateTimeNative.now, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
     session_token = Column(
         String(
