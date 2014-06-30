@@ -1,9 +1,6 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
-# TODO check if base module prefix is necessary since we understand import
-# better.
-
 # region header
 
 '''Provides the orm models for the application.'''
@@ -58,7 +55,6 @@ def determine_language_specific_default_value(context):
         if(column.default.arg is globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
 # # python3.4
-# #
 # #              return OPTIONS['model']['generic']['language_specific'][
 # #                 'default'
 # #             ][column.name][language]

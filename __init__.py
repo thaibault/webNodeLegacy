@@ -58,8 +58,8 @@ from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
 
 try:
-    from controller import Main as Controller
-    from restController import Response as RestResponse
+    Controller = __import__('controller', {}, {}, ('Main',)).Main
+    RestResponse = __import__('restController', {}, {}, ('Response',)).Response
 except ImportError:
     Controller = RestResponse = None
 
@@ -148,13 +148,12 @@ class Main(Class, Runnable):
         '''Renders the main index html file.'''
         mapping = {
             'options': deepcopy(cls.options['frontend']),
-            'debug': cls.debug, 'deployment':
-            cls.given_command_line_arguments.render_template}
+            'backendOptions': deepcopy(cls.options['backend']),
+            'debug': cls.debug, 'given_command_line_arguments':
+            cls.given_command_line_arguments, 'root': FileHandler.get_root()}
         if 'admin' in mapping['options']:
             del mapping['options']['admin']
-        FileHandler(
-            location=cls.options['location']['web_asset']
-        ).iterate_directory(
+        FileHandler(location='/').iterate_directory(
             function=cls._render_template, recursive=True, mapping=mapping)
         return cls
 
@@ -387,6 +386,7 @@ class Main(Class, Runnable):
             with self.web_api_lock:
                 getattr(self.web_server, inspect.stack()[0][3])(
                     *arguments, **keywords)
+        self.controller.stop()
         '''Take this method type by the abstract class via introspection.'''
         return getattr(
             super(self.__class__, self), inspect.stack()[0][3]

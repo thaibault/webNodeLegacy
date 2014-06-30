@@ -100,7 +100,7 @@
                 "GET:(/|(<% location['webAsset'] %>.+))",
                 "PUT:<% location['medium'] %>?"
             ],
-            "sameThreadRequestWhitelist": ["GET /<% moduleName %><% delimiterPattern %>.+ .+"],
+            "sameProcessRequestWhitelist": ["GET /<% moduleName %><% delimiterPattern %>.+ .+"],
             "publicKeyFilePath": "",
             "requestParameterDelimiter": "<% delimiterPattern %>",
             "authentication": false, "moduleLoading": "<% moduleName %>",
