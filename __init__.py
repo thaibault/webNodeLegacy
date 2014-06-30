@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
@@ -129,8 +129,8 @@ class Main(Class, Runnable):
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
         for pattern in cls.options['ignore_web_asset_pattern']:
-# # python3.4             if re.compile(pattern).fullmatch(file.name):
-            if re.compile('(?:%s)$' % pattern).match(file.name):
+# # python2.7             if re.compile('(?:%s)$' % pattern).match(file.name):
+            if re.compile(pattern).fullmatch(file.name):
                 return False
         return True
 
@@ -170,11 +170,11 @@ class Main(Class, Runnable):
     @classmethod
     def convert_byte_to_string(cls, value):
         '''Converts a byte object to a python string.'''
-# # python3.4
-# #         if isinstance(value, bytes):
-# #             return value.decode(cls.options['encoding'])
-        if isinstance(value, unicode):
-            return value.encode(cls.options['encoding'])
+# # python2.7
+# #         if isinstance(value, unicode):
+# #             return value.encode(cls.options['encoding'])
+        if isinstance(value, bytes):
+            return value.decode(cls.options['encoding'])
 # #
         return value
 
@@ -186,33 +186,33 @@ class Main(Class, Runnable):
         if value is Null:
             value = key
         else:
-# # python3.4
+# # python2.7
 # #             if isinstance(value, Date):
 # #                 return time.mktime(value.timetuple())
 # #             if isinstance(value, DateTime):
-# #                 return value.timestamp(
-# #                 ) + value.microsecond / 1000 ** 2
+# #                 return(
+# #                     time.mktime(value.timetuple()) +
+# #                     value.microsecond / 1000 ** 2)
             if isinstance(value, Date):
                 return time.mktime(value.timetuple())
             if isinstance(value, DateTime):
-                return(
-                    time.mktime(value.timetuple()) +
-                    value.microsecond / 1000 ** 2)
+                return value.timestamp(
+                ) + value.microsecond / 1000 ** 2
 # #
             if isinstance(value, Time):
                 return(
                     1000 ** 2 * 60 ** 2 * value.hour +
                     1000 ** 2 * 60 * value.minute +
                     1000 ** 2 * value.second + value.microsecond / 1000 ** 2)
-# # python3.4
+# # python2.7
 # #             if(isinstance(key, str) and (
 # #                 key == 'language' or key.endswith('_language') or
 # #                 key.endswith('Language')
-# #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
+# #             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
             if(isinstance(key, str) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
-            )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
+            )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
 # #
                 return String(value).delimited_to_camel_case(
                 ).content[:-1] + value[-1].upper()
@@ -223,12 +223,12 @@ class Main(Class, Runnable):
     @classmethod
     def convert_dictionary_for_backend(cls, data):
         '''Converts a given dictionary in backend compatible data types.'''
-# # python3.4
+# # python2.7
 # #         return Dictionary(data).convert(
 # #             key_wrapper=lambda key, value: String(
 # #                 key
 # #             ).camel_case_to_delimited().content if isinstance(
-# #                 key, str
+# #                 key, (str, unicode)
 # #             ) else cls.convert_for_backend(key),
 # #             value_wrapper=cls.convert_for_backend
 # #         ).content
@@ -236,7 +236,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: String(
                 key
             ).camel_case_to_delimited().content if isinstance(
-                key, (str, unicode)
+                key, str
             ) else cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
         ).content
@@ -287,19 +287,19 @@ class Main(Class, Runnable):
                                 '%w{delimiter}%m{delimiter}{year}'
                             ):
                                 try:
-# # python3.4
-# #                                     return Date.fromtimestamp(
+# # python2.7
+# #                                     return Date.fromtimestamp(time.mktime(
 # #                                         DateTime.strptime(
 # #                                             value, date_format.format(
 # #                                                 delimiter=delimiter,
 # #                                                 year=year_format
-# #                                             )).timestamp())
-                                    return Date.fromtimestamp(time.mktime(
+# #                                             )).timetuple()))
+                                    return Date.fromtimestamp(
                                         DateTime.strptime(
                                             value, date_format.format(
                                                 delimiter=delimiter,
                                                 year=year_format
-                                            )).timetuple()))
+                                            )).timestamp())
 # #
                                 except ValueError:
                                     pass
@@ -314,13 +314,13 @@ class Main(Class, Runnable):
                                     microsecond=microsecond_format))
                         except ValueError:
                             pass
-# # python3.4
+# # python2.7
 # #             if(key == 'language' or key.endswith('_language') or
 # #                key.endswith('Language')
-# #                ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
+# #                ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
             if(key == 'language' or key.endswith('_language') or
                key.endswith('Language')
-               ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
+               ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
 # #
                 return String(value).camel_case_to_delimited().content
         if isinstance(value, str):
@@ -512,7 +512,7 @@ class Main(Class, Runnable):
         if Controller is not None:
             self.__class__.controller = Controller(main=self.__class__)
             if 'authentication_handler' in self.options['web_server']:
-# # python3.4
+# # python2.7
 # #                 self.options['web_server']['authentication_handler'] = \
 # #                 eval(
 # #                     self.options['web_server']['authentication_handler'],
@@ -627,12 +627,12 @@ class Main(Class, Runnable):
                 LANGUAGE_CODE=cls.options['default_language'])
         mapping['optionsAsJSON'] = marke_safe_string(
             json.dumps(mapping['options']))
-# # python3.4
+# # python2.7
 # #         return DjangoTemplateParser(file.content).render(
-# #             DjangoTemplateContext(mapping))
+# #             DjangoTemplateContext(mapping)
+# #         ).encode(cls.options['encoding'])
         return DjangoTemplateParser(file.content).render(
-            DjangoTemplateContext(mapping)
-        ).encode(cls.options['encoding'])
+            DjangoTemplateContext(mapping))
 # #
 
     @classmethod
@@ -650,10 +650,10 @@ class Main(Class, Runnable):
                         for model_instance in cls.session.query(model):
                             file_path = property.info['file_reference'] % \
                                 getattr(model_instance, property.name)
-# # python3.4
-# #                             pass
-                            file_path = file_path.encode(
-                                cls.options['encoding'])
+# # python2.7
+# #                             file_path = file_path.encode(
+# #                                 cls.options['encoding'])
+                            pass
 # #
                             if(not (
                                 file_path in checked_paths or FileHandler(
@@ -681,19 +681,19 @@ class Main(Class, Runnable):
             cls.options['location']['database_schema_file'])
         old_schemas = {}
         if database_schema_file:
-# # python3.4
-# #             old_schemas = json.loads(
+# # python2.7
+# #             old_schemas = Dictionary(json.loads(
 # #                 database_schema_file.content,
 # #                 encoding=cls.options['encoding'])
-            old_schemas = Dictionary(json.loads(
+# #             ).convert(
+# #                 key_wrapper=lambda key, value: cls.convert_byte_to_string(
+# #                     key),
+# #                 value_wrapper=lambda key, value: cls.convert_byte_to_string(
+# #                     value)
+# #             ).content
+            old_schemas = json.loads(
                 database_schema_file.content,
                 encoding=cls.options['encoding'])
-            ).convert(
-                key_wrapper=lambda key, value: cls.convert_byte_to_string(
-                    key),
-                value_wrapper=lambda key, value: cls.convert_byte_to_string(
-                    value)
-            ).content
 # #
         new_schemas = {}
         for model_name, model in Module.get_defined_objects(cls.model):
@@ -717,21 +717,21 @@ class Main(Class, Runnable):
         cls.model.Model.metadata.reflect(cls.engine)
         if cls.model is not None:
             for table_name in cls.model.Model.metadata.tables.keys():
-# # python3.4                 pass
-                table_name = table_name.encode(cls.options['encoding'])
+# # python2.7                 table_name = table_name.encode(cls.options['encoding'])
+                pass
                 if(table_name not in new_schemas and
                    cls.engine.dialect.has_table(
                        cls.engine.connect(), table_name)):
                     cls.session.execute(DropTable(Table(table_name, MetaData(
                         bind=cls.engine))))
                     __logger__.info('Table "%s" has been removed.', table_name)
-# # python3.4
+# # python2.7
 # #                 database_schema_file.content = json.dumps(
-# #                     new_schemas, sort_keys=True,
-# #                     indent=cls.options['default_indent_level'])
+# #                     new_schemas, encoding=cls.options['encoding'],
+# #                     sort_keys=True, indent=cls.options['default_indent_level'])
                 database_schema_file.content = json.dumps(
-                    new_schemas, encoding=cls.options['encoding'],
-                    sort_keys=True, indent=cls.options['default_indent_level'])
+                    new_schemas, sort_keys=True,
+                    indent=cls.options['default_indent_level'])
 # #
         return cls
 
@@ -840,22 +840,22 @@ class Main(Class, Runnable):
             dependencies.
         '''
         for number in range(2):
-# # python3.4
+# # python2.7
 # #             cls.options = Dictionary(cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
 # #                     value.replace('\\', 2 * '\\'), string=True
 # #                 ).render(
 # #                     mapping=mapping, module_name=__name__, main=cls
-# #                 ).output if isinstance(value, str) else value
+# #                 ).output if isinstance(
+# #                     value, (unicode, str)
+# #                 ) else value
 # #             ).content
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     value.replace('\\', 2 * '\\'), string=True
                 ).render(
                     mapping=mapping, module_name=__name__, main=cls
-                ).output if isinstance(
-                    value, (unicode, str)
-                ) else value
+                ).output if isinstance(value, str) else value
             ).content
 # #
         cls.options = Dictionary(cls.options).convert(
