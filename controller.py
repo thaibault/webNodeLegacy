@@ -43,6 +43,11 @@ class Main(object):
     # # # endregion
 
     @classmethod
+    def stop(cls):
+        '''Is called if application is shutting down.'''
+        return cls
+
+    @classmethod
     def initialize(cls):
         '''
             Initializes the main application controller (options are already \

@@ -386,7 +386,8 @@ class Main(Class, Runnable):
             with self.web_api_lock:
                 getattr(self.web_server, inspect.stack()[0][3])(
                     *arguments, **keywords)
-        self.controller.stop()
+        if self.controller is not None:
+            self.controller.stop()
         '''Take this method type by the abstract class via introspection.'''
         return getattr(
             super(self.__class__, self), inspect.stack()[0][3]
