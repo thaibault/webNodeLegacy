@@ -98,7 +98,6 @@ class Response(Class):
             if not self.model.__name__.endswith('_file_model'):
                 if isinstance(self.request.data['data'], list):
                     for index, item in enumerate(self.request.data['data']):
-                        # TODO get_dictionary macht den convert wieder kaputt!
                         self.request.data['data'][index] = \
                             self.request.controller.convert_for_database(item)
                 else:
@@ -146,8 +145,15 @@ class Response(Class):
 
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
-        self.request.session.query(self.model).filter_by(**get).update(
-            self.model(**data).get_dictionary(prefix_filter=''))
+# # python3.4
+# #         self.request.session.query(self.model).filter_by(
+# #             **get
+# #         ).update(self.model(**data).get_dictionary(prefix_filter=''))
+        self.request.session.query(self.model).filter_by(
+            **get
+        ).update(self.model(**data).get_dictionary(
+            prefix_filter='', preserve_unicode=True))
+# #
         self.request.session.commit()
         return{}
 
@@ -208,18 +214,29 @@ class Response(Class):
                 if new_get and self.request.session.query(
                     self.model
                 ).filter_by(**new_get).count():
+# # python3.4
+# #                     self.request.session.query(self.model).filter_by(
+# #                         **new_get
+# #                     ).update(self.model(**item).get_dictionary(
+# #                         prefix_filter=''))
                     self.request.session.query(self.model).filter_by(
                         **new_get
                     ).update(self.model(**item).get_dictionary(
-                        prefix_filter=''))
+                        prefix_filter='', preserve_unicode=True))
+# #
                 else:
                     new_get.update(item)
                     self.request.session.add(self.model(**new_get))
         elif get and self.request.session.query(self.model).filter_by(
             **get
         ).count():
+# # python3.4
+# #             self.request.session.query(self.model).filter_by(**get).update(
+# #                 self.model(**data).get_dictionary(prefix_filter=''))
             self.request.session.query(self.model).filter_by(**get).update(
-                self.model(**data).get_dictionary(prefix_filter=''))
+                self.model(**data).get_dictionary(
+                    prefix_filter='', preserve_unicode=True))
+# #
         else:
             get.update(data)
             self.request.session.add(self.model(**get))

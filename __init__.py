@@ -697,23 +697,86 @@ class Main(Class, Runnable):
             ).content
 # #
         new_schemas = {}
-        for model_name, model in Module.get_defined_objects(cls.model):
-            if isinstance(model, type) and issubclass(model, cls.model.Model):
-                new_schemas[model.__tablename__] = str(CreateTable(
-                    model.__table__))
-                if model.__tablename__ not in old_schemas:
-                    __logger__.info('New model "%s" detected.', model_name)
-                    '''
-                        NOTE: sqlalchemy will create this table automatically.
-                    '''
-                elif(old_schemas[model.__tablename__] !=
-                     new_schemas[model.__tablename__]):
+        models = filter(
+            lambda entity: isinstance(
+                entity[1], type
+            ) and issubclass(entity[1], cls.model.Model),
+            Module.get_defined_objects(cls.model))
+        for model_name, model in models:
+            new_schemas[model.__tablename__] = str(CreateTable(
+                model.__table__))
+            if model.__tablename__ in old_schemas:
+                if(old_schemas[model.__tablename__] !=
+                   new_schemas[model.__tablename__]):
                     __logger__.info('Model "%s" has changed.', model_name)
-                    # TODO implement
-                    # 1. Copy table to a backup table
-                    # 2. Delete old table.
-                    # 3. Create new table
-                    # 4. Insert rows from backup table
+                    temporary_table_name = '%s_temp' % model.__tablename__
+                    while temporary_table_name in map(
+                        lambda model: model[1].__tablename__, models
+                    ):
+                        temporary_table_name = '%s_temp' % temporary_table_name
+                    __logger__.info(
+                        'Create new temporary table "%s".',
+                        temporary_table_name)
+                    temporary_table = Table(
+                        temporary_table_name, MetaData(bind=cls.engine))
+                    __logger__.info(
+                        'Creating new columns in temporary table "%s".',
+                        temporary_table_name)
+                    old_columns = {}
+                    for column in model.__table__.columns:
+                        if column.name in old_schemas[model.__tablename__]:
+                            old_columns[column.name] = getattr(
+                                model, column.name)
+                        temporary_table.append_column(column.copy())
+                    temporary_table.create(cls.engine)
+                    cls.session.commit()
+                    __logger__.info(
+                        'Transferring old records from "%s" to "%s".',
+                        model.__tablename__, temporary_table_name)
+                    '''
+                        NOTE: We have to select all old column names explicitly
+                        because some properties may not exist in old database
+                        reflection.
+                    '''
+                    migration_successful = True
+                    for values in cls.session.query(*old_columns.values()):
+                        __logger__.debug(
+                            'Transferring record "%s".', '", "'.join(map(
+                                lambda value: str(value), values)))
+                        try:
+                            cls.session.execute(temporary_table.insert(dict(
+                                zip(old_columns.keys(), values))))
+                        except Exception as exception:
+                            __logger__.critical(
+                                '%s: %s', exception.__class__.__name__,
+                                str(exception))
+                            migration_successful = False
+                    cls.session.commit()
+                    if migration_successful and isinstance(
+                        cls.engine.connect(), SQLite3Connection
+                    ):
+                        __logger__.debug(
+                            'Drop table "%s".', model.__tablename__)
+                        '''
+                            NOTE: We have to temporary remove foreign key
+                            checks.
+                        '''
+                        cls.session.execute('PRAGMA foreign_keys=OFF;')
+                        cls.session.execute(DropTable(Table(
+                            model.__tablename__, MetaData(bind=cls.engine))))
+                        cls.session.execute('ALTER TABLE %s RENAME TO %s;' % (
+                            temporary_table_name, model.__tablename__))
+                        cls.session.execute('PRAGMA foreign_key_check;')
+                        cls.session.execute('PRAGMA foreign_keys=ON;')
+                    else:
+                        __logger__.info(
+                            'Please migrate table "%s" by hand.',
+                            model.__tablename__)
+                    cls.session.commit()
+
+            elif model.__tablename__ not in old_schemas:
+                __logger__.info('New model "%s" detected.', model_name)
+                '''NOTE: sqlalchemy will create this table automatically.'''
         '''Load all existing table names from current database.'''
         cls.model.Model.metadata.reflect(cls.engine)
         if cls.model is not None:
