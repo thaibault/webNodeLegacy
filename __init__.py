@@ -548,7 +548,7 @@ class Main(Class, Runnable):
             ).camel_case_to_delimited().content),
             'value_wrapper': self.convert_for_backend}
 
-        # endregion
+        # # endregion
 
         __logger__.info('Sandbox application into "%s".', self.ROOT_PATH)
         __logger__.info(
@@ -917,9 +917,7 @@ class Main(Class, Runnable):
                     value.replace('\\', 2 * '\\'), string=True
                 ).render(
                     mapping=mapping, module_name=__name__, main=cls
-                ).output if isinstance(
-                    value, (unicode, str)
-                ) else value
+                ).output if isinstance(value, (unicode, str)) else value
             ).content
 # #
         cls.options = Dictionary(cls.options).convert(
