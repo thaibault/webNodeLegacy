@@ -14,8 +14,7 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 from base64 import b64encode as base64encode
-pass
+from base64 import b64encode as base64_encode
 from copy import copy
 from datetime import datetime as DateTime
 import inspect
@@ -163,27 +162,35 @@ class Response(Class):
             if 'has_password' in data:
                 value = data['has_password']
                 del data['has_password']
-                for model in self.request.session.query(
-                    self.model
-                ).filter_by(**data):
-                    if model.has_password(value):
+                users = self.request.session.query(self.model).filter_by(
+                    **data)
+                if users.count():
+                    user = users.one()
+                    if user.enabled and user.has_password(value):
                         '''
                             Save session token in database with expiration \
                             time.
                         '''
 # # python3.4
-# #                         model.session_token = base64encode(os.urandom(
+# #                         user.session_token = base64_encode(os.urandom(
 # #                             self.request.options['model'][
 # #                                 'authentication'
 # #                             ]['session_token']['length']
-# #                         )).decode('utf8').strip()
-                        model.session_token = os.urandom(
+# #                         )).decode().strip()
+                        session_token = base64_encode(os.urandom(
                             self.request.options['model'][
                                 'authentication'
                             ]['session_token']['length']
-                        ).encode('base_64').strip()
+                        )).strip()
+                        if self.request.options[
+                            'database_engine_prefix'
+                        ].startswith('sqlite:'):
+                            session_token = unicode(
+                                session_token,
+                                self.request.options['encoding'])
+                        user.session_token = session_token
 # #
-                        model.session_expiration_date_time = DateTime.now(
+                        user.session_expiration_date_time = DateTime.now(
                         ) + self.request.options['session'][
                             'expiration_interval']
                         '''
@@ -191,7 +198,7 @@ class Response(Class):
                             session is committed, to avoid temporary lose \
                             data.
                         '''
-                        result = model.get_dictionary(**self.data_wrapper)
+                        result = user.get_dictionary(**self.data_wrapper)
                         self.request.session.commit()
                         return result
             elif(self.request.authorized_user is not None and
@@ -227,19 +234,18 @@ class Response(Class):
                 else:
                     new_get.update(item)
                     self.request.session.add(self.model(**new_get))
-        elif get and self.request.session.query(self.model).filter_by(
-            **get
-        ).count():
+        else:
+            result = self.request.session.query(self.model).filter_by(**get)
+            if get and result.count():
 # # python3.4
-# #             self.request.session.query(self.model).filter_by(**get).update(
-# #                 self.model(**data).get_dictionary(prefix_filter=''))
-            self.request.session.query(self.model).filter_by(**get).update(
-                self.model(**data).get_dictionary(
+# #                 result.update(self.model(**data).get_dictionary(
+# #                     prefix_filter=''))
+                result.update(self.model(**data).get_dictionary(
                     prefix_filter='', preserve_unicode=True))
 # #
-        else:
-            get.update(data)
-            self.request.session.add(self.model(**get))
+            else:
+                get.update(data)
+                self.request.session.add(self.model(**get))
         self.request.session.commit()
         return{}
 

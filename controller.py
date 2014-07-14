@@ -75,9 +75,7 @@ class Main(object):
         '''Converts given data to database compatible values.'''
 # # python3.4
 # #         pass
-        if cls.main.options['database_engine_prefix'].startswith(
-            'sqlite:'
-        ):
+        if cls.main.options['database_engine_prefix'].startswith('sqlite:'):
             return Dictionary(data).convert(
                 value_wrapper=lambda key, value: unicode(
                     value, cls.main.options['encoding']

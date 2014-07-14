@@ -42,7 +42,6 @@ from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy import create_engine as create_database_engine
 from sqlalchemy.orm import sessionmaker as create_database_session
 from sqlalchemy.schema import CreateTable, DropTable, Table, MetaData
-
 from sqlalchemy import event as SqlalchemyEvent
 from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
@@ -60,8 +59,11 @@ from boostNode.runnable.template import __exception__ as TemplateError
 try:
     Controller = __import__('controller', {}, {}, ('Main',)).Main
     RestResponse = __import__('restController', {}, {}, ('Response',)).Response
-except ImportError:
+except ImportError as exception:
+    module_import_error = exception
     Controller = RestResponse = None
+else:
+    module_import_error = None
 
 # endregion
 
@@ -386,7 +388,7 @@ class Main(Class, Runnable):
             with self.web_api_lock:
                 getattr(self.web_server, inspect.stack()[0][3])(
                     *arguments, **keywords)
-        if self.controller is not None:
+        if not (Controller is None or self.controller is None):
             self.controller.stop()
         '''Take this method type by the abstract class via introspection.'''
         return getattr(
@@ -434,6 +436,47 @@ class Main(Class, Runnable):
             mapping=self.controller.get_manifest_scope(request=self, user=user)
         ).output
 
+    def authenticate(self):
+        '''
+            Authenticates a user by potential sent header identification data.
+        '''
+        user_id = session_token = None
+        if self.options['authentication_method'] == 'header':
+            user_id = self.data['handler'].headers.get(String(
+                self.options['session']['key']['user_id']
+            ).camel_case_to_delimited(delimiter='-').content)
+            session_token = self.data['handler'].headers.get(String(
+                self.options['session']['key']['token']
+            ).camel_case_to_delimited(delimiter='-').content)
+        elif self.options['authentication_method'] == 'cookie':
+            user_id = self.data['cookie'].get(
+                self.options['session']['key']['user_id'])
+            session_token = self.data['cookie'].get(
+                self.options['session']['key']['token'])
+        return self.extend_user_authorization(user_id, session_token)
+
+    @classmethod
+    def extend_user_authorization(cls, user_id, session_token):
+        '''Extends user authorization time.'''
+        user = None
+        if user_id and session_token:
+            users = cls.session.query(cls.model.User).filter(
+                cls.model.User.enabled == True,
+                cls.model.User.id == int(user_id),
+                cls.model.User.session_token == session_token,
+                cls.model.User.session_expiration_date_time > DateTime.now())
+            if users.count():
+                user = users.one()
+                user.session_expiration_date_time = DateTime.now(
+                ) + cls.options['session']['expiration_interval']
+                __logger__.info('Authorize user "%d" for %d hours.', user.id, (
+                    cls.options['session'][
+                        'expiration_interval'
+                    ].total_seconds() / 60
+                ) / 60)
+                cls.session.commit()
+        return user
+
     # endregion
 
     # region protected methods
@@ -474,7 +517,7 @@ class Main(Class, Runnable):
                     self.data['data'])
         '''Holds the current request handler server instance.'''
         self.session = create_database_session(bind=self.engine)()
-        self.authorized_user = self._authenticate()
+        self.authorized_user = self.authenticate()
 
         # # endregion
 
@@ -505,6 +548,8 @@ class Main(Class, Runnable):
         ).directory_path).directory_path)
         self.__class__.ROOT_PATH = FileHandler.get_root().path
         self.__class__.controller = None
+        if not (__test_mode__ or module_import_error is None):
+            raise module_import_error
         self._set_options()
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
@@ -562,8 +607,9 @@ class Main(Class, Runnable):
             self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
-        if(self.debug or self.given_command_line_arguments.render_template or
-           not (self.frontend_html_file and self.backend_html_file)):
+        if(self.options['initial_template_rendering'] and (
+           self.debug or self.given_command_line_arguments.render_template or
+           not (self.frontend_html_file and self.backend_html_file))):
             __logger__.info('Render template files.')
             self.render_templates()
         if not self.given_command_line_arguments.render_template:
@@ -742,7 +788,11 @@ class Main(Class, Runnable):
                     for values in cls.session.query(*old_columns.values()):
                         __logger__.debug(
                             'Transferring record "%s".', '", "'.join(map(
-                                lambda value: str(value), values)))
+                                lambda value: value.encode(
+                                    cls.options['encoding']
+                                ) if isinstance(value, unicode) else str(
+                                    value
+                                ), values)))
                         try:
                             cls.session.execute(temporary_table.insert(dict(
                                 zip(old_columns.keys(), values))))
@@ -752,10 +802,10 @@ class Main(Class, Runnable):
                                 str(exception))
                             migration_successful = False
                     cls.session.commit()
-                    if migration_successful and isinstance(
-                        cls.engine.connect(), SQLite3Connection
-                    ):
-                        __logger__.debug(
+                    if(migration_successful and
+                       cls.options['database_engine_prefix'].startswith(
+                           'sqlite:')):
+                        __logger__.info(
                             'Drop table "%s".', model.__tablename__)
                         '''
                             NOTE: We have to temporary remove foreign key
@@ -768,12 +818,14 @@ class Main(Class, Runnable):
                             temporary_table_name, model.__tablename__))
                         cls.session.execute('PRAGMA foreign_key_check;')
                         cls.session.execute('PRAGMA foreign_keys=ON;')
+                        __logger__.info(
+                            'Automatic migration of model "%s" was '
+                            'successful.', model_name)
                     else:
                         __logger__.info(
                             'Please migrate table "%s" by hand.',
                             model.__tablename__)
                     cls.session.commit()
-
             elif model.__tablename__ not in old_schemas:
                 __logger__.info('New model "%s" detected.', model_name)
                 '''NOTE: sqlalchemy will create this table automatically.'''
@@ -969,45 +1021,6 @@ class Main(Class, Runnable):
 
         # # endregion
 
-    def _authenticate(self):
-        '''
-            Authenticates a user by potential sent header identification data.
-        '''
-        user_id = session_token = None
-        if self.options['authentication_method'] == 'header':
-            user_id = self.data['handler'].headers.get(String(
-                self.options['session']['key']['user_id']
-            ).camel_case_to_delimited(delimiter='-').content)
-            session_token = self.data['handler'].headers.get(String(
-                self.options['session']['key']['token']
-            ).camel_case_to_delimited(delimiter='-').content)
-        elif(self.options['authentication_method'] == 'cookie' and
-             self.options['session']['key']['user_id'] in self.data['cookie']
-             and self.options['session']['key']['token_key'] in
-             self.data['cookie']):
-            user_id = self.data['cookie'][self.options['session']['key'][
-                'user_id']]
-            session_token = \
-                self.data['cookie'][self.options['session']['key']['token']]
-        result = None
-        if user_id and session_token:
-            users = self.session.query(self.model.User).filter(
-                self.model.User.id == user_id,
-                self.model.User.session_token == session_token,
-                self.model.User.session_expiration_date_time > DateTime.now())
-            if users.count():
-                result = users.one()
-                result.session_expiration_date_time = DateTime.now(
-                ) + self.options['session']['expiration_interval']
-                __logger__.info(
-                    'Authorize user "%s" (id: %d) for %d hours.',
-                    result.e_mail_address, result.id, (
-                        self.options['session'][
-                            'expiration_interval'
-                        ].total_seconds() / 60
-                    ) / 60)
-        return result
-
         # endregion
 
         # region web server
@@ -1036,12 +1049,12 @@ class Main(Class, Runnable):
             if(self.options['session']['key']['user_id'] in
                self.data['cookie'] and
                self.options['session']['key']['token'] in self.data['cookie']):
-                user = self.session.query(self.model.Model).filter(
-                    self.model.User.id ==
-                    self.data['cookie'][self.options['user_id_key']],
+                user = self.session.query(self.model.User).filter(
+                    self.model.User.id == self.data['cookie'][
+                        self.options['session']['key']['user_id']],
                     self.model.User.session_token == self.data['cookie'][
                         self.options['session']['key']['token']]
-                ).one().dictionary
+                ).one()
                 manifest_name = user.id
             cache_file = FileHandler(
                 '%s%s.appcache' %
@@ -1074,7 +1087,7 @@ class Main(Class, Runnable):
         if self.new_cookie:
             self.data['handler'].send_cookie(
                 self.new_cookie, maximum_age_in_seconds=self.options[
-                    'maximumCookieAgeInSeconds'])
+                    'maximum_cookie_age_in_seconds'])
         Print(output, end='')
         return self
 

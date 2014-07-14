@@ -22,7 +22,7 @@ from sqlalchemy.ext.declarative.api import DeclarativeMeta
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import validates
 from sqlalchemy.schema import Column
-from sqlalchemy.types import Boolean, DateTime, String
+from sqlalchemy.types import Boolean, DateTime, String, Integer
 
 from boostNode.extension.native import Module
 from boostNode.extension.native import Model as BaseModel
@@ -143,6 +143,7 @@ class AuthenticationModel(BaseAuthenticationModel, UpdateTriggerModel):
         properties.
     '''
 
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
     session_token = Column(
         String(
