@@ -64,7 +64,7 @@ class Response(Class):
         else:
             method_name = '%s_%s_model' % (
                 self.request.data['request_type'],
-                self.request.data['get']['__model__'].lower())
+                String(self.request.data['get']['__model__']).camel_case_to_delimited().content)
             if hasattr(self, method_name):
                 self.model = getattr(self, method_name)
             elif hasattr(self.request.controller, method_name):
