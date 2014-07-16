@@ -115,9 +115,12 @@
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
             "webCache": "/cache/",
             "certificateFile": "/certificate/example.pem",
-            "databaseFolder": "/database/",
-            "databaseURL": "<% location['databaseFolder'] %>data",
-            "databaseSchemaFile": "<% location['databaseFolder'] %>schema.json"
+            "database": {
+                "folder": "/database/",
+                "url": "<% location['database']['folder'] %>data",
+                "schemaFile": "<% location['database']['folder'] %>schema.json",
+                "backup": "/backup/database/"
+            }
         },
 
         "ignoreWebAssetPattern": [".*\\.swp", "\\..*"],

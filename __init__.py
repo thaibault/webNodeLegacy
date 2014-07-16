@@ -95,7 +95,7 @@ class Main(Class, Runnable):
     '''Holds all given commend line arguments in a named tuple.'''
     session = None
     '''
-        Holds the orm database session instance. NOTE: There is a class and
+        Holds the orm database session instance. NOTE: There is a class and \
         instance binded session.
     '''
     options = {}
@@ -603,7 +603,7 @@ class Main(Class, Runnable):
             self.clear_web_cache()
             __logger__.info(
                 'Initialize database on "%s".',
-                self.options['location']['database_url'])
+                self.options['location']['database']['url'])
             self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
@@ -668,8 +668,7 @@ class Main(Class, Runnable):
             cls.django_settings_set = True
             django_settings.configure(
                 TEMPLATE_DIRS='%s%s' % (
-                    cls.ROOT_PATH,
-                    cls.options['location']['database_folder']
+                    cls.ROOT_PATH, cls.options['location']['template']
                 ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
                 LANGUAGE_CODE=cls.options['default_language'])
         mapping['optionsAsJSON'] = marke_safe_string(
@@ -722,19 +721,21 @@ class Main(Class, Runnable):
         return cls
 
     @classmethod
-    def _check_database_schema_version(cls):
+    def _check_database_schema_version(cls, database_backup_file):
         '''Checke if the database schema has changed.'''
+        if cls.model is None:
+            return cls
         database_schema_file = FileHandler(
-            cls.options['location']['database_schema_file'])
+            cls.options['location']['database']['schema_file'])
         old_schemas = {}
+        serialized_schema = ''
         if database_schema_file:
+            serialized_schema = database_schema_file.content
 # # python3.4
 # #             old_schemas = json.loads(
-# #                 database_schema_file.content,
-# #                 encoding=cls.options['encoding'])
+# #                 serialized_schema, encoding=cls.options['encoding'])
             old_schemas = Dictionary(json.loads(
-                database_schema_file.content,
-                encoding=cls.options['encoding'])
+                serialized_schema, encoding=cls.options['encoding'])
             ).convert(
                 key_wrapper=lambda key, value: cls.convert_byte_to_string(
                     key),
@@ -780,9 +781,9 @@ class Main(Class, Runnable):
                         'Transferring old records from "%s" to "%s".',
                         model.__tablename__, temporary_table_name)
                     '''
-                        NOTE: We have to select all old column names explicitly
-                        because some properties may not exist in old database
-                        reflection.
+                        NOTE: We have to select all old column names \
+                        explicitly because some properties may not exist in \
+                        old database reflection.
                     '''
                     migration_successful = True
                     for values in cls.session.query(*old_columns.values()):
@@ -806,14 +807,17 @@ class Main(Class, Runnable):
                        cls.options['database_engine_prefix'].startswith(
                            'sqlite:')):
                         __logger__.info(
-                            'Drop table "%s".', model.__tablename__)
+                            'Drop old table "%s".', model.__tablename__)
                         '''
-                            NOTE: We have to temporary remove foreign key
+                            NOTE: We have to temporary remove foreign key \
                             checks.
                         '''
                         cls.session.execute('PRAGMA foreign_keys=OFF;')
                         cls.session.execute(DropTable(Table(
                             model.__tablename__, MetaData(bind=cls.engine))))
+                        __logger__.info(
+                            'Rename new table "%s" to old table name "%s".',
+                            temporary_table_name, model.__tablename__)
                         cls.session.execute('ALTER TABLE %s RENAME TO %s;' % (
                             temporary_table_name, model.__tablename__))
                         cls.session.execute('PRAGMA foreign_key_check;')
@@ -831,24 +835,38 @@ class Main(Class, Runnable):
                 '''NOTE: sqlalchemy will create this table automatically.'''
         '''Load all existing table names from current database.'''
         cls.model.Model.metadata.reflect(cls.engine)
-        if cls.model is not None:
-            for table_name in cls.model.Model.metadata.tables.keys():
+        for table_name in cls.model.Model.metadata.tables.keys():
 # # python3.4                 pass
-                table_name = table_name.encode(cls.options['encoding'])
-                if(table_name not in new_schemas and
-                   cls.engine.dialect.has_table(
-                       cls.engine.connect(), table_name)):
-                    cls.session.execute(DropTable(Table(table_name, MetaData(
-                        bind=cls.engine))))
-                    __logger__.info('Table "%s" has been removed.', table_name)
+            table_name = table_name.encode(cls.options['encoding'])
+            if table_name not in new_schemas and cls.engine.dialect.has_table(
+                cls.engine.connect(), table_name
+            ):
+                cls.session.execute(DropTable(Table(table_name, MetaData(
+                    bind=cls.engine))))
+                __logger__.info('Table "%s" has been removed.', table_name)
 # # python3.4
-# #                 database_schema_file.content = json.dumps(
-# #                     new_schemas, sort_keys=True,
-# #                     indent=cls.options['default_indent_level'])
-                database_schema_file.content = json.dumps(
-                    new_schemas, encoding=cls.options['encoding'],
-                    sort_keys=True, indent=cls.options['default_indent_level'])
+# #             database_schema_file.content = json.dumps(
+# #                 new_schemas, sort_keys=True,
+# #                 indent=cls.options['default_indent_level'])
+            database_schema_file.content = json.dumps(
+                new_schemas, encoding=cls.options['encoding'],
+                sort_keys=True, indent=cls.options['default_indent_level'])
 # #
+        if database_schema_file.content != serialized_schema:
+            now = DateTime.now()
+# # python3.4
+# #             time_stamp = now.timestamp() + now.microsecond / 1000 ** 2
+            time_stamp = time.mktime(now.timetuple()) + \
+                now.microsecond / 1000 ** 2
+# #
+            long_term_database_file = FileHandler(location='%s%s%d%s' % (
+                database_backup_file.directory_path,
+                database_backup_file.basename, time_stamp,
+                database_backup_file.extension_suffix))
+            __logger__.info(
+                'Save long term database file "%s".',
+                long_term_database_file.path)
+            database_backup_file.copy(target=long_term_database_file)
         return cls
 
     @classmethod
@@ -1003,14 +1021,26 @@ class Main(Class, Runnable):
     @classmethod
     def _initialize_model(cls):
         '''Initializes the model.'''
+        if cls.options['database_engine_prefix'].startswith('sqlite:'):
+            database_file = FileHandler(
+                location=cls.options['location']['database']['url'])
+            database_backup_file = FileHandler(
+                location='%s%sBackup%s' % (
+                    cls.options['location']['database']['backup'],
+                    database_file.basename,
+                    database_file.extension_suffix))
+            __logger__.info(
+                'Backup database "%s" to "%s".', database_file.path,
+                database_backup_file.path)
+            database_file.copy(target=database_backup_file)
         cls.engine = create_database_engine('%s%s%s' % (
             cls.options['database_engine_prefix'], cls.ROOT_PATH,
-            cls.options['location']['database_url']
+            cls.options['location']['database']['url']
         ), echo=__logger__.isEnabledFor(logging.DEBUG))
         if cls.model is not None:
             cls.model.Model.metadata.create_all(cls.engine)
         cls.session = create_database_session(bind=cls.engine)()
-        cls._check_database_schema_version()
+        cls._check_database_schema_version(database_backup_file)
         cls._check_database_file_references()
         if cls.controller is not None:
             cls.controller.insert_needed_database_record()
