@@ -705,13 +705,16 @@ class Main(Class, Runnable):
                                 file_path in checked_paths or FileHandler(
                                     file_path)
                             ) and CommandLine.boolean_input(
-                                'Model "%s" (%s) has a dead file reference via'
-                                ' attribute "%s" to "%s". Do you want to '
+                                'Model %s has a dead file reference via '
+                                'attribute "%s" to "%s". Do you want to '
                                 'delete this record? {boolean_arguments}: ' % (
-                                    repr(model_instance), model_name,
-                                    property.name, file_path))
+                                    repr(model_instance), property.name,
+                                    file_path))
                             ):
-                                cls.session.delete(model_instance)
+                                cls.session.query(model).filter_by(
+                                    **model_instance.dictionary
+                                ).delete()
+                                cls.session.commit()
                             elif(file_path not in checked_paths or
                                  checked_paths[file_path] != model_name):
                                 checked_paths[file_path] = model_name
