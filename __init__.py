@@ -1079,13 +1079,12 @@ class Main(Class, Runnable):
             if(self.options['session']['key']['user_id'] in
                self.data['cookie'] and
                self.options['session']['key']['token'] in self.data['cookie']):
-                user = self.session.query(self.model.User).filter(
+                users = self.session.query(self.model.User).filter(
                     self.model.User.id == self.data['cookie'][
-                        self.options['session']['key']['user_id']],
-                    self.model.User.session_token == self.data['cookie'][
-                        self.options['session']['key']['token']]
-                ).one()
-                manifest_name = user.id
+                        self.options['session']['key']['user_id']])
+                if users.count():
+                    user = users.one()
+                    manifest_name = user.id
             cache_file = FileHandler(
                 '%s%s.appcache' %
                 (self.options['location']['web_cache'], manifest_name))
