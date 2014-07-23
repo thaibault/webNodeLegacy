@@ -324,13 +324,23 @@ class Response(Class):
             if ignored:
                 continue
             file_attributes = {}
+            skip = False
             for attribute_name in self.request.options[
                 'exportable_file_attributes'
             ]:
-                file_attributes[String(
+                attribute_name_camel_case = String(
                     attribute_name
-                ).delimited_to_camel_case().content] = getattr(
-                    file, attribute_name)
+                ).delimited_to_camel_case().content
+                if attribute_name_camel_case not in data or getattr(
+                    file, attribute_name
+                ) == data[attribute_name_camel_case]:
+                    file_attributes[attribute_name_camel_case] = getattr(
+                        file, attribute_name)
+                else:
+                    skip = True
+                    break
+            if skip:
+                continue
             result.append(file_attributes)
         return result
 
