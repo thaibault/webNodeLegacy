@@ -364,6 +364,10 @@ class Response(Class):
             key_wrapper=lambda key, value: '%s_%s' % (
                 get['source'].lower(), key)
         ).content
+        '''
+            Prepare a pattern for newly created linked records with \
+            corresponding linked attribute names and values.
+        '''
         data = Dictionary(data).convert(
             key_wrapper=lambda key, value: '%s_%s' % (
                 get['source'].lower(), key)
@@ -373,7 +377,7 @@ class Response(Class):
         ):
             if isinstance(model, type) and issubclass(
                 model, self.request.model.Model
-            ) and model_name != get['source']:
+            ):
                 column_names = list(map(
                     lambda property: property.name, model.__table__.columns))
                 is_referenced = True
@@ -386,10 +390,11 @@ class Response(Class):
                         NOTE: Property names have to be determined once. \
                         Because sometimes the result is empty due to an \
                         internal caching bug. Additionally this workaround \
-                        brings a little performance.
+                        brings a little performance improvement.
                     '''
                     property_names = []
                     for column in model.__table__.columns:
+                        '''Remove unique identifiers for record copies.'''
                         if column.name != 'id':
                             property_names.append(column.name)
                     for record in self.request.session.query(
@@ -397,10 +402,12 @@ class Response(Class):
                     ).filter_by(**keys):
                         self.model = model
                         self.process_put(
-                            get={}, data=record.get_dictionary(
-                                value_wrapper=lambda key, value:
-                                data[key] if key in data else value,
-                                property_names=property_names))
+                            get={},
+                            data=self.request.controller.convert_for_database(
+                                record.get_dictionary(
+                                    value_wrapper=lambda key, value:
+                                        data[key] if key in data else value,
+                                        property_names=property_names)))
                         self.request.session.commit()
         return{}
 

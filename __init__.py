@@ -528,7 +528,7 @@ class Main(Class, Runnable):
                 self.data['handler'].send_error(500, '%s: "%s"' % (
                     exception.__class__.__name__, str(exception)))
             else:
-                # NOTE: The web server will handle this.
+                '''NOTE: The web server will handle this.'''
                 raise
         finally:
             self.session.close()
@@ -769,15 +769,20 @@ class Main(Class, Runnable):
                         temporary_table_name)
                     temporary_table = Table(
                         temporary_table_name, MetaData(bind=cls.engine))
-                    __logger__.info(
-                        'Creating new columns in temporary table "%s".',
-                        temporary_table_name)
                     old_columns = {}
                     for column in model.__table__.columns:
                         if column.name in old_schemas[model.__tablename__]:
                             old_columns[column.name] = getattr(
                                 model, column.name)
                         temporary_table.append_column(column.copy())
+                    for constraint in model.__table__.constraints:
+                        '''
+                            NOTE: Produces a warning. Constraints seems not \
+                            to reference local columns. "constraint.copy()" \
+                            is no option because the result loses the column \
+                            bounding.
+                        '''
+                        temporary_table.append_constraint(constraint)
                     temporary_table.create(cls.engine)
                     cls.session.commit()
                     __logger__.info(
@@ -830,8 +835,10 @@ class Main(Class, Runnable):
                             'successful.', model_name)
                     else:
                         __logger__.info(
-                            'Please migrate table "%s" by hand.',
-                            model.__tablename__)
+                            'Please migrate table "%s" by hand or prepare '
+                            'for next try.', model.__tablename__)
+                        new_schemas[model.__tablename__] = \
+                            old_schemas[model.__tablename__]
                     cls.session.commit()
             elif model.__tablename__ not in old_schemas:
                 __logger__.info('New model "%s" detected.', model_name)
@@ -1032,10 +1039,11 @@ class Main(Class, Runnable):
                     cls.options['location']['database']['backup'],
                     database_file.basename,
                     database_file.extension_suffix))
-            __logger__.info(
-                'Backup database "%s" to "%s".', database_file.path,
-                database_backup_file.path)
-            database_file.copy(target=database_backup_file)
+            if database_file:
+                __logger__.info(
+                    'Backup database "%s" to "%s".', database_file.path,
+                    database_backup_file.path)
+                database_file.copy(target=database_backup_file)
         cls.engine = create_database_engine('%s%s%s' % (
             cls.options['database_engine_prefix'], cls.ROOT_PATH,
             cls.options['location']['database']['url']
