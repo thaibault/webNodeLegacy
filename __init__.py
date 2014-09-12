@@ -110,10 +110,8 @@ class Main(Class, Runnable):
     frontend_html_file = None
     backend_html_file = None
     '''Holds the main entry files for bootstrapping the web application.'''
-    frontend_data_wrapper = {}
-    '''Holds a mapping to convert dictionaries for frontend.'''
-    backend_data_wrapper = {}
-    '''Holds a mapping to convert dictionaries for backend.'''
+    html_template_file = None
+    '''Saves the template file for frontend and backend based html file.'''
     django_settings_set = False
     '''Indicates if django is already configured.'''
     package_name = ''
@@ -146,7 +144,91 @@ class Main(Class, Runnable):
         # # region helper
 
     @classmethod
-    def render_templates(cls):
+    def extend_options(cls, options, consolidate=True):
+        '''Extends options object with given options.'''
+        if options:
+            cls.options = Dictionary(cls.options).update(options).content
+            if consolidate:
+                cls.consolidate_options()
+        return cls
+
+    @classmethod
+    def consolidate_options(cls):
+        '''Merges, renders and resolves internal option dependencies.'''
+        global OPTIONS
+        cls._merge_options().options['moduleName'] = __name__
+        cls.options = Dictionary(cls.options).convert(
+            key_wrapper=lambda key, value: cls.convert_for_backend(key),
+            value_wrapper=cls.convert_for_backend
+        ).content
+        mapping = copy(cls.options['frontend'])
+        mapping.update(cls.options)
+        '''
+            NOTE: We have to run over options twice to handle cyclic \
+            dependencies.
+        '''
+        for number in range(2):
+# # python3.4
+# #             cls.options = Dictionary(cls.options).convert(
+# #                 value_wrapper=lambda key, value: TemplateParser(
+# #                     value.replace('\\', 2 * '\\'), string=True
+# #                 ).render(
+# #                     mapping=mapping, module_name=__name__, main=cls
+# #                 ).output if isinstance(value, str) else value
+# #             ).content
+            cls.options = Dictionary(cls.options).convert(
+                value_wrapper=lambda key, value: TemplateParser(
+                    value.replace('\\', 2 * '\\'), string=True
+                ).render(
+                    mapping=mapping, module_name=__name__, main=cls
+                ).output if isinstance(value, (unicode, str)) else value
+            ).content
+# #
+        cls.options = Dictionary(cls.options).convert(
+            key_wrapper=lambda key, value: String(key).camel_case_to_delimited(
+            ).content, value_wrapper=cls.convert_for_backend
+        ).content
+        String.abbreviations = cls.options['abbreviations']
+        cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
+            key_wrapper=lambda key, value: cls.convert_for_client(String(
+                key
+            ).delimited_to_camel_case().content),
+            value_wrapper=cls.convert_for_client
+        ).content
+        cls.options['session']['expiration_interval'] = TimeDelta(
+            minutes=cls.options['session']['expiration_time_in_minutes'])
+        '''
+            Export options to global scope to make them accessible for other \
+            modules like model or controller.
+        '''
+        OPTIONS = cls.options
+        return cls
+
+    @classmethod
+    def extend_user_authorization(cls, user_id, session_token, location):
+        '''Extends user authorization time.'''
+        user = None
+        if user_id and session_token:
+            users = cls.session.query(cls.model.User).filter(
+                cls.model.User.enabled == True,
+                cls.model.User.id == int(user_id),
+                cls.model.User.session_token == session_token,
+                cls.model.User.session_expiration_date_time > DateTime.now())
+            if users.count():
+                user = users.one()
+                user.session_expiration_date_time = DateTime.now(
+                ) + cls.options['session']['expiration_interval']
+                __logger__.info('Authorize user "%d" for %d hours.', user.id, (
+                    cls.options['session'][
+                        'expiration_interval'
+                    ].total_seconds() / 60
+                ) / 60)
+                user.location = location
+                cls.session.commit()
+        return user
+
+    @classmethod
+    def render_templates(cls, all=False):
         '''Renders the main index html file.'''
         mapping = {
             'options': deepcopy(cls.options['frontend']),
@@ -155,8 +237,10 @@ class Main(Class, Runnable):
             cls.given_command_line_arguments, 'root': FileHandler.get_root()}
         if 'admin' in mapping['options']:
             del mapping['options']['admin']
-        FileHandler(location='/').iterate_directory(
-            function=cls._render_template, recursive=True, mapping=mapping)
+        if all:
+            FileHandler(location='/').iterate_directory(
+                function=cls._render_template, recursive=True, mapping=mapping)
+        cls._render_html_templates(mapping)
         return cls
 
     @classmethod
@@ -203,9 +287,8 @@ class Main(Class, Runnable):
 # #
             if isinstance(value, Time):
                 return(
-                    1000 ** 2 * 60 ** 2 * value.hour +
-                    1000 ** 2 * 60 * value.minute +
-                    1000 ** 2 * value.second + value.microsecond / 1000 ** 2)
+                    60 ** 2 * value.hour + 60 * value.minute +
+                    value.second + value.microsecond / 1000 ** 2)
 # # python3.4
 # #             if(isinstance(key, str) and (
 # #                 key == 'language' or key.endswith('_language') or
@@ -247,6 +330,15 @@ class Main(Class, Runnable):
     @classmethod
     def convert_for_backend(cls, key, value=Null):
         '''Converts data from client to python specific data objects.'''
+        # TODO auslagern
+        def convert_to_number(value):
+            try:
+                return int(value)
+            except(TypeError, ValueError):
+                try:
+                    return float(value)
+                except(TypeError, ValueError):
+                    return value
         key = cls.convert_byte_to_string(key)
         value = cls.convert_byte_to_string(value)
         if value is Null:
@@ -254,8 +346,17 @@ class Main(Class, Runnable):
         elif isinstance(key, str):
             if key == 'date_time' or key.endswith('_date_time'):
                 if isinstance(value, (int, float)):
-                    return DateTime.fromtimestamp(value)
-                elif isinstance(value, str):
+                    try:
+                        return DateTime.fromtimestamp(value)
+                    except ValueError:
+                        pass
+                converted_value = convert_to_number(value)
+                if isinstance(converted_value, (int, float)):
+                    try:
+                        return DateTime.fromtimestamp(converted_value)
+                    except ValueError:
+                        pass
+                if isinstance(value, str):
                     for delimiter in ('.', '/'):
                         for year_format in ('%y', '%Y'):
                             for microsecond_format in ('', ':%f'):
@@ -279,8 +380,17 @@ class Main(Class, Runnable):
                                         pass
             if key == 'date' or key.endswith('_date') or key.endswith('Date'):
                 if isinstance(value, (int, float)):
-                    return Date.fromtimestamp(value)
-                elif isinstance(value, str):
+                    try:
+                        return Date.fromtimestamp(value)
+                    except ValueError:
+                        pass
+                converted_value = convert_to_number(value)
+                if isinstance(converted_value, (int, float)):
+                    try:
+                        return Date.fromtimestamp(converted_value)
+                    except ValueError:
+                        pass
+                if isinstance(value, str):
                     for delimiter in ('.', '/'):
                         for year_format in ('%y', '%Y'):
                             for date_format in (
@@ -290,12 +400,12 @@ class Main(Class, Runnable):
                             ):
                                 try:
 # # python3.4
-# #                                     return Date.fromtimestamp(
-# #                                         DateTime.strptime(
-# #                                             value, date_format.format(
-# #                                                 delimiter=delimiter,
-# #                                                 year=year_format
-# #                                             )).timestamp())
+# #                                    return Date.fromtimestamp(
+# #                                        DateTime.strptime(
+# #                                            value, date_format.format(
+# #                                                delimiter=delimiter,
+# #                                                year=year_format
+# #                                            )).timestamp())
                                     return Date.fromtimestamp(time.mktime(
                                         DateTime.strptime(
                                             value, date_format.format(
@@ -306,14 +416,34 @@ class Main(Class, Runnable):
                                 except ValueError:
                                     pass
             if key == 'time' or key.endswith('_time') or key.endswith('Time'):
+                # TODO auslagern.
+                def seconds_to_time(value):
+                    hours = int(value / 60 ** 2)
+                    hours_in_seconds = hours * 60 ** 2
+                    minutes = int((value - hours_in_seconds) / 60)
+                    minutes_in_seconds = minutes * 60
+                    seconds = int((
+                        value - hours_in_seconds - minutes_in_seconds
+                    ))
+                    microseconds = int((
+                        value - hours_in_seconds - minutes_in_seconds - seconds
+                    ) * 1000 ** 2)
+                    return Time(
+                        hour=hours, minute=minutes, second=seconds,
+                        microsecond=microseconds)
                 if isinstance(value, (int, float)):
-                    return DateTime.fromtimestamp(value).time()
+                    try:
+                        return seconds_to_time(value)
+                    except ValueError:
+                        pass
                 elif isinstance(value, str):
-                    for microsecond_format in ('', ':%f'):
+                    try:
+                        converted_value = float(value)
+                    except ValueError:
+                        pass
+                    else:
                         try:
-                            return DateTime.strptime(
-                                value, '%X{microsecond}'.format(
-                                    microsecond=microsecond_format))
+                            return seconds_to_time(converted_value)
                         except ValueError:
                             pass
 # # python3.4
@@ -326,13 +456,7 @@ class Main(Class, Runnable):
 # #
                 return String(value).camel_case_to_delimited().content
         if isinstance(value, str):
-            try:
-                return int(value)
-            except(TypeError, ValueError):
-                try:
-                    return float(value)
-                except(TypeError, ValueError):
-                    return value
+            return convert_to_number(value)
         return value
 
         # # endregion
@@ -448,34 +572,17 @@ class Main(Class, Runnable):
             session_token = self.data['handler'].headers.get(String(
                 self.options['session']['key']['token']
             ).camel_case_to_delimited(delimiter='-').content)
+            location = self.data['handler'].headers.get(String(
+                self.options['session']['key']['location']
+            ).camel_case_to_delimited(delimiter='-').content)
         elif self.options['authentication_method'] == 'cookie':
             user_id = self.data['cookie'].get(
                 self.options['session']['key']['user_id'])
             session_token = self.data['cookie'].get(
                 self.options['session']['key']['token'])
-        return self.extend_user_authorization(user_id, session_token)
-
-    @classmethod
-    def extend_user_authorization(cls, user_id, session_token):
-        '''Extends user authorization time.'''
-        user = None
-        if user_id and session_token:
-            users = cls.session.query(cls.model.User).filter(
-                cls.model.User.enabled == True,
-                cls.model.User.id == int(user_id),
-                cls.model.User.session_token == session_token,
-                cls.model.User.session_expiration_date_time > DateTime.now())
-            if users.count():
-                user = users.one()
-                user.session_expiration_date_time = DateTime.now(
-                ) + cls.options['session']['expiration_interval']
-                __logger__.info('Authorize user "%d" for %d hours.', user.id, (
-                    cls.options['session'][
-                        'expiration_interval'
-                    ].total_seconds() / 60
-                ) / 60)
-                cls.session.commit()
-        return user
+            location = self.data['cookie'].get(
+                self.options['session']['key']['location'])
+        return self.extend_user_authorization(user_id, session_token, location)
 
     # endregion
 
@@ -582,6 +689,8 @@ class Main(Class, Runnable):
             self.options['location']['html_file']['frontend'])
         self.__class__.backend_html_file = FileHandler(
             self.options['location']['html_file']['backend'])
+        self.__class__.html_template_file = FileHandler(
+            self.options['location']['html_file']['template'])
         self.__class__.frontend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_client(String(
                 key
@@ -611,15 +720,16 @@ class Main(Class, Runnable):
            self.debug or self.given_command_line_arguments.render_template or
            not (self.frontend_html_file and self.backend_html_file))):
             __logger__.info('Render template files.')
-            self.render_templates()
+            self.render_templates(all=True)
         if not self.given_command_line_arguments.render_template:
             return self._start_web_server()
 
         # endregion
 
-        # region helper methods
+    # # region static
 
-            # region static
+    # # # region helper methods
+
 
     @classmethod
     def _render_template(cls, file, mapping):
@@ -627,21 +737,35 @@ class Main(Class, Runnable):
             Renders each template and distinguishes between backend and \
             frontend templates.
         '''
+        if(file.is_symbolic_link() or
+           file.name in cls.options['location']['template_ignored']):
+            '''Don't enter ignored locations.'''
+            return None
+# # python3.4
+# #         if file.extension == 'tpl' and FileHandler(
+# #             location='%s%s' % (file.directory_path, file.basename)
+# #         ).extension and file != cls.html_template_file:
         if file.extension == 'tpl' and FileHandler(
             location='%s%s' % (file.directory_path, file.basename)
-        ).extension:
-            if file.basename == 'index.html':
-                for site in ('frontend', 'backend'):
-                    if(site == 'frontend' or
-                       'admin' in cls.options['frontend']):
-                        getattr(
-                            cls, '%s_html_file' % site
-                        ).content = cls._render_template_helper(
-                            file, mapping, force_backend=site == 'backend')
-            else:
-                FileHandler(location='%s%s' % (
-                    file.directory_path, file.name[:-len('.tpl')])
-                ).content = cls._render_template_helper(file, mapping)
+        ).extension and not (file == cls.html_template_file):
+# #
+            FileHandler(location='%s%s' % (
+                file.directory_path, file.name[:-len('.tpl')]
+            )).content = cls._render_template_helper(file, mapping)
+        return cls
+
+    @classmethod
+    def _render_html_templates(cls, mapping):
+        '''Renders all frontend html templates.'''
+        for site in ('frontend', 'backend'):
+            if(site == 'frontend' or
+               'admin' in cls.options['frontend']
+            ):
+                getattr(
+                    cls, '%s_html_file' % site
+                ).content = cls._render_template_helper(
+                    cls.html_template_file, mapping,
+                    force_backend=site == 'backend')
         return cls
 
     @classmethod
@@ -712,7 +836,8 @@ class Main(Class, Runnable):
                                     file_path))
                             ):
                                 cls.session.query(model).filter_by(
-                                    **model_instance.dictionary
+                                    **model_instance.get_dictionary(
+                                        preserve_unicode=True)
                                 ).delete()
                                 cls.session.commit()
                             elif(file_path not in checked_paths or
@@ -846,8 +971,10 @@ class Main(Class, Runnable):
         '''Load all existing table names from current database.'''
         cls.model.Model.metadata.reflect(cls.engine)
         for table_name in cls.model.Model.metadata.tables.keys():
-# # python3.4                 pass
+# # python3.4
+# #             pass
             table_name = table_name.encode(cls.options['encoding'])
+# #
             if table_name not in new_schemas and cls.engine.dialect.has_table(
                 cls.engine.connect(), table_name
             ):
@@ -884,23 +1011,26 @@ class Main(Class, Runnable):
         '''Appends validation strings to the global options object.'''
         cls.options['type'] = {}
         for model_name, model in Module.get_defined_objects(cls.model):
+            name = model_name[0]
+            if len(model_name) > 1:
+                name += model_name[1:]
             if isinstance(model, type) and issubclass(model, cls.model.Model):
-                cls.options['type'][model_name] = {}
+                cls.options['type'][name] = {}
                 for property in model.__table__.columns:
-                    cls.options['type'][model_name][property.name] = {
+                    cls.options['type'][name][property.name] = {
                         'required': True}
                     if property.info:
-                        cls.options['type'][model_name][property.name].update(
+                        cls.options['type'][name][property.name].update(
                             property.info)
                     if hasattr(property.type, 'length') and isinstance(
                         property.type.length, int
                     ):
-                        cls.options['type'][model_name][property.name][
+                        cls.options['type'][name][property.name][
                             'maximum_length'
                         ] = property.type.length
                     if(hasattr(property, 'default') and
                        property.default is not None):
-                        cls.options['type'][model_name][property.name][
+                        cls.options['type'][name][property.name][
                             'required'
                         ] = False
                         default_value = property.default.arg
@@ -928,11 +1058,11 @@ class Main(Class, Runnable):
                         else:
                             default_value = cls.convert_for_client(
                                 key=property.name, value=default_value)
-                        cls.options['type'][model_name][property.name][
+                        cls.options['type'][name][property.name][
                             'default_value'
                         ] = default_value
                     elif hasattr(property, 'nullable') and property.nullable:
-                        cls.options['type'][model_name][property.name][
+                        cls.options['type'][name][property.name][
                             'required'
                         ] = False
         cls.options['both']['type'] = cls.options['frontend']['type'] = \
@@ -964,61 +1094,14 @@ class Main(Class, Runnable):
     @classmethod
     def _set_options(cls):
         '''Renders backend and frontend options.'''
-        global OPTIONS
         cls.options = Dictionary(json.loads(FileHandler(
-            location='/%s/%s' % (cls.package_name, cls.CONFIGURATION_FILE_PATH)
-        ).content))
+            location='/%s%s' % (cls.package_name, cls.CONFIGURATION_FILE_PATH)
+        ).content)).content
         configuration_file = FileHandler(location=cls.CONFIGURATION_FILE_PATH)
-        if configuration_file:
-            cls.options.update(json.loads(configuration_file.content))
-        cls.options = cls.options.content
-        cls._merge_options().options['moduleName'] = __name__
-        cls.options = Dictionary(cls.options).convert(
-            key_wrapper=lambda key, value: cls.convert_for_backend(key),
-            value_wrapper=cls.convert_for_backend
-        ).content
-        mapping = copy(cls.options['frontend'])
-        mapping.update(cls.options)
-        '''
-            NOTE: We have to run over options twice to handle cyclic \
-            dependencies.
-        '''
-        for number in range(2):
-# # python3.4
-# #             cls.options = Dictionary(cls.options).convert(
-# #                 value_wrapper=lambda key, value: TemplateParser(
-# #                     value.replace('\\', 2 * '\\'), string=True
-# #                 ).render(
-# #                     mapping=mapping, module_name=__name__, main=cls
-# #                 ).output if isinstance(value, str) else value
-# #             ).content
-            cls.options = Dictionary(cls.options).convert(
-                value_wrapper=lambda key, value: TemplateParser(
-                    value.replace('\\', 2 * '\\'), string=True
-                ).render(
-                    mapping=mapping, module_name=__name__, main=cls
-                ).output if isinstance(value, (unicode, str)) else value
-            ).content
-# #
-        cls.options = Dictionary(cls.options).convert(
-            key_wrapper=lambda key, value: String(key).camel_case_to_delimited(
-            ).content, value_wrapper=cls.convert_for_backend
-        ).content
-        String.abbreviations = cls.options['abbreviations']
-        cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
-            key_wrapper=lambda key, value: cls.convert_for_client(String(
-                key
-            ).delimited_to_camel_case().content),
-            value_wrapper=cls.convert_for_client
-        ).content
-        cls.options['session']['expiration_interval'] = TimeDelta(
-            minutes=cls.options['session']['expiration_time_in_minutes'])
-        '''
-            Export options to global scope to make them accessible for other \
-            modules like model or controller.
-        '''
-        OPTIONS = cls.options
-        return cls
+        if configuration_file.is_file():
+            return cls.extend_options(options=json.loads(
+                configuration_file.content))
+        return cls.consolidate_options()
 
     @SqlalchemyEvent.listens_for(SqlalchemyEngine, 'connect')
     def _set_sqlite_foreign_key_pragma(dbapi_connection, connection_record):
@@ -1080,10 +1163,10 @@ class Main(Class, Runnable):
         cache_file = None
         output = ''
         mime_type = 'text/html'
-        cache_control = 'public, max-age=0'
+        cache_control_header = 'public, max-age=0'
         if '__manifest__' in self.data['get']:
             mime_type = 'text/cache-manifest'
-            cache_control = 'no-cache'
+            cache_control_header = 'no-cache'
             '''Dynamic request should be handled by frontend cache.'''
             user = None
             manifest_name = 'generic'
@@ -1112,18 +1195,20 @@ class Main(Class, Runnable):
                 'Ressource "%s" couldn\'t be determined by client.',
                 self.data['get']['__offline__'])
         else:
-            output, mime_type, cache_control, cache_file = \
+            output, mime_type, cache_control_header, cache_file = \
                 self.controller.response(
                     request=self, output=output, mime_type=mime_type,
-                    cache_control=cache_control, cache_file=cache_file)
+                    cache_control_header=cache_control_header,
+                    cache_file=cache_file)
         if cache_file:
             self._produce_cache_file_headers(
-                cache_file, mime_type, cache_control)
+                cache_file, mime_type, cache_control_header)
             output = cache_file.content
         else:
             self.data['handler'].send_content_type_header(
                 mime_type=mime_type
-            ).send_static_file_cache_header(cache_control=cache_control)
+            ).send_static_file_cache_header(
+                cache_control_header=cache_control_header)
         if self.new_cookie:
             self.data['handler'].send_cookie(
                 self.new_cookie, maximum_age_in_seconds=self.options[
@@ -1132,7 +1217,7 @@ class Main(Class, Runnable):
         return self
 
     def _produce_cache_file_headers(
-        self, cache_file, mime_type, cache_control
+        self, cache_file, mime_type, cache_control_header
     ):
         '''Produces http headers for given server sided cache file.'''
         cache_timestamp = cache_file.timestamp
@@ -1146,11 +1231,13 @@ class Main(Class, Runnable):
             return self.data['handler'].send_content_type_header(
                 response_code=304, mime_type=mime_type
             ).send_static_file_cache_header(
-                timestamp=cache_timestamp, cache_control=cache_control)
+                timestamp=cache_timestamp,
+                cache_control_header=cache_control_header)
         self.data['handler'].send_content_type_header(
             mime_type=mime_type
         ).send_static_file_cache_header(
-            timestamp=cache_timestamp, cache_control=cache_control)
+            timestamp=cache_timestamp,
+            cache_control_header=cache_control_header)
         return self
 
         # endregion

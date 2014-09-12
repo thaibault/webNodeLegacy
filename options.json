@@ -12,7 +12,8 @@
             "key": {
                 "token": "<% session['dataDescriptionPrefix'] %>SessionToken",
                 "userID": "<% session['dataDescriptionPrefix'] %>UserID",
-                "expirationDateTime": "<% session['dataDescriptionPrefix'] %>SessionExpirationDateTime"
+                "expirationDateTime": "<% session['dataDescriptionPrefix'] %>SessionExpirationDateTime",
+                "location": "<% session['dataDescriptionPrefix'] %>Location"
             }
         },
 
@@ -34,13 +35,6 @@
                 }
             }
         },
-
-        "exportableFileAttributes": [
-            "path", "name", "basename", "encoding", "extension",
-            "extension_suffix", "timestamp", "size", "human_readable_size",
-            "type", "mime_type", "directory_path"
-        ],
-
         "allowedTypes": {
             "image": [
                 "image/jpg", "image/jpeg", "image/pjpeg", "image/png",
@@ -52,6 +46,7 @@
         }
     },
     "backend": {
+        "restResponseTemplate": ")]}',\n%s",
         "initialTemplateRendering": true,
         "secretDjangoKey": "",
         "removeDuplicatedRequestKey": false,
@@ -67,7 +62,10 @@
                     "pattern": ".+",
                     "file_reference": "<% location['medium'] %>%s"
                 },
-                "text": {"pattern": ".*"},
+                "text": {"pattern": "(\\s|.)*"},
+                "url": {
+                    "minimumLength": 1, "maximumLength": 2000, "pattern": ".+"
+                },
                 "eMailAddress": {
                     "minimumLength": 5,
                     "maximumLength": 100,
@@ -110,7 +108,8 @@
         },
         "location": {
             "htmlFile": {
-                "frontend": "/index.html", "backend": "/admin.html"
+                "frontend": "/index.html", "backend": "/admin.html",
+                "template": "<% location['template'] %>index.html.tpl"
             },
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
             "webCache": "/cache/",
@@ -120,10 +119,18 @@
                 "url": "<% location['database']['folder'] %>data",
                 "schemaFile": "<% location['database']['folder'] %>schema.json",
                 "backup": "/backup/database/"
-            }
+            },
+            "templateIgnored": [
+                "backup", "cache", "boostNode", "database", "webNode"]
         },
 
         "ignoreWebAssetPattern": [".*\\.swp", "\\..*"],
+
+        "exportableFileAttributes": [
+            "path", "name", "basename", "encoding", "extension",
+            "extension_suffix", "timestamp", "size", "human_readable_size",
+            "type", "mime_type", "directory_path"
+        ],
 
         "commandLineArguments": [{
             "arguments": ["-w", "--web-cache"],

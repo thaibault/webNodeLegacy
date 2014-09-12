@@ -95,14 +95,18 @@ class Response(Class):
             result = {}
         else:
             if not self.model.__name__.endswith('_file_model'):
-                if isinstance(self.request.data['data'], list):
-                    for index, item in enumerate(self.request.data['data']):
-                        self.request.data['data'][index] = \
-                            self.request.controller.convert_for_database(item)
-                else:
-                    self.request.data['data'] = \
-                        self.request.controller.convert_for_database(
-                            self.request.data['data'])
+                for dataType in ('get', 'data'):
+                    if isinstance(self.request.data[dataType], list):
+                        for index, item in enumerate(
+                            self.request.data[dataType]
+                        ):
+                            self.request.data[dataType][index] = \
+                                self.request.controller.convert_for_database(
+                                    item)
+                    else:
+                        self.request.data[dataType] = \
+                            self.request.controller.convert_for_database(
+                                self.request.data[dataType])
             if hasattr(self.model, '__table__'):
                 method = getattr(
                     self, 'process_%s' % self.request.data['request_type'])
@@ -116,8 +120,9 @@ class Response(Class):
                 except (SQLAlchemyError, ValueError) as exception:
                     self.request.session.rollback()
                     self.request.data['handler'].send_response(
-                        400, '%s: "%s"' % (
-                            exception.__class__.__name__, str(exception)))
+                        400 if isinstance(exception, ValueError) else 409,
+                        '%s: "%s"' % (exception.__class__.__name__, str(
+                            exception)))
                     result = {}
             elif self.request.data['request_type'] == 'get':
                 if self.method_in_rest_controller:
@@ -136,7 +141,8 @@ class Response(Class):
             if result is None:
                 self.request.data['handler'].send_response(401)
                 result = {}
-        return json.dumps(result)
+        return self.request.options['rest_response_template'] % json.dumps(
+            result)
 
         # endregion
 
@@ -292,10 +298,8 @@ class Response(Class):
     def delete_file_model(self, get, data):
         '''Removes given file.'''
         file = FileHandler(location=get['path'])
-        if file:
+        if file.is_file():
             return{} if file.remove_file() else None
-        self.request.data['handler'].send_response(
-            510, 'Requested file "%s" doesn\'t exist.' % get['path'])
         return{}
 
     def get_system_model(self, data):
@@ -346,7 +350,6 @@ class Response(Class):
 
     def put_file_model(self, get, data):
         '''Saves given files.'''
-        import sys
         for items in data.values():
             for item in items:
                 if hasattr(item, 'file') and item.filename and item.done != -1:
@@ -397,18 +400,17 @@ class Response(Class):
                         '''Remove unique identifiers for record copies.'''
                         if column.name != 'id':
                             property_names.append(column.name)
+                    self.request.session.commit()
                     for record in self.request.session.query(
                         model
                     ).filter_by(**keys):
-                        self.model = model
-                        self.process_put(
-                            get={},
-                            data=self.request.controller.convert_for_database(
-                                record.get_dictionary(
-                                    value_wrapper=lambda key, value:
-                                        data[key] if key in data else value,
-                                        property_names=property_names)))
-                        self.request.session.commit()
+                        self.request.session.add(model(
+                            **record.get_dictionary(
+                                value_wrapper=lambda key, value:
+                                    data[key] if key in data else value,
+                                    property_names=property_names,
+                                preserve_unicode=True)))
+                    self.request.session.commit()
         return{}
 
     # endregion

@@ -86,9 +86,11 @@ class Main(object):
 
         # endregion
 
-    def response(self, request, output, mime_type, cache_control, cache_file):
+    def response(
+        self, request, output, mime_type, cache_control_header, cache_file
+    ):
         '''Handles a non rest or static web request.'''
-        return output, mime_type, cache_control, cache_file
+        return output, mime_type, cache_control_header, cache_file
 
     def get_manifest_scope(self, request, user):
         '''Returns additional manifest template scope variables.'''

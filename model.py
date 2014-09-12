@@ -155,6 +155,9 @@ class AuthenticationModel(BaseAuthenticationModel, UpdateTriggerModel):
         unique=True, default=None)
     session_expiration_date_time = Column(
         DateTime, default=DateTimeNative.now, nullable=False)
+    location = Column(
+        String(OPTIONS['model']['generic']['url']['maximum_length']),
+        nullable=True, info=OPTIONS['model']['generic']['url'])
     password_salt = Column(
         String(2 * OPTIONS['model']['authentication']['password']['salt'][
             'length']
