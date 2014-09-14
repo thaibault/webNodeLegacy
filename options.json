@@ -92,7 +92,7 @@
 
         "delimiterPattern": "(!|\\?)",
         "webServer": {
-            "root": "/",
+            "root": "/", "hostName": "127.0.0.1",
             "default": "<% location['htmlFile']['frontend'] %>",
             "requestWhitelist": [
                 "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+",
