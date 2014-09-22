@@ -19,7 +19,7 @@ __version__ = '1.0'
 
 from copy import copy, deepcopy
 from datetime import datetime as DateTime
-from datetime import time as Time
+from datetime import time as NativeTime
 from datetime import date as Date
 from datetime import timedelta as TimeDelta
 import inspect
@@ -47,7 +47,7 @@ from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
 
 from boostNode.extension.file import Handler as FileHandler
-from boostNode.extension.native import Module, Dictionary, String
+from boostNode.extension.native import Module, Dictionary, String, Time
 from boostNode.extension.output import Print
 from boostNode.extension.system import CommandLine, Runnable
 from boostNode.extension.type import Null
@@ -185,14 +185,16 @@ class Main(Class, Runnable):
             ).content
 # #
         cls.options = Dictionary(cls.options).convert(
-            key_wrapper=lambda key, value: String(key).camel_case_to_delimited(
-            ).content, value_wrapper=cls.convert_for_backend
+            key_wrapper=lambda key, value: String(
+                key
+            ).get_camel_case_to_delimited().content,
+            value_wrapper=cls.convert_for_backend
         ).content
         String.abbreviations = cls.options['abbreviations']
         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(String(
                 key
-            ).delimited_to_camel_case().content),
+            ).get_delimited_to_camel_case().content),
             value_wrapper=cls.convert_for_client
         ).content
         cls.options['session']['expiration_interval'] = TimeDelta(
@@ -285,7 +287,7 @@ class Main(Class, Runnable):
                     time.mktime(value.timetuple()) +
                     value.microsecond / 1000 ** 2)
 # #
-            if isinstance(value, Time):
+            if isinstance(value, NativeTime):
                 return(
                     60 ** 2 * value.hour + 60 * value.minute +
                     value.second + value.microsecond / 1000 ** 2)
@@ -299,7 +301,7 @@ class Main(Class, Runnable):
                 key.endswith('Language')
             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
 # #
-                return String(value).delimited_to_camel_case(
+                return String(value).get_delimited_to_camel_case(
                 ).content[:-1] + value[-1].upper()
         if not isinstance(value, (int, float, type(None))):
             return str(value)
@@ -312,7 +314,7 @@ class Main(Class, Runnable):
 # #         return Dictionary(data).convert(
 # #             key_wrapper=lambda key, value: String(
 # #                 key
-# #             ).camel_case_to_delimited().content if isinstance(
+# #             ).get_camel_case_to_delimited().content if isinstance(
 # #                 key, str
 # #             ) else cls.convert_for_backend(key),
 # #             value_wrapper=cls.convert_for_backend
@@ -320,7 +322,7 @@ class Main(Class, Runnable):
         return Dictionary(data).convert(
             key_wrapper=lambda key, value: String(
                 key
-            ).camel_case_to_delimited().content if isinstance(
+            ).get_camel_case_to_delimited().content if isinstance(
                 key, (str, unicode)
             ) else cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
@@ -330,15 +332,6 @@ class Main(Class, Runnable):
     @classmethod
     def convert_for_backend(cls, key, value=Null):
         '''Converts data from client to python specific data objects.'''
-        # TODO auslagern
-        def convert_to_number(value):
-            try:
-                return int(value)
-            except(TypeError, ValueError):
-                try:
-                    return float(value)
-                except(TypeError, ValueError):
-                    return value
         key = cls.convert_byte_to_string(key)
         value = cls.convert_byte_to_string(value)
         if value is Null:
@@ -350,7 +343,7 @@ class Main(Class, Runnable):
                         return DateTime.fromtimestamp(value)
                     except ValueError:
                         pass
-                converted_value = convert_to_number(value)
+                converted_value = String(value).get_number()
                 if isinstance(converted_value, (int, float)):
                     try:
                         return DateTime.fromtimestamp(converted_value)
@@ -384,7 +377,7 @@ class Main(Class, Runnable):
                         return Date.fromtimestamp(value)
                     except ValueError:
                         pass
-                converted_value = convert_to_number(value)
+                converted_value = String(value).get_number()
                 if isinstance(converted_value, (int, float)):
                     try:
                         return Date.fromtimestamp(converted_value)
@@ -416,36 +409,7 @@ class Main(Class, Runnable):
                                 except ValueError:
                                     pass
             if key == 'time' or key.endswith('_time') or key.endswith('Time'):
-                # TODO auslagern.
-                def seconds_to_time(value):
-                    hours = int(value / 60 ** 2)
-                    hours_in_seconds = hours * 60 ** 2
-                    minutes = int((value - hours_in_seconds) / 60)
-                    minutes_in_seconds = minutes * 60
-                    seconds = int((
-                        value - hours_in_seconds - minutes_in_seconds
-                    ))
-                    microseconds = int((
-                        value - hours_in_seconds - minutes_in_seconds - seconds
-                    ) * 1000 ** 2)
-                    return Time(
-                        hour=hours, minute=minutes, second=seconds,
-                        microsecond=microseconds)
-                if isinstance(value, (int, float)):
-                    try:
-                        return seconds_to_time(value)
-                    except ValueError:
-                        pass
-                elif isinstance(value, str):
-                    try:
-                        converted_value = float(value)
-                    except ValueError:
-                        pass
-                    else:
-                        try:
-                            return seconds_to_time(converted_value)
-                        except ValueError:
-                            pass
+                return Time(value).content
 # # python3.4
 # #             if(key == 'language' or key.endswith('_language') or
 # #                key.endswith('Language')
@@ -454,9 +418,9 @@ class Main(Class, Runnable):
                key.endswith('Language')
                ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
 # #
-                return String(value).camel_case_to_delimited().content
+                return String(value).get_camel_case_to_delimited().content
         if isinstance(value, str):
-            return convert_to_number(value)
+            return String(value).get_number()
         return value
 
         # # endregion
@@ -568,13 +532,13 @@ class Main(Class, Runnable):
         if self.options['authentication_method'] == 'header':
             user_id = self.data['handler'].headers.get(String(
                 self.options['session']['key']['user_id']
-            ).camel_case_to_delimited(delimiter='-').content)
+            ).get_camel_case_to_delimited(delimiter='-').content)
             session_token = self.data['handler'].headers.get(String(
                 self.options['session']['key']['token']
-            ).camel_case_to_delimited(delimiter='-').content)
+            ).get_camel_case_to_delimited(delimiter='-').content)
             location = self.data['handler'].headers.get(String(
                 self.options['session']['key']['location']
-            ).camel_case_to_delimited(delimiter='-').content)
+            ).get_camel_case_to_delimited(delimiter='-').content)
         elif self.options['authentication_method'] == 'cookie':
             user_id = self.data['cookie'].get(
                 self.options['session']['key']['user_id'])
@@ -694,12 +658,12 @@ class Main(Class, Runnable):
         self.__class__.frontend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_client(String(
                 key
-            ).delimited_to_camel_case().content),
+            ).get_delimited_to_camel_case().content),
             'value_wrapper': self.convert_for_client}
         self.__class__.backend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_backend(String(
                 key
-            ).camel_case_to_delimited().content),
+            ).get_camel_case_to_delimited().content),
             'value_wrapper': self.convert_for_backend}
 
         # # endregion
@@ -1048,7 +1012,7 @@ class Main(Class, Runnable):
                                     key_wrapper=lambda key, value: cls
                                     .convert_for_client(String(
                                         key
-                                    ).delimited_to_camel_case().content)
+                                    ).get_delimited_to_camel_case().content)
                                 ).content
                             else:
                                 default_value = property.default.arg(
@@ -1076,7 +1040,7 @@ class Main(Class, Runnable):
         ).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(String(
                 key
-            ).delimited_to_camel_case().content)
+            ).get_delimited_to_camel_case().content)
         ).content
         return cls
 

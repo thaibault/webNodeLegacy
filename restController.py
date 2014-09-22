@@ -63,8 +63,9 @@ class Response(Class):
                 self.request.model, self.request.data['get']['__model__'])
         else:
             method_name = '%s_%s_model' % (
-                self.request.data['request_type'],
-                String(self.request.data['get']['__model__']).camel_case_to_delimited().content)
+                self.request.data['request_type'], String(
+                    self.request.data['get']['__model__']
+                ).get_camel_case_to_delimited().content)
             if hasattr(self, method_name):
                 self.model = getattr(self, method_name)
             elif hasattr(self.request.controller, method_name):
@@ -334,7 +335,7 @@ class Response(Class):
             ]:
                 attribute_name_camel_case = String(
                     attribute_name
-                ).delimited_to_camel_case().content
+                ).get_delimited_to_camel_case().content
                 if attribute_name_camel_case not in data or getattr(
                     file, attribute_name
                 ) == data[attribute_name_camel_case]:
