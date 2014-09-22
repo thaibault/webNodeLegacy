@@ -14,6 +14,8 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
+# # python3.4 import builtins
+import __builtin__ as builtins
 import inspect
 
 from boostNode.extension.native import Module
@@ -77,9 +79,9 @@ class Main(object):
 # #         pass
         if cls.main.options['database_engine_prefix'].startswith('sqlite:'):
             return Dictionary(data).convert(
-                value_wrapper=lambda key, value: unicode(
+                value_wrapper=lambda key, value: builtins.unicode(
                     value, cls.main.options['encoding']
-                ) if isinstance(value, str) else value
+                ) if builtins.isinstance(value, builtins.str) else value
             ).content
 # #
         return data

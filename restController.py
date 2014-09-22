@@ -14,6 +14,8 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
+# # python3.4 import builtins
+import __builtin__ as builtins
 from base64 import b64encode as base64_encode
 from copy import copy
 from datetime import datetime as DateTime
@@ -58,19 +60,21 @@ class Response(Class):
             self.request.data['request_type'] = self.request.data['get'][
                 '__method__']
             del self.request.data['get']['__method__']
-        if hasattr(self.request.model, self.request.data['get']['__model__']):
-            self.model = getattr(
+        if builtins.hasattr(
+            self.request.model, self.request.data['get']['__model__']
+        ):
+            self.model = builtins.getattr(
                 self.request.model, self.request.data['get']['__model__'])
         else:
             method_name = '%s_%s_model' % (
                 self.request.data['request_type'], String(
                     self.request.data['get']['__model__']
                 ).get_camel_case_to_delimited().content)
-            if hasattr(self, method_name):
-                self.model = getattr(self, method_name)
-            elif hasattr(self.request.controller, method_name):
+            if builtins.hasattr(self, method_name):
+                self.model = builtins.getattr(self, method_name)
+            elif builtins.hasattr(self.request.controller, method_name):
                 self.method_in_rest_controller = False
-                self.model = getattr(self.request.controller, method_name)
+                self.model = builtins.getattr(self.request.controller, method_name)
         '''
             A mapping to wrap each respond to client. Can be overridden in \
             subclasses.
@@ -192,7 +196,7 @@ class Response(Class):
                         if self.request.options[
                             'database_engine_prefix'
                         ].startswith('sqlite:'):
-                            session_token = unicode(
+                            session_token = builtins.unicode(
                                 session_token,
                                 self.request.options['encoding'])
                         user.session_token = session_token
@@ -215,7 +219,7 @@ class Response(Class):
 
     def process_put(self, get, data):
         '''Computes the put response object.'''
-        if isinstance(data, list):
+        if builtins.isinstance(data, builtins.list):
             for item in data:
                 '''
                     Determine additional primary key parts of the data object.
@@ -258,7 +262,7 @@ class Response(Class):
 
     def process_delete(self, get, data):
         '''Computes the delete response object.'''
-        if isinstance(data, list):
+        if builtins.isinstance(data, builtins.list):
             for item in data:
                 '''
                     Determine additional primary key parts of the data object.
@@ -311,8 +315,8 @@ class Response(Class):
 
     def get_available_model(self, data):
         '''Returns all defined models.'''
-        return list(map(lambda model: model[0], Module.get_defined_objects(
-            self.model)))
+        return builtins.list(builtins.map(
+            lambda model: model[0], Module.get_defined_objects(self.model)))
 
     def get_file_model(self, data):
         '''Returns all files in given location.'''
@@ -336,11 +340,11 @@ class Response(Class):
                 attribute_name_camel_case = String(
                     attribute_name
                 ).get_delimited_to_camel_case().content
-                if attribute_name_camel_case not in data or getattr(
+                if attribute_name_camel_case not in data or builtins.getattr(
                     file, attribute_name
                 ) == data[attribute_name_camel_case]:
-                    file_attributes[attribute_name_camel_case] = getattr(
-                        file, attribute_name)
+                    file_attributes[attribute_name_camel_case] =\
+                        builtins.getattr(file, attribute_name)
                 else:
                     skip = True
                     break
@@ -353,8 +357,10 @@ class Response(Class):
         '''Saves given files.'''
         for items in data.values():
             for item in items:
-                if hasattr(item, 'file') and item.filename and item.done != -1:
-                    shutil.copyfileobj(item.file, open(FileHandler(
+                if builtins.hasattr(
+                    item, 'file'
+                ) and item.filename and item.done != -1:
+                    shutil.copyfileobj(item.file, builtins.open(FileHandler(
                         self.request.options['location']['medium'] +
                         item.filename
                     )._path, 'wb'))
@@ -379,10 +385,10 @@ class Response(Class):
         for model_name, model in Module.get_defined_objects(
             self.request.model
         ):
-            if isinstance(model, type) and issubclass(
-                model, self.request.model.Model
-            ):
-                column_names = list(map(
+            if builtins.isinstance(
+                model, builtins.type
+            ) and builtins.issubclass(model, self.request.model.Model):
+                column_names = builtins.list(builtins.map(
                     lambda property: property.name, model.__table__.columns))
                 is_referenced = True
                 for key_name in keys:

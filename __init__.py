@@ -207,11 +207,15 @@ class Main(Class, Runnable):
         return cls
 
     @classmethod
-    def extend_user_authorization(cls, user_id, session_token, location):
+    def extend_user_authorization(
+        cls, user_id, session_token, location, session=None
+    ):
         '''Extends user authorization time.'''
+        if session is None:
+            session = cls.session
         user = None
         if user_id and session_token:
-            users = cls.session.query(cls.model.User).filter(
+            users = session.query(cls.model.User).filter(
                 cls.model.User.enabled == True,
                 cls.model.User.id == int(user_id),
                 cls.model.User.session_token == session_token,
@@ -226,7 +230,7 @@ class Main(Class, Runnable):
                     ].total_seconds() / 60
                 ) / 60)
                 user.location = location
-                cls.session.commit()
+                session.commit()
         return user
 
     @classmethod
@@ -524,10 +528,12 @@ class Main(Class, Runnable):
             mapping=self.controller.get_manifest_scope(request=self, user=user)
         ).output
 
-    def authenticate(self):
+    def authenticate(self, session=None):
         '''
             Authenticates a user by potential sent header identification data.
         '''
+        if session is None:
+            session = cls.session
         user_id = session_token = None
         if self.options['authentication_method'] == 'header':
             user_id = self.data['handler'].headers.get(String(
@@ -546,7 +552,8 @@ class Main(Class, Runnable):
                 self.options['session']['key']['token'])
             location = self.data['cookie'].get(
                 self.options['session']['key']['location'])
-        return self.extend_user_authorization(user_id, session_token, location)
+        return self.extend_user_authorization(
+            user_id, session_token, location, session)
 
     # endregion
 
@@ -586,9 +593,12 @@ class Main(Class, Runnable):
             if not self.options['post_supports_native_types']:
                 self.data['data'] = self.convert_dictionary_for_backend(
                     self.data['data'])
-        '''Holds the current request handler server instance.'''
+        '''
+            Holds the current request handler specific database session \
+            instance.
+        '''
         self.session = create_database_session(bind=self.engine)()
-        self.authorized_user = self.authenticate()
+        self.authorized_user = self.authenticate(session=self.session)
 
         # # endregion
 
@@ -693,7 +703,6 @@ class Main(Class, Runnable):
     # # region static
 
     # # # region helper methods
-
 
     @classmethod
     def _render_template(cls, file, mapping):

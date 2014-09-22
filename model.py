@@ -14,6 +14,9 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
+# # python3.4 import builtins
+import __builtin__ as builtins
+
 from datetime import datetime as DateTimeNative
 import inspect
 
@@ -52,7 +55,7 @@ def determine_language_specific_default_value(context):
             Take this method type by another instance of this class via \
             introspection.
         '''
-        if(column.default.arg is globals()[inspect.stack()[0][3]] and
+        if(column.default.arg is builtins.globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
 # # python3.4
 # #              return OPTIONS['model']['generic']['language_specific'][
@@ -87,10 +90,10 @@ class ApplicationMetaModel(MetaModel, DeclarativeMeta):
         class_scope['__validate_property__'] = validates(
             *class_scope.keys()
         )(lambda *arguments: BaseModel.validate_property(
-            *arguments,
-            information_determiner=lambda model_instance, name: getattr(
-                model_instance.__class__, name
-            ).info))
+            *arguments, information_determiner=(
+                lambda model_instance, name: builtins.getattr(
+                    model_instance.__class__, name
+                ).info)))
         '''Set magic getter and setter.'''
         for concrete_base_class in base_classes:
             '''NOTE: "mro" means method resolution order.'''
@@ -102,10 +105,10 @@ class ApplicationMetaModel(MetaModel, DeclarativeMeta):
                     defined method with specified function name pattern.
                 '''
                 for property_name, value in base_class.__dict__.items():
-                    if(callable(value) and
+                    if(builtins.callable(value) and
                        property_name[3:] not in class_scope):
                         if property_name.startswith('get_'):
-                            if isinstance(value, FunctionDecorator):
+                            if builtins.isinstance(value, FunctionDecorator):
                                 value = value.__func__
                             class_scope[property_name[4:]] = hybrid_property(
                                 value)
@@ -116,13 +119,13 @@ class ApplicationMetaModel(MetaModel, DeclarativeMeta):
                                         base_class.__dict__[
                                             'set_' + property_name[4:]])
         '''Take this method name via introspection.'''
-        return getattr(
-            super(ApplicationMetaModel, cls), inspect.stack()[0][3]
+        return builtins.getattr(
+            builtins.super(ApplicationMetaModel, cls), inspect.stack()[0][3]
         )(cls, class_name, base_classes, class_scope, *arguments, **keywords)
 
 
 # # python3.4 class UpdateTriggerModel:
-class UpdateTriggerModel(object):
+class UpdateTriggerModel(builtins.object):
 
     '''
         Provides a property to register each write access on corresponding \
@@ -165,7 +168,8 @@ class AuthenticationModel(BaseAuthenticationModel, UpdateTriggerModel):
     password_hash = Column(String(
         160 + 2 * OPTIONS['model']['authentication']['password']['salt'][
             'length'
-        ] + len(OPTIONS['model']['authentication']['password']['pepper'])
+        ] + builtins.len(
+            OPTIONS['model']['authentication']['password']['pepper'])
     ), nullable=False)
     _password_information = OPTIONS['model']['authentication']['password']
 
