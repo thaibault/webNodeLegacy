@@ -17,6 +17,8 @@ __maintainer_email__ = 't.sickert@gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
+# # python3.4 import builtins
+import __builtin__ as builtins
 from copy import copy, deepcopy
 from datetime import datetime as DateTime
 from datetime import time as NativeTime
@@ -167,21 +169,25 @@ class Main(Class, Runnable):
             NOTE: We have to run over options twice to handle cyclic \
             dependencies.
         '''
-        for number in range(2):
+        for number in builtins.range(2):
 # # python3.4
 # #             cls.options = Dictionary(cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
 # #                     value.replace('\\', 2 * '\\'), string=True
 # #                 ).render(
 # #                     mapping=mapping, module_name=__name__, main=cls
-# #                 ).output if isinstance(value, str) else value
+# #                 ).output if builtins.isinstance(
+# #                     value, builtins.str
+# #                 ) else value
 # #             ).content
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     value.replace('\\', 2 * '\\'), string=True
                 ).render(
                     mapping=mapping, module_name=__name__, main=cls
-                ).output if isinstance(value, (unicode, str)) else value
+                ).output if builtins.isinstance(
+                    value, (builtins.unicode, builtins.str)
+                ) else value
             ).content
 # #
         cls.options = Dictionary(cls.options).convert(
@@ -217,7 +223,7 @@ class Main(Class, Runnable):
         if user_id and session_token:
             users = session.query(cls.model.User).filter(
                 cls.model.User.enabled == True,
-                cls.model.User.id == int(user_id),
+                cls.model.User.id == builtins.int(user_id),
                 cls.model.User.session_token == session_token,
                 cls.model.User.session_expiration_date_time > DateTime.now())
             if users.count():
@@ -263,9 +269,9 @@ class Main(Class, Runnable):
     def convert_byte_to_string(cls, value):
         '''Converts a byte object to a python string.'''
 # # python3.4
-# #         if isinstance(value, bytes):
+# #         if builtins.isinstance(value, builtins.bytes):
 # #             return value.decode(cls.options['encoding'])
-        if isinstance(value, unicode):
+        if builtins.isinstance(value, builtins.unicode):
             return value.encode(cls.options['encoding'])
 # #
         return value
@@ -279,36 +285,38 @@ class Main(Class, Runnable):
             value = key
         else:
 # # python3.4
-# #             if isinstance(value, Date):
+# #             if builtins.isinstance(value, Date):
 # #                 return time.mktime(value.timetuple())
-# #             if isinstance(value, DateTime):
+# #             if builtins.isinstance(value, DateTime):
 # #                 return value.timestamp(
 # #                 ) + value.microsecond / 1000 ** 2
-            if isinstance(value, Date):
+            if builtins.isinstance(value, Date):
                 return time.mktime(value.timetuple())
-            if isinstance(value, DateTime):
+            if builtins.isinstance(value, DateTime):
                 return(
                     time.mktime(value.timetuple()) +
                     value.microsecond / 1000 ** 2)
 # #
-            if isinstance(value, NativeTime):
+            if builtins.isinstance(value, NativeTime):
                 return(
                     60 ** 2 * value.hour + 60 * value.minute +
                     value.second + value.microsecond / 1000 ** 2)
 # # python3.4
-# #             if(isinstance(key, str) and (
+# #             if(builtins.isinstance(key, builtins.str) and (
 # #                 key == 'language' or key.endswith('_language') or
 # #                 key.endswith('Language')
 # #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
-            if(isinstance(key, str) and (
+            if(builtins.isinstance(key, builtins.str) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
 # #
                 return String(value).get_delimited_to_camel_case(
                 ).content[:-1] + value[-1].upper()
-        if not isinstance(value, (int, float, type(None))):
-            return str(value)
+        if not builtins.isinstance(value, (
+            builtins.int, builtins.float, builtins.type(None)
+        )):
+            return builtins.str(value)
         return value
 
     @classmethod
@@ -318,16 +326,16 @@ class Main(Class, Runnable):
 # #         return Dictionary(data).convert(
 # #             key_wrapper=lambda key, value: String(
 # #                 key
-# #             ).get_camel_case_to_delimited().content if isinstance(
-# #                 key, str
+# #             ).get_camel_case_to_delimited().content if builtins.isinstance(
+# #                 key, builtins.str
 # #             ) else cls.convert_for_backend(key),
 # #             value_wrapper=cls.convert_for_backend
 # #         ).content
         return Dictionary(data).convert(
             key_wrapper=lambda key, value: String(
                 key
-            ).get_camel_case_to_delimited().content if isinstance(
-                key, (str, unicode)
+            ).get_camel_case_to_delimited().content if builtins.isinstance(
+                key, (builtins.str, builtins.unicode)
             ) else cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
         ).content
@@ -340,20 +348,22 @@ class Main(Class, Runnable):
         value = cls.convert_byte_to_string(value)
         if value is Null:
             value = key
-        elif isinstance(key, str):
+        elif builtins.isinstance(key, builtins.str):
             if key == 'date_time' or key.endswith('_date_time'):
-                if isinstance(value, (int, float)):
+                if builtins.isinstance(value, (builtins.int, builtins.float)):
                     try:
                         return DateTime.fromtimestamp(value)
-                    except ValueError:
+                    except builtins.ValueError:
                         pass
                 converted_value = String(value).get_number()
-                if isinstance(converted_value, (int, float)):
+                if builtins.isinstance(
+                    converted_value, (builtins.int, builtins.float)
+                ):
                     try:
                         return DateTime.fromtimestamp(converted_value)
-                    except ValueError:
+                    except builtins.ValueError:
                         pass
-                if isinstance(value, str):
+                if builtins.isinstance(value, builtins.str):
                     for delimiter in ('.', '/'):
                         for year_format in ('%y', '%Y'):
                             for microsecond_format in ('', ':%f'):
@@ -373,21 +383,23 @@ class Main(Class, Runnable):
                                                 year=year_format,
                                                 microsecond=microsecond_format)
                                         )
-                                    except ValueError:
+                                    except builtins.ValueError:
                                         pass
             if key == 'date' or key.endswith('_date') or key.endswith('Date'):
-                if isinstance(value, (int, float)):
+                if builtins.isinstance(value, (builtins.int, builtins.float)):
                     try:
                         return Date.fromtimestamp(value)
-                    except ValueError:
+                    except builtins.ValueError:
                         pass
                 converted_value = String(value).get_number()
-                if isinstance(converted_value, (int, float)):
+                if builtins.isinstance(converted_value, (
+                    builtins.int, builtins.float
+                )):
                     try:
                         return Date.fromtimestamp(converted_value)
-                    except ValueError:
+                    except builtins.ValueError:
                         pass
-                if isinstance(value, str):
+                if builtins.isinstance(value, builtins.str):
                     for delimiter in ('.', '/'):
                         for year_format in ('%y', '%Y'):
                             for date_format in (
@@ -410,7 +422,7 @@ class Main(Class, Runnable):
                                                 year=year_format
                                             )).timetuple()))
 # #
-                                except ValueError:
+                                except builtins.ValueError:
                                     pass
             if key == 'time' or key.endswith('_time') or key.endswith('Time'):
                 return Time(value).content
@@ -423,7 +435,7 @@ class Main(Class, Runnable):
                ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
 # #
                 return String(value).get_camel_case_to_delimited().content
-        if isinstance(value, str):
+        if builtins.isinstance(value, builtins.str):
             return String(value).get_number()
         return value
 
@@ -442,7 +454,7 @@ class Main(Class, Runnable):
         paths = []
         if path is None:
             path = cls.options['location']['web_asset']
-            cls._root_asset_path_len = len(FileHandler(path).path)
+            cls._root_asset_path_len = builtins.len(FileHandler(path).path)
         for file in FileHandler(path):
             if cls.is_valid_web_asset(file):
                 if file.is_directory():
@@ -509,7 +521,7 @@ class Main(Class, Runnable):
         account_data = {}
         if user is not None:
             account_data = user.dictionary
-            account_state = hash(
+            account_state = builtins.hash(
                 Dictionary(account_data).get_immutable())
         return TemplateParser(
             offline_manifest_template_file,
@@ -567,32 +579,25 @@ class Main(Class, Runnable):
         # # region properties
 
         self.data = __request_arguments__
+
         self.new_cookie = {}
         '''Normalize get and payload data.'''
         self.data['get'] = self.convert_dictionary_for_backend(
             self.data['get'])
-        if isinstance(self.data['data'], list):
-            for index, item in enumerate(self.data['data']):
+        if builtins.isinstance(self.data['data'], builtins.list):
+            for index, item in builtins.enumerate(self.data['data']):
                 self.data['data'][index] = self.convert_dictionary_for_backend(
                     item)
         else:
             if self.options['remove_duplicated_request_key']:
                 for key, value in self.data['data'].items():
-                    if isinstance(value, list):
-                        if len(value) > 0:
+                    if builtins.isinstance(value, builtins.list):
+                        if builtins.len(value) > 0:
                             self.data['data'][key] = value[0]
                         else:
                             self.data['data'][key] = None
             self.data['data'] = self.convert_dictionary_for_backend(
                 self.data['data'])
-            '''
-                If post data doesn't support native data types we have to \
-                convert a second time to first evaluate integers and floats \
-                and detect timestamps in second round.
-            '''
-            if not self.options['post_supports_native_types']:
-                self.data['data'] = self.convert_dictionary_for_backend(
-                    self.data['data'])
         '''
             Holds the current request handler specific database session \
             instance.
@@ -607,7 +612,7 @@ class Main(Class, Runnable):
         except TemplateError as exception:
             if self.debug:
                 self.data['handler'].send_error(500, '%s: "%s"' % (
-                    exception.__class__.__name__, str(exception)))
+                    exception.__class__.__name__, builtins.str(exception)))
             else:
                 '''NOTE: The web server will handle this.'''
                 raise
@@ -787,7 +792,9 @@ class Main(Class, Runnable):
         '''
         checked_paths = {}
         for model_name, model in Module.get_defined_objects(cls.model):
-            if isinstance(model, type) and issubclass(model, cls.model.Model):
+            if builtins.isinstance(
+                model, builtins.type
+            ) and builtins.issubclass(model, cls.model.Model):
                 for property in model.__table__.columns:
                     if property.info and 'file_reference' in property.info:
                         for model_instance in cls.session.query(model):
@@ -845,20 +852,20 @@ class Main(Class, Runnable):
             ).content
 # #
         new_schemas = {}
-        models = filter(
-            lambda entity: isinstance(
-                entity[1], type
-            ) and issubclass(entity[1], cls.model.Model),
+        models = builtins.filter(
+            lambda entity: builtins.isinstance(
+                entity[1], builtins.type
+            ) and builtins.issubclass(entity[1], cls.model.Model),
             Module.get_defined_objects(cls.model))
         for model_name, model in models:
-            new_schemas[model.__tablename__] = str(CreateTable(
+            new_schemas[model.__tablename__] = builtins.str(CreateTable(
                 model.__table__))
             if model.__tablename__ in old_schemas:
                 if(old_schemas[model.__tablename__] !=
                    new_schemas[model.__tablename__]):
                     __logger__.info('Model "%s" has changed.', model_name)
                     temporary_table_name = '%s_temp' % model.__tablename__
-                    while temporary_table_name in map(
+                    while temporary_table_name in builtins.map(
                         lambda model: model[1].__tablename__, models
                     ):
                         temporary_table_name = '%s_temp' % temporary_table_name
@@ -870,7 +877,7 @@ class Main(Class, Runnable):
                     old_columns = {}
                     for column in model.__table__.columns:
                         if column.name in old_schemas[model.__tablename__]:
-                            old_columns[column.name] = getattr(
+                            old_columns[column.name] = builtins.getattr(
                                 model, column.name)
                         temporary_table.append_column(column.copy())
                     for constraint in model.__table__.constraints:
@@ -894,10 +901,12 @@ class Main(Class, Runnable):
                     migration_successful = True
                     for values in cls.session.query(*old_columns.values()):
                         __logger__.debug(
-                            'Transferring record "%s".', '", "'.join(map(
-                                lambda value: value.encode(
+                            'Transferring record "%s".', '", "'.join(
+                                builtins.map(lambda value: value.encode(
                                     cls.options['encoding']
-                                ) if isinstance(value, unicode) else str(
+                                ) if builtins.isinstance(
+                                    value, builtins.unicode
+                                ) else builtins.str(
                                     value
                                 ), values)))
                         try:
@@ -906,7 +915,7 @@ class Main(Class, Runnable):
                         except Exception as exception:
                             __logger__.critical(
                                 '%s: %s', exception.__class__.__name__,
-                                str(exception))
+                                builtins.str(exception))
                             migration_successful = False
                     cls.session.commit()
                     if(migration_successful and
@@ -987,7 +996,9 @@ class Main(Class, Runnable):
             name = model_name[0]
             if len(model_name) > 1:
                 name += model_name[1:]
-            if isinstance(model, type) and issubclass(model, cls.model.Model):
+            if builtins.isinstance(
+                model, builtins.type
+            ) and builtins.issubclass(model, cls.model.Model):
                 cls.options['type'][name] = {}
                 for property in model.__table__.columns:
                     cls.options['type'][name][property.name] = {
@@ -995,20 +1006,22 @@ class Main(Class, Runnable):
                     if property.info:
                         cls.options['type'][name][property.name].update(
                             property.info)
-                    if hasattr(property.type, 'length') and isinstance(
-                        property.type.length, int
+                    if builtins.hasattr(
+                        property.type, 'length'
+                    ) and builtins.isinstance(
+                        property.type.length, builtins.int
                     ):
                         cls.options['type'][name][property.name][
                             'maximum_length'
                         ] = property.type.length
-                    if(hasattr(property, 'default') and
+                    if(builtins.hasattr(property, 'default') and
                        property.default is not None):
                         cls.options['type'][name][property.name][
                             'required'
                         ] = False
                         default_value = property.default.arg
-                        if callable(default_value):
-                            if hasattr(
+                        if builtins.callable(default_value):
+                            if builtins.hasattr(
                                 cls.model,
                                 'determine_language_specific_default_value'
                             ) and default_value == cls.model\
@@ -1034,7 +1047,9 @@ class Main(Class, Runnable):
                         cls.options['type'][name][property.name][
                             'default_value'
                         ] = default_value
-                    elif hasattr(property, 'nullable') and property.nullable:
+                    elif builtins.hasattr(
+                        property, 'nullable'
+                    ) and property.nullable:
                         cls.options['type'][name][property.name][
                             'required'
                         ] = False
@@ -1079,7 +1094,7 @@ class Main(Class, Runnable):
     @SqlalchemyEvent.listens_for(SqlalchemyEngine, 'connect')
     def _set_sqlite_foreign_key_pragma(dbapi_connection, connection_record):
         '''Activates sqlite3 foreign key support.'''
-        if isinstance(dbapi_connection, SQLite3Connection):
+        if builtins.isinstance(dbapi_connection, SQLite3Connection):
             cursor = dbapi_connection.cursor()
             cursor.execute('PRAGMA foreign_keys=ON;')
             cursor.close()

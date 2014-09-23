@@ -50,7 +50,6 @@
         "initialTemplateRendering": true,
         "secretDjangoKey": "",
         "removeDuplicatedRequestKey": false,
-        "postSupportsNativeTypes": true,
         "templateEngine": "internal",
         "abbreviations": ["html", "id", "url", "us", "de"],
         "databaseEnginePrefix": "sqlite:///",
