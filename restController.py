@@ -74,7 +74,8 @@ class Response(Class):
                 self.model = builtins.getattr(self, method_name)
             elif builtins.hasattr(self.request.controller, method_name):
                 self.method_in_rest_controller = False
-                self.model = builtins.getattr(self.request.controller, method_name)
+                self.model = builtins.getattr(
+                    self.request.controller, method_name)
         '''
             A mapping to wrap each respond to client. Can be overridden in \
             subclasses.
@@ -101,8 +102,10 @@ class Response(Class):
         else:
             if not self.model.__name__.endswith('_file_model'):
                 for dataType in ('get', 'data'):
-                    if isinstance(self.request.data[dataType], list):
-                        for index, item in enumerate(
+                    if builtins.isinstance(
+                        self.request.data[dataType], builtins.list
+                    ):
+                        for index, item in builtins.enumerate(
                             self.request.data[dataType]
                         ):
                             self.request.data[dataType][index] = \
@@ -112,8 +115,8 @@ class Response(Class):
                         self.request.data[dataType] = \
                             self.request.controller.convert_for_database(
                                 self.request.data[dataType])
-            if hasattr(self.model, '__table__'):
-                method = getattr(
+            if builtins.hasattr(self.model, '__table__'):
+                method = builtins.getattr(
                     self, 'process_%s' % self.request.data['request_type'])
                 try:
                     if self.request.data['request_type'] == 'get':
@@ -122,12 +125,15 @@ class Response(Class):
                         result = method(
                             get=self.request.data['get'],
                             data=self.request.data['data'])
-                except (SQLAlchemyError, ValueError) as exception:
+                except (SQLAlchemyError, builtins.ValueError) as exception:
                     self.request.session.rollback()
                     self.request.data['handler'].send_response(
-                        400 if isinstance(exception, ValueError) else 409,
-                        '%s: "%s"' % (exception.__class__.__name__, str(
-                            exception)))
+                        400 if builtins.isinstance(
+                            exception, builtins.ValueError
+                        ) else 409,
+                        '%s: "%s"' % (
+                            exception.__class__.__name__, builtins.str(
+                                exception)))
                     result = {}
             elif self.request.data['request_type'] == 'get':
                 if self.method_in_rest_controller:

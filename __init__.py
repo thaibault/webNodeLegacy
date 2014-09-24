@@ -345,98 +345,107 @@ class Main(Class, Runnable):
     def convert_for_backend(cls, key, value=Null):
         '''Converts data from client to python specific data objects.'''
         key = cls.convert_byte_to_string(key)
-        value = cls.convert_byte_to_string(value)
-        if value is Null:
-            value = key
-        elif builtins.isinstance(key, builtins.str):
-            if key == 'date_time' or key.endswith('_date_time'):
-                if builtins.isinstance(value, (builtins.int, builtins.float)):
-                    try:
-                        return DateTime.fromtimestamp(value)
-                    except builtins.ValueError:
-                        pass
-                converted_value = String(value).get_number()
-                if builtins.isinstance(
-                    converted_value, (builtins.int, builtins.float)
+        if value is not None:
+            value = cls.convert_byte_to_string(value)
+            if value is Null:
+                value = key
+            elif builtins.isinstance(key, builtins.str):
+                if key == 'date_time' or key.endswith('_date_time'):
+                    if builtins.isinstance(
+                        value, (builtins.int, builtins.float)
+                    ):
+                        try:
+                            return DateTime.fromtimestamp(value)
+                        except builtins.ValueError:
+                            pass
+                    converted_value = String(value).get_number()
+                    if builtins.isinstance(
+                        converted_value, (builtins.int, builtins.float)
+                    ):
+                        try:
+                            return DateTime.fromtimestamp(converted_value)
+                        except builtins.ValueError:
+                            pass
+                    if builtins.isinstance(value, builtins.str):
+                        for delimiter in ('.', '/'):
+                            for year_format in ('%y', '%Y'):
+                                for ms_format in ('', ':%f'):
+                                    for date_time_format in (
+                                        '%c',
+                                        '%d{delimiter}%m{delimiter}{year} '
+                                        '%X{microsecond}',
+                                        '%m{delimiter}%d{delimiter}{year} '
+                                        '%X{microsecond}',
+                                        '%w{delimiter}%m{delimiter}{year} '
+                                        '%X{microsecond}',
+                                    ):
+                                        try:
+                                            return DateTime.strptime(
+                                                value, date_time_format.format(
+                                                    delimiter=delimiter,
+                                                    year=year_format,
+                                                    microsecond=ms_format)
+                                            )
+                                        except builtins.ValueError:
+                                            pass
+                if key == 'date' or key.endswith('_date') or key.endswith(
+                    'Date'
                 ):
-                    try:
-                        return DateTime.fromtimestamp(converted_value)
-                    except builtins.ValueError:
-                        pass
-                if builtins.isinstance(value, builtins.str):
-                    for delimiter in ('.', '/'):
-                        for year_format in ('%y', '%Y'):
-                            for microsecond_format in ('', ':%f'):
-                                for date_time_format in (
-                                    '%c',
-                                    '%d{delimiter}%m{delimiter}{year} '
-                                    '%X{microsecond}',
-                                    '%m{delimiter}%d{delimiter}{year} '
-                                    '%X{microsecond}',
-                                    '%w{delimiter}%m{delimiter}{year} '
-                                    '%X{microsecond}',
+                    if builtins.isinstance(
+                        value, (builtins.int, builtins.float)
+                    ):
+                        try:
+                            return Date.fromtimestamp(value)
+                        except builtins.ValueError:
+                            pass
+                    converted_value = String(value).get_number()
+                    if builtins.isinstance(converted_value, (
+                        builtins.int, builtins.float
+                    )):
+                        try:
+                            return Date.fromtimestamp(converted_value)
+                        except builtins.ValueError:
+                            pass
+                    if builtins.isinstance(value, builtins.str):
+                        for delimiter in ('.', '/'):
+                            for year_format in ('%y', '%Y'):
+                                for date_format in (
+                                    '%x', '%d{delimiter}%m{delimiter}{year}',
+                                    '%m{delimiter}%d{delimiter}{year}',
+                                    '%w{delimiter}%m{delimiter}{year}'
                                 ):
                                     try:
-                                        return DateTime.strptime(
-                                            value, date_time_format.format(
-                                                delimiter=delimiter,
-                                                year=year_format,
-                                                microsecond=microsecond_format)
-                                        )
+# # python3.4
+# #                                        return Date.fromtimestamp(
+# #                                            DateTime.strptime(
+# #                                                value, date_format.format(
+# #                                                    delimiter=delimiter,
+# #                                                    year=year_format
+# #                                                )).timestamp())
+                                        return Date.fromtimestamp(time.mktime(
+                                            DateTime.strptime(
+                                                value, date_format.format(
+                                                    delimiter=delimiter,
+                                                    year=year_format
+                                                )).timetuple()))
+# #
                                     except builtins.ValueError:
                                         pass
-            if key == 'date' or key.endswith('_date') or key.endswith('Date'):
-                if builtins.isinstance(value, (builtins.int, builtins.float)):
-                    try:
-                        return Date.fromtimestamp(value)
-                    except builtins.ValueError:
-                        pass
-                converted_value = String(value).get_number()
-                if builtins.isinstance(converted_value, (
-                    builtins.int, builtins.float
-                )):
-                    try:
-                        return Date.fromtimestamp(converted_value)
-                    except builtins.ValueError:
-                        pass
-                if builtins.isinstance(value, builtins.str):
-                    for delimiter in ('.', '/'):
-                        for year_format in ('%y', '%Y'):
-                            for date_format in (
-                                '%x', '%d{delimiter}%m{delimiter}{year}',
-                                '%m{delimiter}%d{delimiter}{year}',
-                                '%w{delimiter}%m{delimiter}{year}'
-                            ):
-                                try:
+                if key == 'time' or key.endswith('_time') or key.endswith(
+                    'Time'
+                ):
+                    return Time(value).content
 # # python3.4
-# #                                    return Date.fromtimestamp(
-# #                                        DateTime.strptime(
-# #                                            value, date_format.format(
-# #                                                delimiter=delimiter,
-# #                                                year=year_format
-# #                                            )).timestamp())
-                                    return Date.fromtimestamp(time.mktime(
-                                        DateTime.strptime(
-                                            value, date_format.format(
-                                                delimiter=delimiter,
-                                                year=year_format
-                                            )).timetuple()))
+# #                 if(key == 'language' or key.endswith('_language') or
+# #                    key.endswith('Language')
+# #                    ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
+                if(key == 'language' or key.endswith('_language') or
+                   key.endswith('Language')
+                   ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
 # #
-                                except builtins.ValueError:
-                                    pass
-            if key == 'time' or key.endswith('_time') or key.endswith('Time'):
-                return Time(value).content
-# # python3.4
-# #             if(key == 'language' or key.endswith('_language') or
-# #                key.endswith('Language')
-# #                ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
-            if(key == 'language' or key.endswith('_language') or
-               key.endswith('Language')
-               ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
-# #
-                return String(value).get_camel_case_to_delimited().content
-        if builtins.isinstance(value, builtins.str):
-            return String(value).get_number()
+                    return String(value).get_camel_case_to_delimited().content
+            if builtins.isinstance(value, builtins.str):
+                return String(value).get_number()
         return value
 
         # # endregion
