@@ -32,14 +32,6 @@ import re
 import sys
 import time
 
-try:
-    from django.conf import settings as django_settings
-    from django.template import Context as DjangoTemplateContext
-    from django.template import Template as DjangoTemplateParser
-    from django.utils.safestring import mark_safe as marke_safe_string
-except ImportError:
-    DjangoTemplateParser = DjangoTemplateContext = None
-
 from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy import create_engine as create_database_engine
 from sqlalchemy.orm import sessionmaker as create_database_session
@@ -114,8 +106,6 @@ class Main(Class, Runnable):
     '''Holds the main entry files for bootstrapping the web application.'''
     html_template_file = None
     '''Saves the template file for frontend and backend based html file.'''
-    django_settings_set = False
-    '''Indicates if django is already configured.'''
     package_name = ''
     '''Saves dynamically determined package name.'''
 
@@ -155,16 +145,37 @@ class Main(Class, Runnable):
         return cls
 
     @classmethod
+    def convert_options_for_client(cls):
+        '''
+            Converts options dictionary for client. Key are converted to its \
+            camel case representation and values are converted to java script \
+            compatible types.
+        '''
+        cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
+            key_wrapper=lambda key, value: cls.convert_for_client(String(
+                key
+            ).get_delimited_to_camel_case(
+                preserve_wrong_formatted_abbreviations=True
+            ).content),
+            value_wrapper=cls.convert_for_client
+        ).content
+        return cls
+
+    @classmethod
     def consolidate_options(cls):
         '''Merges, renders and resolves internal option dependencies.'''
-        global OPTIONS
+        '''
+            NOTE: This is the only backend needed camel case option, because \
+            it will be appended via introspection.
+        '''
         cls._merge_options().options['moduleName'] = __name__
+        frontend_options = cls.options['frontend']
+        del cls.options['frontend']
         cls.options = Dictionary(cls.options).convert(
             key_wrapper=lambda key, value: cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
         ).content
-        mapping = copy(cls.options['frontend'])
-        mapping.update(cls.options)
+        cls.options['frontend'] = frontend_options
         '''
             NOTE: We have to run over options twice to handle cyclic \
             dependencies.
@@ -175,7 +186,7 @@ class Main(Class, Runnable):
 # #                 value_wrapper=lambda key, value: TemplateParser(
 # #                     value.replace('\\', 2 * '\\'), string=True
 # #                 ).render(
-# #                     mapping=mapping, module_name=__name__, main=cls
+# #                     mapping=cls.options, module_name=__name__, main=cls
 # #                 ).output if builtins.isinstance(
 # #                     value, builtins.str
 # #                 ) else value
@@ -184,32 +195,23 @@ class Main(Class, Runnable):
                 value_wrapper=lambda key, value: TemplateParser(
                     value.replace('\\', 2 * '\\'), string=True
                 ).render(
-                    mapping=mapping, module_name=__name__, main=cls
+                    mapping=cls.options, module_name=__name__, main=cls
                 ).output if builtins.isinstance(
                     value, (builtins.unicode, builtins.str)
                 ) else value
             ).content
 # #
+        frontend_options = cls.options['frontend']
+        del cls.options['frontend']
         cls.options = Dictionary(cls.options).convert(
             key_wrapper=lambda key, value: String(
                 key
             ).get_camel_case_to_delimited().content,
             value_wrapper=cls.convert_for_backend
         ).content
-        String.abbreviations = cls.options['abbreviations']
-        cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
-            key_wrapper=lambda key, value: cls.convert_for_client(String(
-                key
-            ).get_delimited_to_camel_case().content),
-            value_wrapper=cls.convert_for_client
-        ).content
+        cls.options['frontend'] = frontend_options
         cls.options['session']['expiration_interval'] = TimeDelta(
             minutes=cls.options['session']['expiration_time_in_minutes'])
-        '''
-            Export options to global scope to make them accessible for other \
-            modules like model or controller.
-        '''
-        OPTIONS = cls.options
         return cls
 
     @classmethod
@@ -611,11 +613,17 @@ class Main(Class, Runnable):
             Holds the current request handler specific database session \
             instance.
         '''
-        self.session = create_database_session(bind=self.engine)()
+        self.session = create_database_session(
+            bind=self.engine, expire_on_commit=False
+        )()
         self.authorized_user = self.authenticate(session=self.session)
 
         # # endregion
 
+        '''
+            Export options to global scope to make them accessible for other \
+            modules like model or controller.
+        '''
         try:
             self._web_controller()
         except TemplateError as exception:
@@ -646,6 +654,9 @@ class Main(Class, Runnable):
         if not (__test_mode__ or module_import_error is None):
             raise module_import_error
         self._set_options()
+        '''Export options dictionary for early access to other modules.'''
+        global OPTIONS
+        OPTIONS = self.options
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
                 arguments=self.options['command_line_arguments'],
@@ -704,9 +715,9 @@ class Main(Class, Runnable):
             self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
-        if(self.options['initial_template_rendering'] and (
-           self.debug or self.given_command_line_arguments.render_template or
-           not (self.frontend_html_file and self.backend_html_file))):
+        self.convert_options_for_client()
+        if(self.options['initial_template_rendering'] or
+           self.given_command_line_arguments.render_template):
             __logger__.info('Render template files.')
             self.render_templates(all=True)
         if not self.given_command_line_arguments.render_template:
@@ -767,30 +778,10 @@ class Main(Class, Runnable):
             mapping['options'] = Dictionary(
                 mapping['options']
             ).update(cls.options['frontend']['admin']).content
-        if(django_settings is None or
-           cls.options['template_engine'] == 'internal' or FileHandler(
-               location='%s%s' % (file.directory_path, file.basename)
-           ).extension != 'html'):
-            return TemplateParser(
-                file, template_context_default_indent=cls.options[
-                    'default_indent_level']
-            ).render(mapping=mapping).output
-        if not cls.django_settings_set:
-            cls.django_settings_set = True
-            django_settings.configure(
-                TEMPLATE_DIRS='%s%s' % (
-                    cls.ROOT_PATH, cls.options['location']['template']
-                ), DEBUG=cls.debug, TEMPLATE_DEBUG=cls.debug,
-                LANGUAGE_CODE=cls.options['default_language'])
-        mapping['optionsAsJSON'] = marke_safe_string(
-            json.dumps(mapping['options']))
-# # python3.4
-# #         return DjangoTemplateParser(file.content).render(
-# #             DjangoTemplateContext(mapping))
-        return DjangoTemplateParser(file.content).render(
-            DjangoTemplateContext(mapping)
-        ).encode(cls.options['encoding'])
-# #
+        return TemplateParser(
+            file, template_context_default_indent=cls.options[
+                'default_indent_level']
+        ).render(mapping=mapping).output
 
     @classmethod
     def _check_database_file_references(cls):
@@ -1062,19 +1053,6 @@ class Main(Class, Runnable):
                         cls.options['type'][name][property.name][
                             'required'
                         ] = False
-        cls.options['both']['type'] = cls.options['frontend']['type'] = \
-            cls.options['type']
-        '''
-            NOTE: Frontend options could only be extended after they where \
-            merged. So don't exchange these lines.
-        '''
-        cls.options['frontend']['type'] = Dictionary(
-            cls.options['frontend']['type']
-        ).convert(
-            key_wrapper=lambda key, value: cls.convert_for_client(String(
-                key
-            ).get_delimited_to_camel_case().content)
-        ).content
         return cls
 
     @classmethod
@@ -1130,7 +1108,9 @@ class Main(Class, Runnable):
         ), echo=__logger__.isEnabledFor(logging.DEBUG))
         if cls.model is not None:
             cls.model.Model.metadata.create_all(cls.engine)
-        cls.session = create_database_session(bind=cls.engine)()
+        '''Create a persistent inter thread database session.'''
+        cls.session = create_database_session(
+            bind=cls.engine, expire_on_commit=False)()
         cls._check_database_schema_version(database_backup_file)
         cls._check_database_file_references()
         if cls.controller is not None:

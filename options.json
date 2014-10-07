@@ -50,8 +50,6 @@
         "initialTemplateRendering": true,
         "secretDjangoKey": "",
         "removeDuplicatedRequestKey": false,
-        "templateEngine": "internal",
-        "abbreviations": ["html", "id", "url", "us", "de"],
         "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
@@ -144,7 +142,7 @@
             "keywords": {
                 "action": "store_true",
                 "default": false,
-                "help": "Indicates if the application should simply render the main html entry file and terminate.",
+                "help": "Indicates weather the application should simply render the main html entry file and terminate.",
                 "dest": "render_template"
             }
         }, {
