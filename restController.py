@@ -24,6 +24,7 @@ import json
 import os
 import re
 import shutil
+import time
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -56,31 +57,43 @@ class Response(Class):
         self.method_in_rest_controller = True
         if('__method__' in self.request.data['get'] and
            self.request.data['get']['__method__'] in (
-               'get', 'put', 'post', 'patch', 'delete')):
+               'get', 'put', 'post', 'patch', 'delete', 'head', 'jsonp')):
             self.request.data['request_type'] = self.request.data['get'][
                 '__method__']
             del self.request.data['get']['__method__']
-        if builtins.hasattr(
-            self.request.model, self.request.data['get']['__model__']
-        ):
-            self.model = builtins.getattr(
-                self.request.model, self.request.data['get']['__model__'])
-        else:
-            method_name = '%s_%s_model' % (
-                self.request.data['request_type'], String(
-                    self.request.data['get']['__model__']
-                ).get_camel_case_to_delimited().content)
-            if builtins.hasattr(self, method_name):
-                self.model = builtins.getattr(self, method_name)
-            elif builtins.hasattr(self.request.controller, method_name):
-                self.method_in_rest_controller = False
-                self.model = builtins.getattr(
-                    self.request.controller, method_name)
-        '''
-            A mapping to wrap each respond to client. Can be overridden in \
-            subclasses.
-        '''
-        self.data_wrapper = self.request.frontend_data_wrapper
+        self.json_padding = ''
+        for jsonp_get_parameter_indicator in \
+        self.request.options['jsonp_get_parameter_indicator']:
+            if jsonp_get_parameter_indicator in self.request.data['get']:
+                self.json_padding = self.request.data['get'][
+                    jsonp_get_parameter_indicator]
+                del self.request.data['get'][jsonp_get_parameter_indicator]
+        if self.request.data['request_type'] != 'head':
+            if self.request.data['get'][
+                '__model__'
+            ] != self.request.model.Model.__name__ and builtins.hasattr(
+                self.request.model, self.request.data['get']['__model__']
+            ):
+                model = builtins.getattr(
+                    self.request.model, self.request.data['get']['__model__'])
+                if builtins.issubclass(model, self.request.model.Model):
+                    self.model = model
+            if self.model is None:
+                method_name = '%s_%s_model' % (
+                    self.request.data['request_type'], String(
+                        self.request.data['get']['__model__']
+                    ).get_camel_case_to_delimited().content)
+                if builtins.hasattr(self, method_name):
+                    self.model = builtins.getattr(self, method_name)
+                elif builtins.hasattr(self.request.controller, method_name):
+                    self.method_in_rest_controller = False
+                    self.model = builtins.getattr(
+                        self.request.controller, method_name)
+            '''
+                A mapping to wrap each respond to client. Can be overridden \
+                in subclasses.
+            '''
+            self.data_wrapper = self.request.frontend_data_wrapper
 
         # # endregion
 
@@ -94,66 +107,80 @@ class Response(Class):
     @Class.pseudo_property
     def get_output(self):
         '''Computes the json response object.'''
-        if self.model is None:
-            self.request.data['handler'].send_response(
-                510, 'Requested model "%s" doesn\'t exist.' %
-                self.request.data['get']['__model__'])
-            result = {}
-        else:
-            if not self.model.__name__.endswith('_file_model'):
-                for dataType in ('get', 'data'):
-                    if builtins.isinstance(
-                        self.request.data[dataType], builtins.list
-                    ):
-                        for index, item in builtins.enumerate(
-                            self.request.data[dataType]
+        result = None
+        if self.request.data['request_type'] != 'head':
+            if self.model is None:
+                self.request.data['handler'].send_response(
+                    510, 'Requested model "%s" doesn\'t exist.' %
+                    self.request.data['get']['__model__'])
+            else:
+                if not self.model.__name__.endswith('_file_model'):
+                    for dataType in ('get', 'data'):
+                        if builtins.isinstance(
+                            self.request.data[dataType], builtins.list
                         ):
-                            self.request.data[dataType][index] = \
+                            for index, item in builtins.enumerate(
+                                self.request.data[dataType]
+                            ):
+                                self.request.data[dataType][index] = \
+                                    self.request.controller\
+                                    .convert_for_database(item)
+                        else:
+                            self.request.data[dataType] = \
                                 self.request.controller.convert_for_database(
-                                    item)
+                                    self.request.data[dataType])
+                if builtins.hasattr(self.model, '__table__'):
+                    method = builtins.getattr(
+                        self, 'process_%s' % self.request.data['request_type'])
+                    try:
+                        if self.request.data['request_type'] == 'get':
+                            result = method(data=self.request.data['get'])
+                        else:
+                            result = method(
+                                get=self.request.data['get'],
+                                data=self.request.data['data'])
+                    except (SQLAlchemyError, builtins.ValueError) as exception:
+                        self.request.session.rollback()
+                        self.request.data['handler'].send_response(
+                            400 if builtins.isinstance(
+                                exception, builtins.ValueError
+                            ) else 409,
+                            '%s: "%s"' % (
+                                exception.__class__.__name__, builtins.str(
+                                    exception)))
+                        result = {}
+                elif self.request.data['request_type'] == 'get':
+                    if self.method_in_rest_controller:
+                        result = self.model(data=self.request.data['get'])
                     else:
-                        self.request.data[dataType] = \
-                            self.request.controller.convert_for_database(
-                                self.request.data[dataType])
-            if builtins.hasattr(self.model, '__table__'):
-                method = builtins.getattr(
-                    self, 'process_%s' % self.request.data['request_type'])
-                try:
-                    if self.request.data['request_type'] == 'get':
-                        result = method(data=self.request.data['get'])
-                    else:
-                        result = method(
-                            get=self.request.data['get'],
-                            data=self.request.data['data'])
-                except (SQLAlchemyError, builtins.ValueError) as exception:
-                    self.request.session.rollback()
-                    self.request.data['handler'].send_response(
-                        400 if builtins.isinstance(
-                            exception, builtins.ValueError
-                        ) else 409,
-                        '%s: "%s"' % (
-                            exception.__class__.__name__, builtins.str(
-                                exception)))
-                    result = {}
-            elif self.request.data['request_type'] == 'get':
-                if self.method_in_rest_controller:
-                    result = self.model(data=self.request.data['get'])
+                        result = self.model(
+                            data=self.request.data['get'],
+                            rest_controller=self)
+                elif self.method_in_rest_controller:
+                    result = self.model(
+                        get=self.request.data['get'],
+                        data=self.request.data['data'])
                 else:
                     result = self.model(
-                        data=self.request.data['get'], rest_controller=self)
-            elif self.method_in_rest_controller:
-                result = self.model(
-                    get=self.request.data['get'],
-                    data=self.request.data['data'])
-            else:
-                result = self.model(
-                    get=self.request.data['get'],
-                    data=self.request.data['data'], rest_controller=self)
-            if result is None:
-                self.request.data['handler'].send_response(401)
-                result = {}
-        return self.request.options['rest_response_template'] % json.dumps(
-            result)
+                        get=self.request.data['get'],
+                        data=self.request.data['data'], rest_controller=self)
+                if result is None:
+                    self.request.data['handler'].send_response(401)
+                    result = {}
+        self.request.data['handler'].send_response(200)
+        self.request.data['handler'].send_header(
+            String(
+                self.request.options['last_data_write_date_time_header_name']
+            ).get_camel_case_to_delimited(delimiter='-').sub(
+                '-([a-z])', lambda match: '-%s' % match.group(1).upper()
+            ).get_camel_case_capitalize().content, builtins.str(
+                self.request.rest_data_timestamp_reference_file.timestamp))
+        if result is not None:
+            if self.json_padding:
+                return '%s(%s);' % (self.json_padding, result)
+            return self.request.options['rest_response_template'] % json.dumps(
+                result)
+        return ''
 
         # endregion
 
@@ -171,6 +198,7 @@ class Response(Class):
             prefix_filter='', preserve_unicode=True))
 # #
         self.request.session.commit()
+        self.request.rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
     def process_post(self, get, data):
@@ -264,6 +292,7 @@ class Response(Class):
                 get.update(data)
                 self.request.session.add(self.model(**get))
         self.request.session.commit()
+        self.request.rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
     def process_delete(self, get, data):
@@ -284,19 +313,23 @@ class Response(Class):
                     self.request.session.query(self.model).filter_by(
                         **new_get
                     ).delete()
+                    self.request.session.commit()
+                    self.request\
+                        .rest_data_timestamp_reference_file.set_timestamp()
         elif get and self.request.session.query(self.model).filter_by(
             **get
         ).count():
             self.request.session.query(self.model).filter_by(
                 **get
             ).delete()
-        self.request.session.commit()
+            self.request.session.commit()
+            self.request.rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
     def process_get(self, data):
         '''Computes the get response object.'''
         if data:
-            return [model.get_dictionary(
+            return[model.get_dictionary(
                 **self.data_wrapper
             ) for model in self.request.session.query(self.model).filter_by(
                 **data)]
@@ -310,7 +343,10 @@ class Response(Class):
         '''Removes given file.'''
         file = FileHandler(location=get['path'])
         if file.is_file():
-            return{} if file.remove_file() else None
+            if file.remove_file():
+                self.request.rest_data_timestamp_reference_file.set_timestamp()
+            else:
+                return None
         return{}
 
     def get_system_model(self, data):
@@ -370,6 +406,8 @@ class Response(Class):
                         self.request.options['location']['medium'] +
                         item.filename
                     )._path, 'wb'))
+                    self.request\
+                        .rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
     def put_copy_model(self, get, data):
@@ -424,6 +462,8 @@ class Response(Class):
                                     property_names=property_names,
                                 preserve_unicode=True)))
                     self.request.session.commit()
+                    self.request\
+                        .rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
     # endregion

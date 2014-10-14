@@ -28,6 +28,7 @@ import inspect
 import json
 import logging
 import multiprocessing
+import os
 import re
 import sys
 import time
@@ -81,6 +82,8 @@ class Main(Class, Runnable):
     '''Saves the sandboxed application root path.'''
     CONFIGURATION_FILE_PATH = '/options.json'
     '''Saves a path pointing to the applications global configuration file.'''
+    rest_data_timestamp_reference_file = None
+    '''Saves a database timestamp reference file.'''
     web_server = None
     '''Saves the web server instance.'''
     debug = False
@@ -153,7 +156,7 @@ class Main(Class, Runnable):
         '''
         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(String(
-                key
+                cls.convert_byte_to_string(key)
             ).get_delimited_to_camel_case(
                 preserve_wrong_formatted_abbreviations=True
             ).content),
@@ -184,7 +187,8 @@ class Main(Class, Runnable):
 # # python3.4
 # #             cls.options = Dictionary(cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
-# #                     value.replace('\\', 2 * '\\'), string=True
+# #                     value.replace('\\', 2 * '\\').replace('<%%', '<%%%'),
+# #                     string=True
 # #                 ).render(
 # #                     mapping=cls.options, module_name=__name__, main=cls
 # #                 ).output if builtins.isinstance(
@@ -193,7 +197,8 @@ class Main(Class, Runnable):
 # #             ).content
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
-                    value.replace('\\', 2 * '\\'), string=True
+                    value.replace('\\', 2 * '\\').replace('<%%', '<%%%'),
+                    string=True
                 ).render(
                     mapping=cls.options, module_name=__name__, main=cls
                 ).output if builtins.isinstance(
@@ -216,7 +221,7 @@ class Main(Class, Runnable):
 
     @classmethod
     def extend_user_authorization(
-        cls, user_id, session_token, location, session=None
+        cls, user_id, session_token, location=None, session=None
     ):
         '''Extends user authorization time.'''
         if session is None:
@@ -237,7 +242,8 @@ class Main(Class, Runnable):
                         'expiration_interval'
                     ].total_seconds() / 60
                 ) / 60)
-                user.location = location
+                if location is not None:
+                    user.location = location
                 session.commit()
         return user
 
@@ -245,12 +251,11 @@ class Main(Class, Runnable):
     def render_templates(cls, all=False):
         '''Renders the main index html file.'''
         mapping = {
-            'options': deepcopy(cls.options['frontend']),
-            'backendOptions': deepcopy(cls.options['backend']),
+            'options': deepcopy(cls.options),
             'debug': cls.debug, 'given_command_line_arguments':
             cls.given_command_line_arguments, 'root': FileHandler.get_root()}
-        if 'admin' in mapping['options']:
-            del mapping['options']['admin']
+        if 'admin' in mapping['options']['frontend']:
+            del mapping['options']['frontend']['admin']
         if all:
             FileHandler(location='/').iterate_directory(
                 function=cls._render_template, recursive=True, mapping=mapping)
@@ -262,7 +267,7 @@ class Main(Class, Runnable):
         '''Clears all web cache files.'''
         __logger__.info(
             'Clear web cache in "%s".', cls.options['location']['web_cache'])
-        for file in FileHandler(cls.options['location']['web_cache']):
+        for file in FileHandler(location=cls.options['location']['web_cache']):
             if cls.is_valid_web_asset(file):
                 file.remove_deep()
         return cls
@@ -465,8 +470,10 @@ class Main(Class, Runnable):
         paths = []
         if path is None:
             path = cls.options['location']['web_asset']
-            cls._root_asset_path_len = builtins.len(FileHandler(path).path)
-        for file in FileHandler(path):
+            cls._root_asset_path_len = builtins.len(FileHandler(
+                location=path
+            ).path)
+        for file in FileHandler(location=path):
             if cls.is_valid_web_asset(file):
                 if file.is_directory():
                     paths += cls._determine_file_assets(file.path)
@@ -481,7 +488,7 @@ class Main(Class, Runnable):
             application needed file in the given location.
         '''
         version = 0
-        for file in FileHandler(path):
+        for file in FileHandler(location=path):
             if cls.is_valid_web_asset(file):
                 if file.is_directory():
                     version += cls.get_timestamps(file.path)
@@ -524,10 +531,12 @@ class Main(Class, Runnable):
                 if file.is_file():
                     asset_files.append(file)
                 return True
-        FileHandler(self.options['location']['web_asset']).iterate_directory(
-            add_asset_file, recursive=True)
+        FileHandler(
+            location=self.options['location']['web_asset']
+        ).iterate_directory(add_asset_file, recursive=True)
         offline_manifest_template_file = FileHandler(
-            self.options['location']['offline_manifest_template_file'])
+            location=self.options['location'][
+                'offline_manifest_template_file'])
         account_state = 1
         account_data = {}
         if user is not None:
@@ -542,9 +551,11 @@ class Main(Class, Runnable):
             asset_files=asset_files, html_file=self.frontend_html_file,
             asset_version=self.get_timestamps(
                 self.options['location']['web_asset']),
-            version='%s - %d' % (__version__, FileHandler(Module.get_name(
-                path=True, extension=True, frame=inspect.currentframe()
-            )).timestamp), account_state=account_state,
+            version='%s - %d' % (__version__, FileHandler(
+                location=Module.get_name(
+                    path=True, extension=True, frame=inspect.currentframe()
+                )
+            ).timestamp), account_state=account_state,
             request_file_name=__name__, host=self.data['handler'].host,
             account_data=account_data,
             offline_manifest_template_file=offline_manifest_template_file,
@@ -557,7 +568,7 @@ class Main(Class, Runnable):
         '''
         if session is None:
             session = cls.session
-        user_id = session_token = None
+        user_id = session_token = location = None
         if self.options['authentication_method'] == 'header':
             user_id = self.data['handler'].headers.get(String(
                 self.options['session']['key']['user_id']
@@ -565,16 +576,18 @@ class Main(Class, Runnable):
             session_token = self.data['handler'].headers.get(String(
                 self.options['session']['key']['token']
             ).get_camel_case_to_delimited(delimiter='-').content)
-            location = self.data['handler'].headers.get(String(
-                self.options['session']['key']['location']
-            ).get_camel_case_to_delimited(delimiter='-').content)
+            if self.data['request_type'] != 'head':
+                location = self.data['handler'].headers.get(String(
+                    self.options['session']['key']['location']
+                ).get_camel_case_to_delimited(delimiter='-').content)
         elif self.options['authentication_method'] == 'cookie':
             user_id = self.data['cookie'].get(
                 self.options['session']['key']['user_id'])
             session_token = self.data['cookie'].get(
                 self.options['session']['key']['token'])
-            location = self.data['cookie'].get(
-                self.options['session']['key']['location'])
+            if self.data['request_type'] != 'head':
+                location = self.data['cookie'].get(
+                    self.options['session']['key']['location'])
         return self.extend_user_authorization(
             user_id, session_token, location, session)
 
@@ -644,8 +657,8 @@ class Main(Class, Runnable):
 
         self.__class__.package_name = Module.get_package_name(
             frame=inspect.currentframe())
-        FileHandler.set_root(location=FileHandler(FileHandler(
-            Module.get_name(
+        FileHandler.set_root(location=FileHandler(location=FileHandler(
+            location=Module.get_name(
                 frame=inspect.currentframe(), path=True, extension=True),
             output_with_root_prefix=True
         ).directory_path).directory_path)
@@ -685,11 +698,11 @@ class Main(Class, Runnable):
                 raise
         self._append_model_informations_to_options()
         self.__class__.frontend_html_file = FileHandler(
-            self.options['location']['html_file']['frontend'])
+            location=self.options['location']['html_file']['frontend'])
         self.__class__.backend_html_file = FileHandler(
-            self.options['location']['html_file']['backend'])
+            location=self.options['location']['html_file']['backend'])
         self.__class__.html_template_file = FileHandler(
-            self.options['location']['html_file']['template'])
+            location=self.options['location']['html_file']['template'])
         self.__class__.frontend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_client(String(
                 key
@@ -708,7 +721,6 @@ class Main(Class, Runnable):
             'Application is running in %s mode.',
             'performance' if sys.flags.optimize else 'normal')
         if not self.given_command_line_arguments.render_template:
-            self.clear_web_cache()
             __logger__.info(
                 'Initialize database on "%s".',
                 self.options['location']['database']['url'])
@@ -720,6 +732,13 @@ class Main(Class, Runnable):
            self.given_command_line_arguments.render_template):
             __logger__.info('Render template files.')
             self.render_templates(all=True)
+        self.__class__.rest_data_timestamp_reference_file = FileHandler(
+            location=self.options['location']['database'][
+                'rest_data_timestamp_reference_file_path'])
+        if self.debug:
+            self.clear_web_cache()
+        if not self.rest_data_timestamp_reference_file:
+            self.__class__.rest_data_timestamp_reference_file.content = ''
         if not self.given_command_line_arguments.render_template:
             return self._start_web_server()
 
@@ -740,15 +759,18 @@ class Main(Class, Runnable):
             '''Don't enter ignored locations.'''
             return None
 # # python3.4
-# #         if file.extension == 'tpl' and FileHandler(
+# #         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX
+# #         and FileHandler(
 # #             location='%s%s' % (file.directory_path, file.basename)
-# #         ).extension and file != cls.html_template_file:
-        if file.extension == 'tpl' and FileHandler(
+# #         ).extension and file != cls.html_template_file):
+        if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX
+        and FileHandler(
             location='%s%s' % (file.directory_path, file.basename)
-        ).extension and not (file == cls.html_template_file):
+        ).extension and not (file == cls.html_template_file)):
 # #
             FileHandler(location='%s%s' % (
-                file.directory_path, file.name[:-len('.tpl')]
+                file.directory_path, file.name[:-builtins.len('%s%s' % (
+                    os.extsep, TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX))]
             )).content = cls._render_template_helper(file, mapping)
         return cls
 
@@ -756,10 +778,12 @@ class Main(Class, Runnable):
     def _render_html_templates(cls, mapping):
         '''Renders all frontend html templates.'''
         for site in ('frontend', 'backend'):
-            if(site == 'frontend' or
-               'admin' in cls.options['frontend']
-            ):
-                getattr(
+            '''
+                NOTE: Only build and admin file if there exists an admin \
+                section in frontend options.
+            '''
+            if site == 'frontend' or 'admin' in cls.options['frontend']:
+                builtins.getattr(
                     cls, '%s_html_file' % site
                 ).content = cls._render_template_helper(
                     cls.html_template_file, mapping,
@@ -770,13 +794,13 @@ class Main(Class, Runnable):
     def _render_template_helper(cls, file, mapping, force_backend=False):
         '''Renders a concrete template file.'''
         __logger__.debug('Render "%s".', file.path)
-        mapping['options']['admin'] = ((
+        mapping['options']['frontend']['admin'] = ((
             force_backend or file.name.startswith('backend')
         ) and 'admin' in cls.options['frontend'])
         mapping = cls.controller.get_template_scope(deepcopy(mapping))
-        if mapping['options']['admin']:
-            mapping['options'] = Dictionary(
-                mapping['options']
+        if mapping['options']['frontend']['admin']:
+            mapping['options']['frontend'] = Dictionary(
+                mapping['options']['frontend']
             ).update(cls.options['frontend']['admin']).content
         return TemplateParser(
             file, template_context_default_indent=cls.options[
@@ -798,34 +822,38 @@ class Main(Class, Runnable):
                 for property in model.__table__.columns:
                     if property.info and 'file_reference' in property.info:
                         for model_instance in cls.session.query(model):
-                            file_path = property.info['file_reference'] % \
-                                getattr(model_instance, property.name)
+                            value = builtins.getattr(
+                                model_instance, property.name)
+                            if value is not None:
+                                file_path = property.info['file_reference'] % \
+                                    value
 # # python3.4
-# #                             pass
-                            file_path = file_path.encode(
-                                cls.options['encoding'])
+# #                                 pass
+                                file_path = file_path.encode(
+                                    cls.options['encoding'])
 # #
-                            if(not (
-                                file_path in checked_paths or FileHandler(
-                                    file_path)
-                            ) and CommandLine.boolean_input(
-                                'Model %s has a dead file reference via '
-                                'attribute "%s" to "%s". Do you want to '
-                                'delete this record? {boolean_arguments}: ' % (
-                                    repr(model_instance), property.name,
-                                    file_path))
-                            ):
-                                cls.session.query(model).filter_by(
-                                    **model_instance.get_dictionary(
-                                        preserve_unicode=True)
-                                ).delete()
-                                cls.session.commit()
-                            elif(file_path not in checked_paths or
-                                 checked_paths[file_path] != model_name):
-                                checked_paths[file_path] = model_name
-                                __logger__.debug(
-                                    'Check file reference "%s" for model '
-                                    '"%s".', file_path, model_name)
+                                if(not (
+                                    file_path in checked_paths or FileHandler(
+                                        location=file_path)
+                                ) and CommandLine.boolean_input(
+                                    'Model %s has a dead file reference via '
+                                    'attribute "%s" to "%s". Do you want to '
+                                    'delete this record? {boolean_arguments}: '
+                                    % (builtins.repr(
+                                        model_instance
+                                    ), property.name, file_path))
+                                ):
+                                    cls.session.query(model).filter_by(
+                                        **model_instance.get_dictionary(
+                                            preserve_unicode=True)
+                                    ).delete()
+                                    cls.session.commit()
+                                elif(file_path not in checked_paths or
+                                     checked_paths[file_path] != model_name):
+                                    checked_paths[file_path] = model_name
+                                    __logger__.debug(
+                                        'Check file reference "%s" for model '
+                                        '"%s".', file_path, model_name)
         return cls
 
     @classmethod
@@ -834,7 +862,7 @@ class Main(Class, Runnable):
         if cls.model is None:
             return cls
         database_schema_file = FileHandler(
-            cls.options['location']['database']['schema_file'])
+            location=cls.options['location']['database']['schema_file'])
         old_schemas = {}
         serialized_schema = ''
         if database_schema_file:
@@ -1157,7 +1185,7 @@ class Main(Class, Runnable):
                     user = users.one()
                     manifest_name = user.id
             cache_file = FileHandler(
-                '%s%s.appcache' %
+                location='%s%s.appcache' %
                 (self.options['location']['web_cache'], manifest_name))
             if(self.given_command_line_arguments.web_cache and
                self.is_cached(cache_file)):
