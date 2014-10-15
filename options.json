@@ -77,6 +77,12 @@
                     "maximum": 9999999999999999999999999999999999999999999999,
                     "pattern": "([0-9-+()]+(/|-)?[0-9-+]+)?"
                 },
+                "zipCode": {
+                    "maximumLength": 50,
+                    "minimumLength": 1,
+                    "pattern": "[0-9]+",
+                    "default": "0"
+                },
                 "languageSpecific": {"default": {}}
             },
             "authentication": {
