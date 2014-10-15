@@ -296,7 +296,7 @@ class Main(Class, Runnable):
 # #                 return time.mktime(value.timetuple())
 # #             if builtins.isinstance(value, DateTime):
 # #                 return value.timestamp(
-# #                 ) + value.microsecond / 1000 ** 2
+# #                 ) + builtins.float(value.microsecond) / 1000 ** 2
             if builtins.isinstance(value, Date):
                 return time.mktime(value.timetuple())
             if builtins.isinstance(value, DateTime):
@@ -306,7 +306,7 @@ class Main(Class, Runnable):
 # #
             if builtins.isinstance(value, NativeTime):
                 return(
-                    60 ** 2 * value.hour + 60 * value.minute +
+                    60.0 ** 2 * value.hour + 60 * value.minute +
                     value.second + value.microsecond / 1000 ** 2)
 # # python3.4
 # #             if(builtins.isinstance(key, builtins.str) and (
@@ -999,7 +999,8 @@ class Main(Class, Runnable):
                 new_schemas, encoding=cls.options['encoding'],
                 sort_keys=True, indent=cls.options['default_indent_level'])
 # #
-        if database_schema_file.content != serialized_schema:
+        if(database_schema_file.content != serialized_schema and
+           database_backup_file):
             now = DateTime.now()
 # # python3.4
 # #             time_stamp = now.timestamp() + now.microsecond / 1000 ** 2
