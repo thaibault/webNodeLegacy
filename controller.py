@@ -5,6 +5,12 @@
 
 '''Provides a simple web controller.'''
 
+# # python3.4
+# # pass
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
+# #
+
 __author__ = 'Torben Sickert'
 __copyright__ = 'see module docstring'
 __credits__ = 'Torben Sickert',
@@ -75,15 +81,6 @@ class Main(object):
     @classmethod
     def convert_for_database(cls, data):
         '''Converts given data to database compatible values.'''
-# # python3.4
-# #         pass
-        if cls.main.options['database_engine_prefix'].startswith('sqlite:'):
-            return Dictionary(data).convert(
-                value_wrapper=lambda key, value: builtins.unicode(
-                    value, cls.main.options['encoding']
-                ) if builtins.isinstance(value, builtins.str) else value
-            ).content
-# #
         return data
 
         # endregion

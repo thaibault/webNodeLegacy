@@ -8,6 +8,12 @@
     and starts the web socket.
 '''
 
+# # python3.4
+# # pass
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
+# #
+
 __author__ = 'Torben Sickert'
 __copyright__ = 'see module docstring'
 __credits__ = 'Torben Sickert',
@@ -52,9 +58,11 @@ from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
 
 try:
-    Controller = __import__('controller', {}, {}, ('Main',)).Main
-    RestResponse = __import__('restController', {}, {}, ('Response',)).Response
-except ImportError as exception:
+    Controller = builtins.__import__('controller', {}, {}, ('Main',)).Main
+    RestResponse = builtins.__import__(
+        'restController', {}, {}, ('Response',)
+    ).Response
+except builtins.ImportError as exception:
     module_import_error = exception
     Controller = RestResponse = None
 else:
@@ -156,7 +164,7 @@ class Main(Class, Runnable):
         '''
         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(String(
-                cls.convert_byte_to_string(key)
+                key
             ).get_delimited_to_camel_case(
                 preserve_wrong_formatted_abbreviations=True
             ).content),
@@ -273,21 +281,8 @@ class Main(Class, Runnable):
         return cls
 
     @classmethod
-    def convert_byte_to_string(cls, value):
-        '''Converts a byte object to a python string.'''
-# # python3.4
-# #         if builtins.isinstance(value, builtins.bytes):
-# #             return value.decode(cls.options['encoding'])
-        if builtins.isinstance(value, builtins.unicode):
-            return value.encode(cls.options['encoding'])
-# #
-        return value
-
-    @classmethod
     def convert_for_client(cls, key, value=Null):
         '''Returns the serialized version of given value.'''
-        key = cls.convert_byte_to_string(key)
-        value = cls.convert_byte_to_string(value)
         if value is Null:
             value = key
         else:
@@ -313,7 +308,9 @@ class Main(Class, Runnable):
 # #                 key == 'language' or key.endswith('_language') or
 # #                 key.endswith('Language')
 # #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
-            if(builtins.isinstance(key, builtins.str) and (
+            if(builtins.isinstance(key, (
+                builtins.unicode, builtins.str
+            )) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
@@ -323,6 +320,14 @@ class Main(Class, Runnable):
         if not builtins.isinstance(value, (
             builtins.int, builtins.float, builtins.type(None)
         )):
+# # python3.4
+# #             pass
+            if builtins.isinstance(value, builtins.unicode):
+                return value
+            if builtins.isinstance(value, builtins.str):
+                return builtins.unicode(
+                    value, FileHandler.DEFAULT_ENCODING)
+# #
             return builtins.str(value)
         return value
 
@@ -342,7 +347,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: String(
                 key
             ).get_camel_case_to_delimited().content if builtins.isinstance(
-                key, (builtins.str, builtins.unicode)
+                key, (builtins.unicode, builtins.str)
             ) else cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
         ).content
@@ -351,9 +356,7 @@ class Main(Class, Runnable):
     @classmethod
     def convert_for_backend(cls, key, value=Null):
         '''Converts data from client to python specific data objects.'''
-        key = cls.convert_byte_to_string(key)
         if value is not None:
-            value = cls.convert_byte_to_string(value)
             if value is Null:
                 value = key
             elif builtins.isinstance(key, builtins.str):
@@ -413,7 +416,12 @@ class Main(Class, Runnable):
                             return Date.fromtimestamp(converted_value)
                         except builtins.ValueError:
                             pass
-                    if builtins.isinstance(value, builtins.str):
+# # python3.4
+# #                     if builtins.isinstance(value, builtins.str):
+                    if builtins.isinstance(value, (
+                        builtins.unicode, builtins.str
+                    )):
+# #
                         for delimiter in ('.', '/'):
                             for year_format in ('%y', '%Y'):
                                 for date_format in (
@@ -451,7 +459,11 @@ class Main(Class, Runnable):
                    ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
 # #
                     return String(value).get_camel_case_to_delimited().content
-            if builtins.isinstance(value, builtins.str):
+# # python3.4
+# #             if builtins.isinstance(value, builtins.str):
+            # TODO ask always for unicode first.
+            if builtins.isinstance(value, (builtins.unicode, builtins.str)):
+# #
                 return String(value).get_number()
         return value
 
@@ -755,8 +767,8 @@ class Main(Class, Runnable):
             frontend templates.
         '''
         if(file.is_symbolic_link() or
-           file.name in cls.options['location']['template_ignored']):
-            '''Don't enter ignored locations.'''
+           file.path in cls.options['location']['template_ignored']):
+            '''Don't enter ignored locations or parse ignored files.'''
             return None
 # # python3.4
 # #         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX
@@ -794,9 +806,23 @@ class Main(Class, Runnable):
     def _render_template_helper(cls, file, mapping, force_backend=False):
         '''Renders a concrete template file.'''
         __logger__.debug('Render "%s".', file.path)
-        mapping['options']['frontend']['admin'] = ((
-            force_backend or file.name.startswith('backend')
-        ) and 'admin' in cls.options['frontend'])
+        is_backend = force_backend
+        '''
+            Check if any parent folder has the "backend" prefix to indicate \
+            frontend or template scope for current template.
+        '''
+        if file.name.startswith('backend'):
+            is_backend = True
+        parent_folder = FileHandler(location=file.directory_path)
+        while True:
+            if parent_folder.name.startswith('backend'):
+                is_backend = True
+            if parent_folder == FileHandler.get_root() or is_backend:
+                break
+            parent_folder = FileHandler(
+                location=parent_folder.directory_path)
+        mapping['options']['frontend']['admin'] = ((is_backend) and
+            'admin' in cls.options['frontend'])
         mapping = cls.controller.get_template_scope(deepcopy(mapping))
         if mapping['options']['frontend']['admin']:
             mapping['options']['frontend'] = Dictionary(
@@ -827,11 +853,6 @@ class Main(Class, Runnable):
                             if value is not None:
                                 file_path = property.info['file_reference'] % \
                                     value
-# # python3.4
-# #                                 pass
-                                file_path = file_path.encode(
-                                    cls.options['encoding'])
-# #
                                 if(not (
                                     file_path in checked_paths or FileHandler(
                                         location=file_path)
@@ -867,18 +888,8 @@ class Main(Class, Runnable):
         serialized_schema = ''
         if database_schema_file:
             serialized_schema = database_schema_file.content
-# # python3.4
-# #             old_schemas = json.loads(
-# #                 serialized_schema, encoding=cls.options['encoding'])
-            old_schemas = Dictionary(json.loads(
+            old_schemas = json.loads(
                 serialized_schema, encoding=cls.options['encoding'])
-            ).convert(
-                key_wrapper=lambda key, value: cls.convert_byte_to_string(
-                    key),
-                value_wrapper=lambda key, value: cls.convert_byte_to_string(
-                    value)
-            ).content
-# #
         new_schemas = {}
         models = builtins.filter(
             lambda entity: builtins.isinstance(
@@ -929,14 +940,7 @@ class Main(Class, Runnable):
                     migration_successful = True
                     for values in cls.session.query(*old_columns.values()):
                         __logger__.debug(
-                            'Transferring record "%s".', '", "'.join(
-                                builtins.map(lambda value: value.encode(
-                                    cls.options['encoding']
-                                ) if builtins.isinstance(
-                                    value, builtins.unicode
-                                ) else builtins.str(
-                                    value
-                                ), values)))
+                            'Transferring record "%s".', '", "'.join(values))
                         try:
                             cls.session.execute(temporary_table.insert(dict(
                                 zip(old_columns.keys(), values))))
@@ -981,10 +985,6 @@ class Main(Class, Runnable):
         '''Load all existing table names from current database.'''
         cls.model.Model.metadata.reflect(cls.engine)
         for table_name in cls.model.Model.metadata.tables.keys():
-# # python3.4
-# #             pass
-            table_name = table_name.encode(cls.options['encoding'])
-# #
             if table_name not in new_schemas and cls.engine.dialect.has_table(
                 cls.engine.connect(), table_name
             ):

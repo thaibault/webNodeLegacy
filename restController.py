@@ -5,6 +5,12 @@
 
 '''Provides a generic Response object for any web based web application.'''
 
+# # python3.4
+# # pass
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
+# #
+
 __author__ = 'Torben Sickert'
 __copyright__ = 'see module docstring'
 __credits__ = 'Torben Sickert',
@@ -339,6 +345,8 @@ class Response(Class):
 
         # endregion
 
+        # region special request types
+
     def delete_file_model(self, get, data):
         '''Removes given file.'''
         file = FileHandler(location=get['path'])
@@ -465,6 +473,8 @@ class Response(Class):
                     self.request\
                         .rest_data_timestamp_reference_file.set_timestamp()
         return{}
+
+        # endregion
 
     # endregion
 

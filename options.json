@@ -59,7 +59,12 @@
                 "filePath": {
                     "minimumLength": 1, "maximumLength": 32000,
                     "pattern": ".+",
-                    "file_reference": "<% location['medium'] %>%s"
+                    "fileReference": "<% location['medium'] %>%s"
+                },
+                "fileName": {
+                    "minimumLength": "<% model['generic']['filePath']['minimumLength'] %>",
+                    "maximumLength": 255, "pattern": "<% model['generic']['filePath']['pattern'] %>",
+                    "fileReference": "<% location['medium'] %>%s"
                 },
                 "text": {"pattern": "(\\s|.)*"},
                 "url": {
@@ -122,15 +127,17 @@
                 "key": "/certificate/example.key",
                 "crt": "/certificate/example.crt"
             },
+            "backup": "/backup/",
             "database": {
                 "folder": "/database/",
                 "url": "<% location['database']['folder'] %>data",
                 "restDataTimestampReferenceFilePath": "<% location['database']['folder'] %>dataTimestamp",
                 "schemaFile": "<% location['database']['folder'] %>schema.json",
-                "backup": "/backup/database/"
+                "backup": "<% location['backup'] %>database/"
             },
             "templateIgnored": [
-                "backup", "cache", "boostNode", "database", "webNode"]
+                "<% location['backup'] %>", "<% location['webCache'] %>",
+                "/boostNode/", "/webNode/", "/database/"]
         },
 
         "ignoreWebAssetPattern": [".*\\.swp", "\\..*"],
