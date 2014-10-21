@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
@@ -8,10 +8,10 @@
     and starts the web socket.
 '''
 
-# # python3.4
-# # pass
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+# # python2.7
+# # from __future__ import absolute_import, division, print_function, \
+# #     unicode_literals
+pass
 # #
 
 __author__ = 'Torben Sickert'
@@ -23,8 +23,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 import builtins
-import __builtin__ as builtins
+# # python2.7 import __builtin__ as builtins
+import builtins
 from copy import copy, deepcopy
 from datetime import datetime as DateTime
 from datetime import time as NativeTime
@@ -132,8 +132,8 @@ class Main(Class, Runnable):
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
         for pattern in cls.options['ignore_web_asset_pattern']:
-# # python3.4             if re.compile(pattern).fullmatch(file.name):
-            if re.compile('(?:%s)$' % pattern).match(file.name):
+# # python2.7             if re.compile('(?:%s)$' % pattern).match(file.name):
+            if re.compile(pattern).fullmatch(file.name):
                 return False
         return True
 
@@ -192,7 +192,7 @@ class Main(Class, Runnable):
             dependencies.
         '''
         for number in builtins.range(2):
-# # python3.4
+# # python2.7
 # #             cls.options = Dictionary(cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
 # #                     value.replace('\\', 2 * '\\').replace('<%%', '<%%%'),
@@ -200,7 +200,7 @@ class Main(Class, Runnable):
 # #                 ).render(
 # #                     mapping=cls.options, module_name=__name__, main=cls
 # #                 ).output if builtins.isinstance(
-# #                     value, builtins.str
+# #                     value, (builtins.unicode, builtins.str)
 # #                 ) else value
 # #             ).content
             cls.options = Dictionary(cls.options).convert(
@@ -210,7 +210,7 @@ class Main(Class, Runnable):
                 ).render(
                     mapping=cls.options, module_name=__name__, main=cls
                 ).output if builtins.isinstance(
-                    value, (builtins.unicode, builtins.str)
+                    value, builtins.str
                 ) else value
             ).content
 # #
@@ -286,47 +286,47 @@ class Main(Class, Runnable):
         if value is Null:
             value = key
         else:
-# # python3.4
+# # python2.7
 # #             if builtins.isinstance(value, Date):
 # #                 return time.mktime(value.timetuple())
 # #             if builtins.isinstance(value, DateTime):
-# #                 return value.timestamp(
-# #                 ) + builtins.float(value.microsecond) / 1000 ** 2
+# #                 return(
+# #                     time.mktime(value.timetuple()) +
+# #                     value.microsecond / 1000 ** 2)
             if builtins.isinstance(value, Date):
                 return time.mktime(value.timetuple())
             if builtins.isinstance(value, DateTime):
-                return(
-                    time.mktime(value.timetuple()) +
-                    value.microsecond / 1000 ** 2)
+                return value.timestamp(
+                ) + builtins.float(value.microsecond) / 1000 ** 2
 # #
             if builtins.isinstance(value, NativeTime):
                 return(
                     60.0 ** 2 * value.hour + 60 * value.minute +
                     value.second + value.microsecond / 1000 ** 2)
-# # python3.4
-# #             if(builtins.isinstance(key, builtins.str) and (
+# # python2.7
+# #             if(builtins.isinstance(key, (
+# #                 builtins.unicode, builtins.str
+# #             )) and (
 # #                 key == 'language' or key.endswith('_language') or
 # #                 key.endswith('Language')
-# #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
-            if(builtins.isinstance(key, (
-                builtins.unicode, builtins.str
-            )) and (
+# #             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
+            if(builtins.isinstance(key, builtins.str) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
-            )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
+            )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
 # #
                 return String(value).get_delimited_to_camel_case(
                 ).content[:-1] + value[-1].upper()
         if not builtins.isinstance(value, (
             builtins.int, builtins.float, builtins.type(None)
         )):
-# # python3.4
-# #             pass
-            if builtins.isinstance(value, builtins.unicode):
-                return value
-            if builtins.isinstance(value, builtins.str):
-                return builtins.unicode(
-                    value, FileHandler.DEFAULT_ENCODING)
+# # python2.7
+# #             if builtins.isinstance(value, builtins.unicode):
+# #                 return value
+# #             if builtins.isinstance(value, builtins.str):
+# #                 return builtins.unicode(
+# #                     value, FileHandler.DEFAULT_ENCODING)
+            pass
 # #
             return builtins.str(value)
         return value
@@ -334,12 +334,12 @@ class Main(Class, Runnable):
     @classmethod
     def convert_dictionary_for_backend(cls, data):
         '''Converts a given dictionary in backend compatible data types.'''
-# # python3.4
+# # python2.7
 # #         return Dictionary(data).convert(
 # #             key_wrapper=lambda key, value: String(
 # #                 key
 # #             ).get_camel_case_to_delimited().content if builtins.isinstance(
-# #                 key, builtins.str
+# #                 key, (builtins.unicode, builtins.str)
 # #             ) else cls.convert_for_backend(key),
 # #             value_wrapper=cls.convert_for_backend
 # #         ).content
@@ -347,7 +347,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: String(
                 key
             ).get_camel_case_to_delimited().content if builtins.isinstance(
-                key, (builtins.unicode, builtins.str)
+                key, builtins.str
             ) else cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
         ).content
@@ -359,7 +359,10 @@ class Main(Class, Runnable):
         if value is not None:
             if value is Null:
                 value = key
+# # python2.7
+# #             elif builtins.isinstance(key, (builtins.unicode, builtins.str)):
             elif builtins.isinstance(key, builtins.str):
+# #
                 if key == 'date_time' or key.endswith('_date_time'):
                     if builtins.isinstance(
                         value, (builtins.int, builtins.float)
@@ -376,7 +379,12 @@ class Main(Class, Runnable):
                             return DateTime.fromtimestamp(converted_value)
                         except builtins.ValueError:
                             pass
+# # python2.7
+# #                     if builtins.isinstance(
+# #                         value, (builtins.unicode, builtins.str)
+# #                     ):
                     if builtins.isinstance(value, builtins.str):
+# #
                         for delimiter in ('.', '/'):
                             for year_format in ('%y', '%Y'):
                                 for ms_format in ('', ':%f'):
@@ -416,11 +424,11 @@ class Main(Class, Runnable):
                             return Date.fromtimestamp(converted_value)
                         except builtins.ValueError:
                             pass
-# # python3.4
-# #                     if builtins.isinstance(value, builtins.str):
-                    if builtins.isinstance(value, (
-                        builtins.unicode, builtins.str
-                    )):
+# # python2.7
+# #                     if builtins.isinstance(value, (
+# #                         builtins.unicode, builtins.str
+# #                     )):
+                    if builtins.isinstance(value, builtins.str):
 # #
                         for delimiter in ('.', '/'):
                             for year_format in ('%y', '%Y'):
@@ -430,19 +438,19 @@ class Main(Class, Runnable):
                                     '%w{delimiter}%m{delimiter}{year}'
                                 ):
                                     try:
-# # python3.4
-# #                                        return Date.fromtimestamp(
-# #                                            DateTime.strptime(
-# #                                                value, date_format.format(
-# #                                                    delimiter=delimiter,
-# #                                                    year=year_format
-# #                                                )).timestamp())
-                                        return Date.fromtimestamp(time.mktime(
-                                            DateTime.strptime(
-                                                value, date_format.format(
-                                                    delimiter=delimiter,
-                                                    year=year_format
-                                                )).timetuple()))
+# # python2.7
+# #                                         return Date.fromtimestamp(time.mktime(
+# #                                             DateTime.strptime(
+# #                                                 value, date_format.format(
+# #                                                     delimiter=delimiter,
+# #                                                     year=year_format
+# #                                                 )).timetuple()))
+                                       return Date.fromtimestamp(
+                                           DateTime.strptime(
+                                               value, date_format.format(
+                                                   delimiter=delimiter,
+                                                   year=year_format
+                                               )).timestamp())
 # #
                                     except builtins.ValueError:
                                         pass
@@ -450,19 +458,23 @@ class Main(Class, Runnable):
                     'Time'
                 ):
                     return Time(value).content
-# # python3.4
+# # python2.7
 # #                 if(key == 'language' or key.endswith('_language') or
 # #                    key.endswith('Language')
-# #                    ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
+# #                    ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
                 if(key == 'language' or key.endswith('_language') or
                    key.endswith('Language')
-                   ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
+                   ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
 # #
                     return String(value).get_camel_case_to_delimited().content
-# # python3.4
-# #             if builtins.isinstance(value, builtins.str):
-            # TODO ask always for unicode first.
-            if builtins.isinstance(value, (builtins.unicode, builtins.str)):
+# # python2.7
+# #             # TODO ask always for unicode first.
+# #             if builtins.isinstance(value, (builtins.unicode, builtins.str)):
+# #                 if builtins.isinstance(value, builtins.unicode):
+# #                     return String(value.encode(
+# #                         FileHandler.DEFAULT_ENCODING
+# #                     )).get_number()
+            if builtins.isinstance(value, builtins.str):
 # #
                 return String(value).get_number()
         return value
@@ -653,8 +665,17 @@ class Main(Class, Runnable):
             self._web_controller()
         except TemplateError as exception:
             if self.debug:
+# # python2.7
+# #                 self.data['handler'].send_error(500, builtins.str(
+# #                     '%s: "%s"'
+# #                 ) % (
+# #                     builtins.str(exception.__class__.__name__),
+# #                     builtins.unicode(
+# #                         builtins.str(exception), FileHandler.DEFAULT_ENCODING
+# #                     ).encode(FileHandler.DEFAULT_ENCODING)))
                 self.data['handler'].send_error(500, '%s: "%s"' % (
                     exception.__class__.__name__, builtins.str(exception)))
+# #
             else:
                 '''NOTE: The web server will handle this.'''
                 raise
@@ -686,24 +707,24 @@ class Main(Class, Runnable):
             CommandLine.argument_parser(
                 arguments=self.options['command_line_arguments'],
                 module_name=__name__)
+        self.__class__.debug = \
+            sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
         if Controller is not None:
             self.__class__.controller = Controller(main=self.__class__)
             if 'authentication_handler' in self.options['web_server']:
-# # python3.4
+# # python2.7
 # #                 self.options['web_server']['authentication_handler'] = \
-# #                 eval(
+# #                 builtins.eval(
 # #                     self.options['web_server']['authentication_handler'],
 # #                     {'controller': self.controller})
                 self.options['web_server']['authentication_handler'] = \
-                eval(
+                builtins.eval(
                     self.options['web_server']['authentication_handler'],
                     {'controller': self.controller})
 # #
-        self.__class__.debug = \
-            sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
         try:
-            self.__class__.model = __import__('model')
-        except ImportError:
+            self.__class__.model = builtins.__import__('model')
+        except builtins.ImportError:
             if __test_mode__:
                 self.__class__.model = None
             else:
@@ -770,15 +791,15 @@ class Main(Class, Runnable):
            file.path in cls.options['location']['template_ignored']):
             '''Don't enter ignored locations or parse ignored files.'''
             return None
-# # python3.4
+# # python2.7
 # #         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX
 # #         and FileHandler(
 # #             location='%s%s' % (file.directory_path, file.basename)
-# #         ).extension and file != cls.html_template_file):
+# #         ).extension and not (file == cls.html_template_file)):
         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX
         and FileHandler(
             location='%s%s' % (file.directory_path, file.basename)
-        ).extension and not (file == cls.html_template_file)):
+        ).extension and file != cls.html_template_file):
 # #
             FileHandler(location='%s%s' % (
                 file.directory_path, file.name[:-builtins.len('%s%s' % (
@@ -865,8 +886,7 @@ class Main(Class, Runnable):
                                     ), property.name, file_path))
                                 ):
                                     cls.session.query(model).filter_by(
-                                        **model_instance.get_dictionary(
-                                            preserve_unicode=True)
+                                        **model_instance.dictionary
                                     ).delete()
                                     cls.session.commit()
                                 elif(file_path not in checked_paths or
@@ -899,7 +919,9 @@ class Main(Class, Runnable):
         for model_name, model in models:
             new_schemas[model.__tablename__] = builtins.str(CreateTable(
                 model.__table__))
-            if model.__tablename__ in old_schemas:
+            # TODO Schemas can have equivalent different string
+            # representations.
+            if model.__tablename__ in old_schemas and False:
                 if(old_schemas[model.__tablename__] !=
                    new_schemas[model.__tablename__]):
                     __logger__.info('Model "%s" has changed.', model_name)
@@ -944,7 +966,7 @@ class Main(Class, Runnable):
                         try:
                             cls.session.execute(temporary_table.insert(dict(
                                 zip(old_columns.keys(), values))))
-                        except Exception as exception:
+                        except builtins.Exception as exception:
                             __logger__.critical(
                                 '%s: %s', exception.__class__.__name__,
                                 builtins.str(exception))
@@ -991,21 +1013,21 @@ class Main(Class, Runnable):
                 cls.session.execute(DropTable(Table(table_name, MetaData(
                     bind=cls.engine))))
                 __logger__.info('Table "%s" has been removed.', table_name)
-# # python3.4
+# # python2.7
 # #             database_schema_file.content = json.dumps(
-# #                 new_schemas, sort_keys=True,
-# #                 indent=cls.options['default_indent_level'])
+# #                 new_schemas, encoding=cls.options['encoding'],
+# #                 sort_keys=True, indent=cls.options['default_indent_level'])
             database_schema_file.content = json.dumps(
-                new_schemas, encoding=cls.options['encoding'],
-                sort_keys=True, indent=cls.options['default_indent_level'])
+                new_schemas, sort_keys=True,
+                indent=cls.options['default_indent_level'])
 # #
         if(database_schema_file.content != serialized_schema and
            database_backup_file):
             now = DateTime.now()
-# # python3.4
-# #             time_stamp = now.timestamp() + now.microsecond / 1000 ** 2
-            time_stamp = time.mktime(now.timetuple()) + \
-                now.microsecond / 1000 ** 2
+# # python2.7
+# #             time_stamp = time.mktime(now.timetuple()) + \
+# #                 now.microsecond / 1000 ** 2
+            time_stamp = now.timestamp() + now.microsecond / 1000 ** 2
 # #
             long_term_database_file = FileHandler(location='%s%s%d%s' % (
                 database_backup_file.directory_path,

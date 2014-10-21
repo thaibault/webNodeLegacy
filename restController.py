@@ -1,14 +1,14 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
 
 '''Provides a generic Response object for any web based web application.'''
 
-# # python3.4
-# # pass
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+# # python2.7
+# # from __future__ import absolute_import, division, print_function, \
+# #     unicode_literals
+pass
 # #
 
 __author__ = 'Torben Sickert'
@@ -20,8 +20,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 import builtins
-import __builtin__ as builtins
+# # python2.7 import __builtin__ as builtins
+import builtins
 from base64 import b64encode as base64_encode
 from copy import copy
 from datetime import datetime as DateTime
@@ -194,14 +194,13 @@ class Response(Class):
 
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
-# # python3.4
+# # python2.7
 # #         self.request.session.query(self.model).filter_by(
 # #             **get
 # #         ).update(self.model(**data).get_dictionary(prefix_filter=''))
         self.request.session.query(self.model).filter_by(
             **get
-        ).update(self.model(**data).get_dictionary(
-            prefix_filter='', preserve_unicode=True))
+        ).update(self.model(**data).get_dictionary(prefix_filter=''))
 # #
         self.request.session.commit()
         self.request.rest_data_timestamp_reference_file.set_timestamp()
@@ -222,24 +221,24 @@ class Response(Class):
                             Save session token in database with expiration \
                             time.
                         '''
-# # python3.4
-# #                         user.session_token = base64_encode(os.urandom(
+# # python2.7
+# #                         session_token = base64_encode(os.urandom(
 # #                             self.request.options['model'][
 # #                                 'authentication'
 # #                             ]['session_token']['length']
-# #                         )).decode().strip()
-                        session_token = base64_encode(os.urandom(
+# #                         )).strip()
+# #                         if self.request.options[
+# #                             'database_engine_prefix'
+# #                         ].startswith('sqlite:'):
+# #                             session_token = builtins.unicode(
+# #                                 session_token,
+# #                                 self.request.options['encoding'])
+# #                         user.session_token = session_token
+                        user.session_token = base64_encode(os.urandom(
                             self.request.options['model'][
                                 'authentication'
                             ]['session_token']['length']
-                        )).strip()
-                        if self.request.options[
-                            'database_engine_prefix'
-                        ].startswith('sqlite:'):
-                            session_token = builtins.unicode(
-                                session_token,
-                                self.request.options['encoding'])
-                        user.session_token = session_token
+                        )).decode().strip()
 # #
                         user.session_expiration_date_time = DateTime.now(
                         ) + self.request.options['session'][
@@ -272,28 +271,18 @@ class Response(Class):
                 if new_get and self.request.session.query(
                     self.model
                 ).filter_by(**new_get).count():
-# # python3.4
-# #                     self.request.session.query(self.model).filter_by(
-# #                         **new_get
-# #                     ).update(self.model(**item).get_dictionary(
-# #                         prefix_filter=''))
                     self.request.session.query(self.model).filter_by(
                         **new_get
                     ).update(self.model(**item).get_dictionary(
-                        prefix_filter='', preserve_unicode=True))
-# #
+                        prefix_filter=''))
                 else:
                     new_get.update(item)
                     self.request.session.add(self.model(**new_get))
         else:
             result = self.request.session.query(self.model).filter_by(**get)
             if get and result.count():
-# # python3.4
-# #                 result.update(self.model(**data).get_dictionary(
-# #                     prefix_filter=''))
                 result.update(self.model(**data).get_dictionary(
-                    prefix_filter='', preserve_unicode=True))
-# #
+                    prefix_filter=''))
             else:
                 get.update(data)
                 self.request.session.add(self.model(**get))
@@ -376,8 +365,8 @@ class Response(Class):
         ):
             ignored = False
             for pattern in self.request.options['ignore_web_asset_pattern']:
-# # python3.4                 if re.compile(pattern).fullmatch(file.name):
-                if re.compile('(?:%s)$' % pattern).match(file.name):
+# # python2.7                 if re.compile('(?:%s)$' % pattern).match(file.name):
+                if re.compile(pattern).fullmatch(file.name):
                     ignored = True
                     break
             if ignored:
@@ -467,8 +456,7 @@ class Response(Class):
                             **record.get_dictionary(
                                 value_wrapper=lambda key, value:
                                     data[key] if key in data else value,
-                                    property_names=property_names,
-                                preserve_unicode=True)))
+                                    property_names=property_names)))
                     self.request.session.commit()
                     self.request\
                         .rest_data_timestamp_reference_file.set_timestamp()

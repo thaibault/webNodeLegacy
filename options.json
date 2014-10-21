@@ -137,7 +137,7 @@
             },
             "templateIgnored": [
                 "<% location['backup'] %>", "<% location['webCache'] %>",
-                "/boostNode/", "/webNode/", "/database/"]
+                "/boostNode/", "/webNode/", "/database/", "/.git/"]
         },
 
         "ignoreWebAssetPattern": [".*\\.swp", "\\..*"],
