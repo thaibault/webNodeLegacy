@@ -98,11 +98,6 @@ class Main(Class, Runnable):
     '''Indicates weather the application is currently in debug mode.'''
     given_command_line_arguments = None
     '''Holds all given commend line arguments in a named tuple.'''
-    session = None
-    '''
-        Holds the orm database session instance. NOTE: There is a class and \
-        instance binded session.
-    '''
     options = {}
     '''Holds the backend and frontend specific options.'''
     model = None
@@ -229,13 +224,12 @@ class Main(Class, Runnable):
 
     @classmethod
     def extend_user_authorization(
-        cls, user_id, session_token, location=None, session=None
+        cls, user_id, session_token, location=None
     ):
         '''Extends user authorization time.'''
-        if session is None:
-            session = cls.session
         user = None
         if user_id and session_token:
+            session = create_database_session(bind=self.engine)()
             users = session.query(cls.model.User).filter(
                 cls.model.User.enabled == True,
                 cls.model.User.id == builtins.int(user_id),
@@ -253,6 +247,7 @@ class Main(Class, Runnable):
                 if location is not None:
                     user.location = location
                 session.commit()
+                session.close()
         return user
 
     @classmethod
@@ -468,7 +463,6 @@ class Main(Class, Runnable):
 # #
                     return String(value).get_camel_case_to_delimited().content
 # # python2.7
-# #             # TODO ask always for unicode first.
 # #             if builtins.isinstance(value, (builtins.unicode, builtins.str)):
 # #                 if builtins.isinstance(value, builtins.unicode):
 # #                     return String(value.encode(
@@ -586,12 +580,10 @@ class Main(Class, Runnable):
             mapping=self.controller.get_manifest_scope(request=self, user=user)
         ).output
 
-    def authenticate(self, session=None):
+    def authenticate(self):
         '''
             Authenticates a user by potential sent header identification data.
         '''
-        if session is None:
-            session = cls.session
         user_id = session_token = location = None
         if self.options['authentication_method'] == 'header':
             user_id = self.data['handler'].headers.get(String(
@@ -613,7 +605,7 @@ class Main(Class, Runnable):
                 location = self.data['cookie'].get(
                     self.options['session']['key']['location'])
         return self.extend_user_authorization(
-            user_id, session_token, location, session)
+            user_id, session_token, location)
 
     # endregion
 
@@ -646,14 +638,7 @@ class Main(Class, Runnable):
                             self.data['data'][key] = None
             self.data['data'] = self.convert_dictionary_for_backend(
                 self.data['data'])
-        '''
-            Holds the current request handler specific database session \
-            instance.
-        '''
-        self.session = create_database_session(
-            bind=self.engine, expire_on_commit=False
-        )()
-        self.authorized_user = self.authenticate(session=self.session)
+        self.authorized_user = self.authenticate()
 
         # # endregion
 
@@ -679,8 +664,6 @@ class Main(Class, Runnable):
             else:
                 '''NOTE: The web server will handle this.'''
                 raise
-        finally:
-            self.session.close()
         return self
 
     def _run(self):
@@ -861,6 +844,9 @@ class Main(Class, Runnable):
             If a dead link was found the user will be asked for deleting \
             referenced database records.
         '''
+        session = create_database_session(
+            bind=self.engine, expire_on_commit=False
+        )()
         checked_paths = {}
         for model_name, model in Module.get_defined_objects(cls.model):
             if builtins.isinstance(
@@ -868,7 +854,7 @@ class Main(Class, Runnable):
             ) and builtins.issubclass(model, cls.model.Model):
                 for property in model.__table__.columns:
                     if property.info and 'file_reference' in property.info:
-                        for model_instance in cls.session.query(model):
+                        for model_instance in session.query(model):
                             value = builtins.getattr(
                                 model_instance, property.name)
                             if value is not None:
@@ -885,16 +871,17 @@ class Main(Class, Runnable):
                                         model_instance
                                     ), property.name, file_path))
                                 ):
-                                    cls.session.query(model).filter_by(
+                                    session.query(model).filter_by(
                                         **model_instance.dictionary
                                     ).delete()
-                                    cls.session.commit()
+                                    session.commit()
                                 elif(file_path not in checked_paths or
                                      checked_paths[file_path] != model_name):
                                     checked_paths[file_path] = model_name
                                     __logger__.debug(
                                         'Check file reference "%s" for model '
                                         '"%s".', file_path, model_name)
+        session.close()
         return cls
 
     @classmethod
@@ -916,12 +903,15 @@ class Main(Class, Runnable):
                 entity[1], builtins.type
             ) and builtins.issubclass(entity[1], cls.model.Model),
             Module.get_defined_objects(cls.model))
+        session = create_database_session(
+            bind=self.engine, expire_on_commit=False
+        )()
         for model_name, model in models:
             new_schemas[model.__tablename__] = builtins.str(CreateTable(
                 model.__table__))
             # TODO Schemas can have equivalent different string
-            # representations.
-            if model.__tablename__ in old_schemas and False:
+            # representations (in python3.4 at the latest!)
+            if model.__tablename__ in old_schemas:
                 if(old_schemas[model.__tablename__] !=
                    new_schemas[model.__tablename__]):
                     __logger__.info('Model "%s" has changed.', model_name)
@@ -950,7 +940,7 @@ class Main(Class, Runnable):
                         '''
                         temporary_table.append_constraint(constraint)
                     temporary_table.create(cls.engine)
-                    cls.session.commit()
+                    session.commit()
                     __logger__.info(
                         'Transferring old records from "%s" to "%s".',
                         model.__tablename__, temporary_table_name)
@@ -960,18 +950,19 @@ class Main(Class, Runnable):
                         old database reflection.
                     '''
                     migration_successful = True
-                    for values in cls.session.query(*old_columns.values()):
+                    for values in session.query(*old_columns.values()):
                         __logger__.debug(
                             'Transferring record "%s".', '", "'.join(values))
                         try:
-                            cls.session.execute(temporary_table.insert(dict(
-                                zip(old_columns.keys(), values))))
+                            session.execute(temporary_table.insert(
+                                builtins.dict(builtins.zip(
+                                    old_columns.keys(), values))))
                         except builtins.Exception as exception:
                             __logger__.critical(
                                 '%s: %s', exception.__class__.__name__,
                                 builtins.str(exception))
                             migration_successful = False
-                    cls.session.commit()
+                    session.commit()
                     if(migration_successful and
                        cls.options['database_engine_prefix'].startswith(
                            'sqlite:')):
@@ -981,16 +972,16 @@ class Main(Class, Runnable):
                             NOTE: We have to temporary remove foreign key \
                             checks.
                         '''
-                        cls.session.execute('PRAGMA foreign_keys=OFF;')
-                        cls.session.execute(DropTable(Table(
+                        session.execute('PRAGMA foreign_keys=OFF;')
+                        session.execute(DropTable(Table(
                             model.__tablename__, MetaData(bind=cls.engine))))
                         __logger__.info(
                             'Rename new table "%s" to old table name "%s".',
                             temporary_table_name, model.__tablename__)
-                        cls.session.execute('ALTER TABLE %s RENAME TO %s;' % (
+                        session.execute('ALTER TABLE %s RENAME TO %s;' % (
                             temporary_table_name, model.__tablename__))
-                        cls.session.execute('PRAGMA foreign_key_check;')
-                        cls.session.execute('PRAGMA foreign_keys=ON;')
+                        session.execute('PRAGMA foreign_key_check;')
+                        session.execute('PRAGMA foreign_keys=ON;')
                         __logger__.info(
                             'Automatic migration of model "%s" was '
                             'successful.', model_name)
@@ -1000,7 +991,7 @@ class Main(Class, Runnable):
                             'for next try.', model.__tablename__)
                         new_schemas[model.__tablename__] = \
                             old_schemas[model.__tablename__]
-                    cls.session.commit()
+                    session.commit()
             elif model.__tablename__ not in old_schemas:
                 __logger__.info('New model "%s" detected.', model_name)
                 '''NOTE: sqlalchemy will create this table automatically.'''
@@ -1010,8 +1001,9 @@ class Main(Class, Runnable):
             if table_name not in new_schemas and cls.engine.dialect.has_table(
                 cls.engine.connect(), table_name
             ):
-                cls.session.execute(DropTable(Table(table_name, MetaData(
+                session.execute(DropTable(Table(table_name, MetaData(
                     bind=cls.engine))))
+                session.commit()
                 __logger__.info('Table "%s" has been removed.', table_name)
 # # python2.7
 # #             database_schema_file.content = json.dumps(
@@ -1021,6 +1013,7 @@ class Main(Class, Runnable):
                 new_schemas, sort_keys=True,
                 indent=cls.options['default_indent_level'])
 # #
+        session.close()
         if(database_schema_file.content != serialized_schema and
            database_backup_file):
             now = DateTime.now()
@@ -1160,15 +1153,12 @@ class Main(Class, Runnable):
         if cls.model is not None:
             cls.model.Model.metadata.create_all(cls.engine)
         '''Create a persistent inter thread database session.'''
-        cls.session = create_database_session(
-            bind=cls.engine, expire_on_commit=False)()
         cls._check_database_schema_version(database_backup_file)
         cls._check_database_file_references()
         if cls.controller is not None:
             cls.controller.insert_needed_database_record()
             if cls.debug:
                 cls.controller.insert_database_mockup()
-        cls.session.commit()
         return cls
 
         # # endregion

@@ -120,6 +120,9 @@ class Response(Class):
                     510, 'Requested model "%s" doesn\'t exist.' %
                     self.request.data['get']['__model__'])
             else:
+                self.session = create_database_session(
+                    bind=self.engine, expire_on_commit=False
+                )()
                 if not self.model.__name__.endswith('_file_model'):
                     for dataType in ('get', 'data'):
                         if builtins.isinstance(
@@ -146,7 +149,7 @@ class Response(Class):
                                 get=self.request.data['get'],
                                 data=self.request.data['data'])
                     except (SQLAlchemyError, builtins.ValueError) as exception:
-                        self.request.session.rollback()
+                        self.session.rollback()
                         self.request.data['handler'].send_response(
                             400 if builtins.isinstance(
                                 exception, builtins.ValueError
@@ -173,6 +176,8 @@ class Response(Class):
                 if result is None:
                     self.request.data['handler'].send_response(401)
                     result = {}
+                self.session.commit()
+                self.session.close()
         self.request.data['handler'].send_response(200)
         self.request.data['handler'].send_header(
             String(
@@ -195,14 +200,13 @@ class Response(Class):
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
 # # python2.7
-# #         self.request.session.query(self.model).filter_by(
+# #         self.session.query(self.model).filter_by(
 # #             **get
 # #         ).update(self.model(**data).get_dictionary(prefix_filter=''))
-        self.request.session.query(self.model).filter_by(
+        self.session.query(self.model).filter_by(
             **get
         ).update(self.model(**data).get_dictionary(prefix_filter=''))
 # #
-        self.request.session.commit()
         self.request.rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
@@ -212,7 +216,7 @@ class Response(Class):
             if 'has_password' in data:
                 value = data['has_password']
                 del data['has_password']
-                users = self.request.session.query(self.model).filter_by(
+                users = self.session.query(self.model).filter_by(
                     **data)
                 if users.count():
                     user = users.one()
@@ -249,7 +253,6 @@ class Response(Class):
                             data.
                         '''
                         result = user.get_dictionary(**self.data_wrapper)
-                        self.request.session.commit()
                         return result
             elif(self.request.authorized_user is not None and
                  data.get('id') == self.request.authorized_user.id):
@@ -268,25 +271,24 @@ class Response(Class):
                     if(primary_key.name not in get and
                        primary_key.name in item):
                         new_get[primary_key.name] = item[primary_key.name]
-                if new_get and self.request.session.query(
+                if new_get and self.session.query(
                     self.model
                 ).filter_by(**new_get).count():
-                    self.request.session.query(self.model).filter_by(
+                    self.session.query(self.model).filter_by(
                         **new_get
                     ).update(self.model(**item).get_dictionary(
                         prefix_filter=''))
                 else:
                     new_get.update(item)
-                    self.request.session.add(self.model(**new_get))
+                    self.session.add(self.model(**new_get))
         else:
-            result = self.request.session.query(self.model).filter_by(**get)
+            result = self.session.query(self.model).filter_by(**get)
             if get and result.count():
                 result.update(self.model(**data).get_dictionary(
                     prefix_filter=''))
             else:
                 get.update(data)
-                self.request.session.add(self.model(**get))
-        self.request.session.commit()
+                self.session.add(self.model(**get))
         self.request.rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
@@ -302,22 +304,20 @@ class Response(Class):
                     if(primary_key.name not in get and
                        primary_key.name in item):
                         new_get[primary_key.name] = item[primary_key.name]
-                if new_get and self.request.session.query(
+                if new_get and self.session.query(
                     self.model
                 ).filter_by(**new_get).count():
-                    self.request.session.query(self.model).filter_by(
+                    self.session.query(self.model).filter_by(
                         **new_get
                     ).delete()
-                    self.request.session.commit()
                     self.request\
                         .rest_data_timestamp_reference_file.set_timestamp()
-        elif get and self.request.session.query(self.model).filter_by(
+        elif get and self.session.query(self.model).filter_by(
             **get
         ).count():
-            self.request.session.query(self.model).filter_by(
+            self.session.query(self.model).filter_by(
                 **get
             ).delete()
-            self.request.session.commit()
             self.request.rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
@@ -326,11 +326,11 @@ class Response(Class):
         if data:
             return[model.get_dictionary(
                 **self.data_wrapper
-            ) for model in self.request.session.query(self.model).filter_by(
+            ) for model in self.session.query(self.model).filter_by(
                 **data)]
         return[model.get_dictionary(
             **self.data_wrapper
-        ) for model in self.request.session.query(self.model)]
+        ) for model in self.session.query(self.model)]
 
         # endregion
 
@@ -448,16 +448,15 @@ class Response(Class):
                         '''Remove unique identifiers for record copies.'''
                         if column.name != 'id':
                             property_names.append(column.name)
-                    self.request.session.commit()
-                    for record in self.request.session.query(
+                    self.session.commit()
+                    for record in self.session.query(
                         model
                     ).filter_by(**keys):
-                        self.request.session.add(model(
+                        self.session.add(model(
                             **record.get_dictionary(
                                 value_wrapper=lambda key, value:
                                     data[key] if key in data else value,
                                     property_names=property_names)))
-                    self.request.session.commit()
                     self.request\
                         .rest_data_timestamp_reference_file.set_timestamp()
         return{}
