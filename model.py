@@ -1,14 +1,14 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
 # region header
 
 '''Provides the orm models for the application.'''
 
-# # python2.7
-# # from __future__ import absolute_import, division, print_function, \
-# #     unicode_literals
-pass
+# # python3.4
+# # pass
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
 # #
 
 __author__ = 'Torben Sickert'
@@ -20,8 +20,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python2.7 import __builtin__ as builtins
-import builtins
+# # python3.4 import builtins
+import __builtin__ as builtins
 from datetime import datetime as DateTimeNative
 import inspect
 
@@ -62,14 +62,14 @@ def determine_language_specific_default_value(context):
         '''
         if(column.default.arg is builtins.globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
-# # python2.7
-# # 
-# #              return OPTIONS['model']['generic']['language_specific']['default'][
-# #                 column.name
-# #             ][language].decode(OPTIONS['encoding'])
-             return OPTIONS['model']['generic']['language_specific'][
-                'default'
-            ][column.name][language]
+# # python3.4
+# #              return OPTIONS['model']['generic']['language_specific'][
+# #                 'default'
+# #             ][column.name][language]
+
+             return OPTIONS['model']['generic']['language_specific']['default'][
+                column.name
+            ][language].decode(OPTIONS['encoding'])
 # #
 
 # endregion
@@ -129,8 +129,8 @@ class ApplicationMetaModel(MetaModel, DeclarativeMeta):
         )(cls, class_name, base_classes, class_scope, *arguments, **keywords)
 
 
-# # python2.7 class UpdateTriggerModel(builtins.object):
-class UpdateTriggerModel:
+# # python3.4 class UpdateTriggerModel:
+class UpdateTriggerModel(builtins.object):
 
     '''
         Provides a property to register each write access on corresponding \

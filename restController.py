@@ -1,14 +1,14 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
 # region header
 
 '''Provides a generic Response object for any web based web application.'''
 
-# # python2.7
-# # from __future__ import absolute_import, division, print_function, \
-# #     unicode_literals
-pass
+# # python3.4
+# # pass
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
 # #
 
 __author__ = 'Torben Sickert'
@@ -20,8 +20,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python2.7 import __builtin__ as builtins
-import builtins
+# # python3.4 import builtins
+import __builtin__ as builtins
 from base64 import b64encode as base64_encode
 from copy import copy
 from datetime import datetime as DateTime
@@ -33,6 +33,7 @@ import shutil
 import time
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker as create_database_session
 
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
@@ -121,7 +122,7 @@ class Response(Class):
                     self.request.data['get']['__model__'])
             else:
                 self.session = create_database_session(
-                    bind=self.engine, expire_on_commit=False
+                    bind=self.request.engine, expire_on_commit=False
                 )()
                 if not self.model.__name__.endswith('_file_model'):
                     for dataType in ('get', 'data'):
@@ -199,7 +200,7 @@ class Response(Class):
 
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
-# # python2.7
+# # python3.4
 # #         self.session.query(self.model).filter_by(
 # #             **get
 # #         ).update(self.model(**data).get_dictionary(prefix_filter=''))
@@ -225,24 +226,24 @@ class Response(Class):
                             Save session token in database with expiration \
                             time.
                         '''
-# # python2.7
-# #                         session_token = base64_encode(os.urandom(
+# # python3.4
+# #                         user.session_token = base64_encode(os.urandom(
 # #                             self.request.options['model'][
 # #                                 'authentication'
 # #                             ]['session_token']['length']
-# #                         )).strip()
-# #                         if self.request.options[
-# #                             'database_engine_prefix'
-# #                         ].startswith('sqlite:'):
-# #                             session_token = builtins.unicode(
-# #                                 session_token,
-# #                                 self.request.options['encoding'])
-# #                         user.session_token = session_token
-                        user.session_token = base64_encode(os.urandom(
+# #                         )).decode().strip()
+                        session_token = base64_encode(os.urandom(
                             self.request.options['model'][
                                 'authentication'
                             ]['session_token']['length']
-                        )).decode().strip()
+                        )).strip()
+                        if self.request.options[
+                            'database_engine_prefix'
+                        ].startswith('sqlite:'):
+                            session_token = builtins.unicode(
+                                session_token,
+                                self.request.options['encoding'])
+                        user.session_token = session_token
 # #
                         user.session_expiration_date_time = DateTime.now(
                         ) + self.request.options['session'][
@@ -365,8 +366,8 @@ class Response(Class):
         ):
             ignored = False
             for pattern in self.request.options['ignore_web_asset_pattern']:
-# # python2.7                 if re.compile('(?:%s)$' % pattern).match(file.name):
-                if re.compile(pattern).fullmatch(file.name):
+# # python3.4                 if re.compile(pattern).fullmatch(file.name):
+                if re.compile('(?:%s)$' % pattern).match(file.name):
                     ignored = True
                     break
             if ignored:
