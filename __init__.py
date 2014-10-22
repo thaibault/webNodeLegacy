@@ -47,6 +47,7 @@ from sqlalchemy import event as SqlalchemyEvent
 from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
 
+# # python3.4
 import boostNode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Module, Dictionary, String, Time
@@ -158,14 +159,23 @@ class Main(Class, Runnable):
             camel case representation and values are converted to java script \
             compatible types.
         '''
+# # python3.4
+# #         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
+# #             key_wrapper=lambda key, value: cls.convert_for_client(String(
+# #                 key
+# #             ).get_delimited_to_camel_case(
+# #                 preserve_wrong_formatted_abbreviations=True
+# #             ).content),
+# #             value_wrapper=cls.convert_for_client
+# #         ).content
         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
-            key_wrapper=lambda key, value: cls.convert_for_client(String(
-                key
-            ).get_delimited_to_camel_case(
-                preserve_wrong_formatted_abbreviations=True
-            ).content),
+            key_wrapper=lambda key, value: cls.convert_for_client(
+                builtins.unicode(String(key).get_delimited_to_camel_case(
+                    preserve_wrong_formatted_abbreviations=True
+                ).content, boostNode.ENCODING)),
             value_wrapper=cls.convert_for_client
         ).content
+# #
         return cls
 
     @classmethod
@@ -212,12 +222,20 @@ class Main(Class, Runnable):
 # #
         frontend_options = cls.options['frontend']
         del cls.options['frontend']
+# # python3.4
+# #         cls.options = Dictionary(cls.options).convert(
+# #             key_wrapper=lambda key, value: String(
+# #                 key
+# #             ).get_camel_case_to_delimited().content,
+# #             value_wrapper=cls.convert_for_backend
+# #         ).content
         cls.options = Dictionary(cls.options).convert(
-            key_wrapper=lambda key, value: String(
+            key_wrapper=lambda key, value: builtins.unicode(String(
                 key
-            ).get_camel_case_to_delimited().content,
+            ).get_camel_case_to_delimited().content, boostNode.ENCODING),
             value_wrapper=cls.convert_for_backend
         ).content
+# #
         cls.options['frontend'] = frontend_options
         cls.options['session']['expiration_interval'] = TimeDelta(
             minutes=cls.options['session']['expiration_time_in_minutes'])
@@ -303,15 +321,19 @@ class Main(Class, Runnable):
 # #                 key == 'language' or key.endswith('_language') or
 # #                 key.endswith('Language')
 # #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
+# #                 return String(value).get_delimited_to_camel_case(
+# #                 ).content[:-1] + value[-1].upper()
             if(builtins.isinstance(key, (
                 builtins.unicode, builtins.str
             )) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
+                return '%s%s' % (builtins.unicode(
+                    String(value).get_delimited_to_camel_case().content[:-1],
+                    boostNode.ENCODING
+                ), value[-1].upper())
 # #
-                return String(value).get_delimited_to_camel_case(
-                ).content[:-1] + value[-1].upper()
         if not builtins.isinstance(value, (
             builtins.int, builtins.float, builtins.type(None)
         )):
@@ -591,6 +613,7 @@ class Main(Class, Runnable):
             Authenticates a user by potential sent header identification data.
         '''
         user_id = session_token = location = None
+        # TODO convert Strings to unicode in python2.7
         if self.options['authentication_method'] == 'header':
             user_id = self.data['handler'].headers.get(String(
                 self.options['session']['key']['user_id']
@@ -1076,16 +1099,30 @@ class Main(Class, Runnable):
                                 'determine_language_specific_default_value'
                             ) and default_value == cls.model\
                                     .determine_language_specific_default_value:
+# # python3.4
+# #                                 default_value = Dictionary(cls.options[
+# #                                     'model'
+# #                                 ]['generic']['language_specific'][
+# #                                     'default'
+# #                                 ][property.name]).convert(
+# #                                     key_wrapper=lambda key, value: cls
+# #                                     .convert_for_client(String(
+# #                                         key
+# #                                     ).get_delimited_to_camel_case().content)
+# #                                 ).content
                                 default_value = Dictionary(cls.options[
                                     'model'
                                 ]['generic']['language_specific'][
                                     'default'
                                 ][property.name]).convert(
                                     key_wrapper=lambda key, value: cls
-                                    .convert_for_client(String(
-                                        key
-                                    ).get_delimited_to_camel_case().content)
+                                    .convert_for_client(builtins.unicode(
+                                        String(
+                                            key
+                                        ).get_delimited_to_camel_case(
+                                        ).content, boostNode.ENCODING))
                                 ).content
+# #
                             else:
                                 default_value = property.default.arg(
                                     DefaultExecutionContext())

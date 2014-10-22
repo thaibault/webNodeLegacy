@@ -35,6 +35,8 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
 
+# # python3.4
+import boostNode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
     InstancePropertyInitializer, String
@@ -86,10 +88,18 @@ class Response(Class):
                 if builtins.issubclass(model, self.request.model.Model):
                     self.model = model
             if self.model is None:
+# # python3.4
+# #                 method_name = '%s_%s_model' % (
+# #                     self.request.data['request_type'], String(
+# #                         self.request.data['get']['__model__']
+# #                     ).get_camel_case_to_delimited().content)
                 method_name = '%s_%s_model' % (
-                    self.request.data['request_type'], String(
-                        self.request.data['get']['__model__']
-                    ).get_camel_case_to_delimited().content)
+                    self.request.data['request_type'], builtins.unicode(
+                        String(
+                            self.request.data['get']['__model__']
+                        ).get_camel_case_to_delimited().content,
+                    boostNode.ENCODING))
+# #
                 if builtins.hasattr(self, method_name):
                     self.model = builtins.getattr(self, method_name)
                 elif builtins.hasattr(self.request.controller, method_name):
@@ -183,13 +193,24 @@ class Response(Class):
                 self.session.commit()
                 self.session.close()
         self.request.data['handler'].send_response(200)
+# # python3.4
+# #         self.request.data['handler'].send_header(
+# #             String(self.request.options[
+# #                 'last_data_write_date_time_header_name'
+# #             ]).get_camel_case_to_delimited(delimiter='-').sub(
+# #                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
+# #             ).get_camel_case_capitalize().content, builtins.str(
+# #                 self.request.rest_data_timestamp_reference_file.timestamp))
         self.request.data['handler'].send_header(
-            String(
-                self.request.options['last_data_write_date_time_header_name']
-            ).get_camel_case_to_delimited(delimiter='-').sub(
+            builtins.unicode(String(self.request.options[
+                'last_data_write_date_time_header_name'
+            ]).get_camel_case_to_delimited(delimiter='-').sub(
                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-            ).get_camel_case_capitalize().content, builtins.str(
-                self.request.rest_data_timestamp_reference_file.timestamp))
+            ).get_camel_case_capitalize().content, boostNode.ENCODING),
+            builtins.unicode(builtins.str(
+                self.request.rest_data_timestamp_reference_file.timestamp
+            ), boostNode.ENCODING))
+# #
         if result is not None:
             if self.json_padding:
                 return '%s(%s);' % (self.json_padding, result)
@@ -380,9 +401,14 @@ class Response(Class):
             for attribute_name in self.request.options[
                 'exportable_file_attributes'
             ]:
-                attribute_name_camel_case = String(
-                    attribute_name
-                ).get_delimited_to_camel_case().content
+# # python3.4
+# #                 attribute_name_camel_case = String(
+# #                     attribute_name
+# #                 ).get_delimited_to_camel_case().content
+                attribute_name_camel_case = builtins.unicode(
+                    String(attribute_name).get_delimited_to_camel_case(
+                    ).content, boostNode.ENCODING)
+# #
                 if attribute_name_camel_case not in data or builtins.getattr(
                     file, attribute_name
                 ) == data[attribute_name_camel_case]:
