@@ -47,6 +47,7 @@ from sqlalchemy import event as SqlalchemyEvent
 from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
 
+import boostNode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Module, Dictionary, String, Time
 from boostNode.extension.output import Print
@@ -247,7 +248,6 @@ class Main(Class, Runnable):
                 if location is not None:
                     user.location = location
                 session.commit()
-                session.close()
         return user
 
     @classmethod
@@ -320,8 +320,7 @@ class Main(Class, Runnable):
             if builtins.isinstance(value, builtins.unicode):
                 return value
             if builtins.isinstance(value, builtins.str):
-                return builtins.unicode(
-                    value, FileHandler.DEFAULT_ENCODING)
+                return builtins.unicode(value, boostNode.ENCODING)
 # #
             return builtins.str(value)
         return value
@@ -339,9 +338,10 @@ class Main(Class, Runnable):
 # #             value_wrapper=cls.convert_for_backend
 # #         ).content
         return Dictionary(data).convert(
-            key_wrapper=lambda key, value: String(
-                key
-            ).get_camel_case_to_delimited().content if builtins.isinstance(
+            key_wrapper=lambda key, value: builtins.unicode(
+                String(key).get_camel_case_to_delimited().content,
+                boostNode.ENCODING
+            ) if builtins.isinstance(
                 key, (builtins.unicode, builtins.str)
             ) else cls.convert_for_backend(key),
             value_wrapper=cls.convert_for_backend
@@ -457,20 +457,26 @@ class Main(Class, Runnable):
 # #                 if(key == 'language' or key.endswith('_language') or
 # #                    key.endswith('Language')
 # #                    ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
+# #                     return String(value).get_camel_case_to_delimited().content
+# #             if builtins.isinstance(value, builtins.str):
+# #                 return String(value).get_number()
                 if(key == 'language' or key.endswith('_language') or
                    key.endswith('Language')
                    ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
-# #
-                    return String(value).get_camel_case_to_delimited().content
-# # python3.4
-# #             if builtins.isinstance(value, builtins.str):
+                    return builtins.unicode(
+                        String(value).get_camel_case_to_delimited().content,
+                        boostNode.ENCODING)
             if builtins.isinstance(value, (builtins.unicode, builtins.str)):
                 if builtins.isinstance(value, builtins.unicode):
-                    return String(value.encode(
-                        FileHandler.DEFAULT_ENCODING
+                    number = String(value.encode(
+                        boostNode.ENCODING
                     )).get_number()
+                else:
+                    number = String(value).get_number()
+                if builtins.isinstance(number, builtins.str):
+                    return builtins.unicode(number, boostNode.ENCODING)
+                return number
 # #
-                return String(value).get_number()
         return value
 
         # # endregion
@@ -658,8 +664,8 @@ class Main(Class, Runnable):
                 ) % (
                     builtins.str(exception.__class__.__name__),
                     builtins.unicode(
-                        builtins.str(exception), FileHandler.DEFAULT_ENCODING
-                    ).encode(FileHandler.DEFAULT_ENCODING)))
+                        builtins.str(exception), boostNode.ENCODING
+                    ).encode(boostNode.ENCODING)))
 # #
             else:
                 '''NOTE: The web server will handle this.'''

@@ -122,7 +122,8 @@ class Response(Class):
                     self.request.data['get']['__model__'])
             else:
                 self.session = create_database_session(
-                    bind=self.request.engine, expire_on_commit=False
+                    bind=self.request.engine, expire_on_commit=False,
+                    autoflush=False
                 )()
                 if not self.model.__name__.endswith('_file_model'):
                     for dataType in ('get', 'data'):
@@ -159,6 +160,8 @@ class Response(Class):
                                 exception.__class__.__name__, builtins.str(
                                     exception)))
                         result = {}
+                        if self.request.debug:
+                            raise
                 elif self.request.data['request_type'] == 'get':
                     if self.method_in_rest_controller:
                         result = self.model(data=self.request.data['get'])
