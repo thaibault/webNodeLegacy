@@ -765,11 +765,10 @@ class Main(Class, Runnable):
         __logger__.info(
             'Application is running in %s mode.',
             'performance' if sys.flags.optimize else 'normal')
-        if not self.given_command_line_arguments.render_template:
-            __logger__.info(
-                'Initialize database on "%s".',
-                self.options['location']['database']['url'])
-            self._initialize_model()
+        __logger__.info(
+            'Initialize database on "%s".',
+            self.options['location']['database']['url'])
+        self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
         self.convert_options_for_client()
