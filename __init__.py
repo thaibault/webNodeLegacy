@@ -48,7 +48,7 @@ from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
 
 # # python3.4
-import boostNode
+from boostNode import ENCODING, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Module, Dictionary, String, Time
 from boostNode.extension.output import Print
@@ -160,7 +160,9 @@ class Main(Class, Runnable):
             compatible types.
         '''
 # # python3.4
-# #         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
+# #         cls.options['frontend'] = Dictionary(
+# #             cls.options['frontend']
+# #         ).convert(
 # #             key_wrapper=lambda key, value: cls.convert_for_client(String(
 # #                 key
 # #             ).get_delimited_to_camel_case(
@@ -172,7 +174,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: cls.convert_for_client(
                 builtins.unicode(String(key).get_delimited_to_camel_case(
                     preserve_wrong_formatted_abbreviations=True
-                ).content, boostNode.ENCODING)),
+                ).content, ENCODING)),
             value_wrapper=cls.convert_for_client
         ).content
 # #
@@ -232,7 +234,7 @@ class Main(Class, Runnable):
         cls.options = Dictionary(cls.options).convert(
             key_wrapper=lambda key, value: builtins.unicode(String(
                 key
-            ).get_camel_case_to_delimited().content, boostNode.ENCODING),
+            ).get_camel_case_to_delimited().content, ENCODING),
             value_wrapper=cls.convert_for_backend
         ).content
 # #
@@ -321,30 +323,25 @@ class Main(Class, Runnable):
 # #                 key == 'language' or key.endswith('_language') or
 # #                 key.endswith('Language')
 # #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
-# #                 return String(value).get_delimited_to_camel_case(
-# #                 ).content[:-1] + value[-1].upper()
+# #                 return '%s%s' % (String(value).get_delimited_to_camel_case(
+# #                 ).content[:-1], value[-1].upper())
             if(builtins.isinstance(key, (
                 builtins.unicode, builtins.str
             )) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
-                return '%s%s' % (builtins.unicode(
-                    String(value).get_delimited_to_camel_case().content[:-1],
-                    boostNode.ENCODING
-                ), value[-1].upper())
+                return '%s%s' % (builtins.unicode(String(
+                    value
+                ).get_delimited_to_camel_case().content[:-1], ENCODING
+                ), convert_to_unicode(value[-1].upper()))
 # #
         if not builtins.isinstance(value, (
             builtins.int, builtins.float, builtins.type(None)
         )):
-# # python3.4
-# #             pass
-            if builtins.isinstance(value, builtins.unicode):
-                return value
-            if builtins.isinstance(value, builtins.str):
-                return builtins.unicode(value, boostNode.ENCODING)
-# #
-            return builtins.str(value)
+# # python3.4             return builtins.str(value)
+            return convert_to_unicode(value)
+
         return value
 
     @classmethod
@@ -362,7 +359,7 @@ class Main(Class, Runnable):
         return Dictionary(data).convert(
             key_wrapper=lambda key, value: builtins.unicode(
                 String(key).get_camel_case_to_delimited().content,
-                boostNode.ENCODING
+                ENCODING
             ) if builtins.isinstance(
                 key, (builtins.unicode, builtins.str)
             ) else cls.convert_for_backend(key),
@@ -479,24 +476,24 @@ class Main(Class, Runnable):
 # #                 if(key == 'language' or key.endswith('_language') or
 # #                    key.endswith('Language')
 # #                    ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
-# #                     return String(value).get_camel_case_to_delimited().content
+# #                     return String(
+# #                         value
+# #                     ).get_camel_case_to_delimited().content
 # #             if builtins.isinstance(value, builtins.str):
 # #                 return String(value).get_number()
                 if(key == 'language' or key.endswith('_language') or
                    key.endswith('Language')
                    ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
-                    return builtins.unicode(
-                        String(value).get_camel_case_to_delimited().content,
-                        boostNode.ENCODING)
+                    return builtins.unicode(String(
+                        value
+                    ).get_camel_case_to_delimited().content, ENCODING)
             if builtins.isinstance(value, (builtins.unicode, builtins.str)):
                 if builtins.isinstance(value, builtins.unicode):
-                    number = String(value.encode(
-                        boostNode.ENCODING
-                    )).get_number()
+                    number = String(value.encode(ENCODING)).get_number()
                 else:
                     number = String(value).get_number()
                 if builtins.isinstance(number, builtins.str):
-                    return builtins.unicode(number, boostNode.ENCODING)
+                    return builtins.unicode(number, )
                 return number
 # #
         return value
@@ -682,13 +679,9 @@ class Main(Class, Runnable):
 # # python3.4
 # #                 self.data['handler'].send_error(500, '%s: "%s"' % (
 # #                     exception.__class__.__name__, builtins.str(exception)))
-                self.data['handler'].send_error(500, builtins.str(
-                    '%s: "%s"'
-                ) % (
-                    builtins.str(exception.__class__.__name__),
-                    builtins.unicode(
-                        builtins.str(exception), boostNode.ENCODING
-                    ).encode(boostNode.ENCODING)))
+                self.data['handler'].send_error(500, '%s: "%s"' % (
+                    exception.__class__.__name__, convert_to_unicode(
+                        exception)))
 # #
             else:
                 '''NOTE: The web server will handle this.'''
@@ -702,11 +695,11 @@ class Main(Class, Runnable):
 
         self.__class__.package_name = Module.get_package_name(
             frame=inspect.currentframe())
-        FileHandler.set_root(location=FileHandler(location=FileHandler(
+        FileHandler.set_root(location=FileHandler(
             location=Module.get_name(
                 frame=inspect.currentframe(), path=True, extension=True),
             output_with_root_prefix=True
-        ).directory_path).directory_path)
+        ).directory.directory)
         self.__class__.ROOT_PATH = FileHandler.get_root().path
         self.__class__.controller = None
         if not (__test_mode__ or module_import_error is None):
@@ -805,15 +798,15 @@ class Main(Class, Runnable):
 # # python3.4
 # #         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX
 # #         and FileHandler(
-# #             location='%s%s' % (file.directory_path, file.basename)
+# #             location='%s%s' % (file.directory.path, file.basename)
 # #         ).extension and file != cls.html_template_file):
         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX
         and FileHandler(
-            location='%s%s' % (file.directory_path, file.basename)
+            location='%s%s' % (file.directory.path, file.basename)
         ).extension and not (file == cls.html_template_file)):
 # #
             FileHandler(location='%s%s' % (
-                file.directory_path, file.name[:-builtins.len('%s%s' % (
+                file.directory.path, file.name[:-builtins.len('%s%s' % (
                     os.extsep, TemplateParser.DEFAULT_FILE_EXTENSION_SUFFIX))]
             )).content = cls._render_template_helper(file, mapping)
         return cls
@@ -845,14 +838,13 @@ class Main(Class, Runnable):
         '''
         if file.name.startswith('backend'):
             is_backend = True
-        parent_folder = FileHandler(location=file.directory_path)
+        parent_folder = file.directory
         while True:
             if parent_folder.name.startswith('backend'):
                 is_backend = True
             if parent_folder == FileHandler.get_root() or is_backend:
                 break
-            parent_folder = FileHandler(
-                location=parent_folder.directory_path)
+            parent_folder = parent_folder.directory
         mapping['options']['frontend']['admin'] = ((is_backend) and
             'admin' in cls.options['frontend'])
         mapping = cls.controller.get_template_scope(deepcopy(mapping))
@@ -935,7 +927,7 @@ class Main(Class, Runnable):
             bind=cls.engine, expire_on_commit=False
         )()
         for model_name, model in models:
-            new_schemas[model.__tablename__] = builtins.str(CreateTable(
+            new_schemas[model.__tablename__] = convert_to_unicode(CreateTable(
                 model.__table__))
             # TODO Schemas can have equivalent different string
             # representations (in python3.4 at the latest!)
@@ -986,9 +978,14 @@ class Main(Class, Runnable):
                                 builtins.dict(builtins.zip(
                                     old_columns.keys(), values))))
                         except builtins.Exception as exception:
+# # python3.4
+# #                             __logger__.critical(
+# #                                 '%s: %s', exception.__class__.__name__,
+# #                                 builtins.str(exception))
                             __logger__.critical(
                                 '%s: %s', exception.__class__.__name__,
-                                builtins.str(exception))
+                                convert_to_unicode(exception))
+# #
                             migration_successful = False
                     session.commit()
                     if(migration_successful and
@@ -1051,7 +1048,7 @@ class Main(Class, Runnable):
                 now.microsecond / 1000 ** 2
 # #
             long_term_database_file = FileHandler(location='%s%s%d%s' % (
-                database_backup_file.directory_path,
+                database_backup_file.directory.path,
                 database_backup_file.basename, time_stamp,
                 database_backup_file.extension_suffix))
             __logger__.info(
@@ -1119,7 +1116,7 @@ class Main(Class, Runnable):
                                         String(
                                             key
                                         ).get_delimited_to_camel_case(
-                                        ).content, boostNode.ENCODING))
+                                        ).content, ENCODING))
                                 ).content
 # #
                             else:

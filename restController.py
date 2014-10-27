@@ -36,7 +36,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
 
 # # python3.4
-import boostNode
+from boostNode import convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
     InstancePropertyInitializer, String
@@ -98,7 +98,7 @@ class Response(Class):
                         String(
                             self.request.data['get']['__model__']
                         ).get_camel_case_to_delimited().content,
-                    boostNode.ENCODING))
+                    ENCODING))
 # #
                 if builtins.hasattr(self, method_name):
                     self.model = builtins.getattr(self, method_name)
@@ -165,10 +165,9 @@ class Response(Class):
                         self.request.data['handler'].send_response(
                             400 if builtins.isinstance(
                                 exception, builtins.ValueError
-                            ) else 409,
-                            '%s: "%s"' % (
-                                exception.__class__.__name__, builtins.str(
-                                    exception)))
+                            ) else 409, '%s: "%s"' % (
+                                exception.__class__.__name__,
+                                convert_to_unicode(exception)))
                         result = {}
                         if self.request.debug:
                             raise
@@ -206,10 +205,9 @@ class Response(Class):
                 'last_data_write_date_time_header_name'
             ]).get_camel_case_to_delimited(delimiter='-').sub(
                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-            ).get_camel_case_capitalize().content, boostNode.ENCODING),
-            builtins.unicode(builtins.str(
-                self.request.rest_data_timestamp_reference_file.timestamp
-            ), boostNode.ENCODING))
+            ).get_camel_case_capitalize().content, ENCODING),
+            convert_to_unicode(
+                self.request.rest_data_timestamp_reference_file.timestamp))
 # #
         if result is not None:
             if self.json_padding:
@@ -264,7 +262,7 @@ class Response(Class):
                         if self.request.options[
                             'database_engine_prefix'
                         ].startswith('sqlite:'):
-                            session_token = builtins.unicode(
+                            session_token = convert_to_unicode(
                                 session_token,
                                 self.request.options['encoding'])
                         user.session_token = session_token
@@ -407,7 +405,7 @@ class Response(Class):
 # #                 ).get_delimited_to_camel_case().content
                 attribute_name_camel_case = builtins.unicode(
                     String(attribute_name).get_delimited_to_camel_case(
-                    ).content, boostNode.ENCODING)
+                    ).content, ENCODING)
 # #
                 if attribute_name_camel_case not in data or builtins.getattr(
                     file, attribute_name
