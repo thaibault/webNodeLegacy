@@ -145,7 +145,7 @@
         "exportableFileAttributes": [
             "path", "name", "basename", "encoding", "extension",
             "extension_suffix", "timestamp", "size", "human_readable_size",
-            "type", "mime_type", "directory_path"
+            "type", "mime_type"
         ],
 
         "commandLineArguments": [{

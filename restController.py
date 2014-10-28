@@ -35,8 +35,8 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
 
-# # python3.4
-from boostNode import convert_to_unicode
+# # python3.4 pass
+from boostNode import ENCODING, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
     InstancePropertyInitializer, String

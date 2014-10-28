@@ -48,7 +48,7 @@ from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
 
 # # python3.4
-from boostNode import ENCODING, convert_to_unicode
+from boostNode import ENCODING, convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Module, Dictionary, String, Time
 from boostNode.extension.output import Print
@@ -213,8 +213,9 @@ class Main(Class, Runnable):
 # #             ).content
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
-                    value.replace('\\', 2 * '\\').replace('<%%', '<%%%'),
-                    string=True
+                    convert_to_unicode(value).replace(
+                        '\\', 2 * '\\'
+                    ).replace('<%%', '<%%%'), string=True
                 ).render(
                     mapping=cls.options, module_name=__name__, main=cls
                 ).output if builtins.isinstance(
@@ -488,12 +489,9 @@ class Main(Class, Runnable):
                         value
                     ).get_camel_case_to_delimited().content, ENCODING)
             if builtins.isinstance(value, (builtins.unicode, builtins.str)):
-                if builtins.isinstance(value, builtins.unicode):
-                    number = String(value.encode(ENCODING)).get_number()
-                else:
-                    number = String(value).get_number()
+                number = String(convert_to_string(value)).get_number()
                 if builtins.isinstance(number, builtins.str):
-                    return builtins.unicode(number, )
+                    return builtins.unicode(number, ENCODING)
                 return number
 # #
         return value
