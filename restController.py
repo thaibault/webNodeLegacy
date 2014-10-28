@@ -254,18 +254,12 @@ class Response(Class):
 # #                                 'authentication'
 # #                             ]['session_token']['length']
 # #                         )).decode().strip()
-                        session_token = base64_encode(os.urandom(
-                            self.request.options['model'][
-                                'authentication'
-                            ]['session_token']['length']
-                        )).strip()
-                        if self.request.options[
-                            'database_engine_prefix'
-                        ].startswith('sqlite:'):
-                            session_token = convert_to_unicode(
-                                session_token,
-                                self.request.options['encoding'])
-                        user.session_token = session_token
+                        user.session_token = convert_to_unicode(
+                            base64_encode(os.urandom(
+                                self.request.options['model'][
+                                    'authentication'
+                                ]['session_token']['length']
+                            )).strip())
 # #
                         user.session_expiration_date_time = DateTime.now(
                         ) + self.request.options['session'][

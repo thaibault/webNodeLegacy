@@ -549,13 +549,13 @@ class Main(Class, Runnable):
                 Take this method type by the abstract class via introspection.
             '''
             with self.web_api_lock:
-                getattr(self.web_server, inspect.stack()[0][3])(
+                builtins.getattr(self.web_server, inspect.stack()[0][3])(
                     *arguments, **keywords)
         if not (Controller is None or self.controller is None):
             self.controller.stop()
         '''Take this method type by the abstract class via introspection.'''
-        return getattr(
-            super(self.__class__, self), inspect.stack()[0][3]
+        return builtins.getattr(
+            builtins.super(self.__class__, self), inspect.stack()[0][3]
         )(*arguments, **keywords)
 
     def get_manifest(self, user):
@@ -970,7 +970,10 @@ class Main(Class, Runnable):
                     migration_successful = True
                     for values in session.query(*old_columns.values()):
                         __logger__.debug(
-                            'Transferring record "%s".', '", "'.join(values))
+                            'Transferring record "%s".', '", "'.join(
+                            builtins.map(lambda value: convert_to_unicode(
+                                value
+                            ), values)))
                         try:
                             session.execute(temporary_table.insert(
                                 builtins.dict(builtins.zip(
