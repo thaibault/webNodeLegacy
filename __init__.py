@@ -51,6 +51,7 @@ from sqlite3 import Connection as SQLite3Connection
 from boostNode import ENCODING, convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Module, Dictionary, String, Time
+from boostNode.extension.native import String as StringExtension
 from boostNode.extension.output import Print
 from boostNode.extension.system import CommandLine, Runnable
 from boostNode.extension.type import Null
@@ -58,6 +59,9 @@ from boostNode.paradigm.objectOrientation import Class
 from boostNode.runnable.server import Web as WebServer
 from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
+
+# # python3.4 pass
+String = lambda content: StringExtension(convert_to_string(content))
 
 try:
     Controller = builtins.__import__('controller', {}, {}, ('Main',)).Main
@@ -172,9 +176,9 @@ class Main(Class, Runnable):
 # #         ).content
         cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(
-                builtins.unicode(String(key).get_delimited_to_camel_case(
+                convert_to_unicode(String(key).get_delimited_to_camel_case(
                     preserve_wrong_formatted_abbreviations=True
-                ).content, ENCODING)),
+                ).content)),
             value_wrapper=cls.convert_for_client
         ).content
 # #
@@ -233,9 +237,9 @@ class Main(Class, Runnable):
 # #             value_wrapper=cls.convert_for_backend
 # #         ).content
         cls.options = Dictionary(cls.options).convert(
-            key_wrapper=lambda key, value: builtins.unicode(String(
+            key_wrapper=lambda key, value: convert_to_unicode(String(
                 key
-            ).get_camel_case_to_delimited().content, ENCODING),
+            ).get_camel_case_to_delimited().content),
             value_wrapper=cls.convert_for_backend
         ).content
 # #
@@ -326,16 +330,14 @@ class Main(Class, Runnable):
 # #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
 # #                 return '%s%s' % (String(value).get_delimited_to_camel_case(
 # #                 ).content[:-1], value[-1].upper())
-            if(builtins.isinstance(key, (
-                builtins.unicode, builtins.str
-            )) and (
+            if(builtins.isinstance(key, builtins.unicode) and (
                 key == 'language' or key.endswith('_language') or
                 key.endswith('Language')
             )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
-                return '%s%s' % (builtins.unicode(String(
+                return '%s%s' % (convert_to_unicode(String(
                     value
-                ).get_delimited_to_camel_case().content[:-1], ENCODING
-                ), convert_to_unicode(value[-1].upper()))
+                ).get_delimited_to_camel_case().content[:-1]),
+                convert_to_unicode(value[-1].upper()))
 # #
         if not builtins.isinstance(value, (
             builtins.int, builtins.float, builtins.type(None)
@@ -358,9 +360,8 @@ class Main(Class, Runnable):
 # #             value_wrapper=cls.convert_for_backend
 # #         ).content
         return Dictionary(data).convert(
-            key_wrapper=lambda key, value: builtins.unicode(
-                String(key).get_camel_case_to_delimited().content,
-                ENCODING
+            key_wrapper=lambda key, value: convert_to_unicode(
+                String(key).get_camel_case_to_delimited().content
             ) if builtins.isinstance(
                 key, (builtins.unicode, builtins.str)
             ) else cls.convert_for_backend(key),
@@ -485,13 +486,13 @@ class Main(Class, Runnable):
                 if(key == 'language' or key.endswith('_language') or
                    key.endswith('Language')
                    ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
-                    return builtins.unicode(String(
+                    return convert_to_unicode(String(
                         value
-                    ).get_camel_case_to_delimited().content, ENCODING)
+                    ).get_camel_case_to_delimited().content)
             if builtins.isinstance(value, (builtins.unicode, builtins.str)):
-                number = String(convert_to_string(value)).get_number()
+                number = String(value).get_number()
                 if builtins.isinstance(number, builtins.str):
-                    return builtins.unicode(number, ENCODING)
+                    return convert_to_unicode(number)
                 return number
 # #
         return value
@@ -608,7 +609,6 @@ class Main(Class, Runnable):
             Authenticates a user by potential sent header identification data.
         '''
         user_id = session_token = location = None
-        # TODO convert Strings to unicode in python2.7
         if self.options['authentication_method'] == 'header':
             user_id = self.data['handler'].headers.get(String(
                 self.options['session']['key']['user_id']
@@ -1105,7 +1105,8 @@ class Main(Class, Runnable):
 # #                                     key_wrapper=lambda key, value: cls
 # #                                     .convert_for_client(String(
 # #                                         key
-# #                                     ).get_delimited_to_camel_case().content)
+# #                                     ).get_delimited_to_camel_case(
+# #                                     ).content)
 # #                                 ).content
                                 default_value = Dictionary(cls.options[
                                     'model'
@@ -1113,11 +1114,11 @@ class Main(Class, Runnable):
                                     'default'
                                 ][property.name]).convert(
                                     key_wrapper=lambda key, value: cls
-                                    .convert_for_client(builtins.unicode(
+                                    .convert_for_client(convert_to_unicode(
                                         String(
                                             key
                                         ).get_delimited_to_camel_case(
-                                        ).content, ENCODING))
+                                        ).content))
                                 ).content
 # #
                             else:

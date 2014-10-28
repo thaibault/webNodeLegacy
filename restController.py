@@ -36,11 +36,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
 
 # # python3.4 pass
-from boostNode import ENCODING, convert_to_unicode
+from boostNode import ENCODING, convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
-    InstancePropertyInitializer, String
+    InstancePropertyInitializer
+from boostNode.extension.native import String as StringExtension
 from boostNode.paradigm.objectOrientation import Class
+
+# # python3.4 pass
+String = lambda content: StringExtension(convert_to_string(content))
 
 # endregion
 
@@ -94,11 +98,10 @@ class Response(Class):
 # #                         self.request.data['get']['__model__']
 # #                     ).get_camel_case_to_delimited().content)
                 method_name = '%s_%s_model' % (
-                    self.request.data['request_type'], builtins.unicode(
+                    self.request.data['request_type'], convert_to_unicode(
                         String(
                             self.request.data['get']['__model__']
-                        ).get_camel_case_to_delimited().content,
-                    ENCODING))
+                        ).get_camel_case_to_delimited().content))
 # #
                 if builtins.hasattr(self, method_name):
                     self.model = builtins.getattr(self, method_name)
@@ -201,11 +204,11 @@ class Response(Class):
 # #             ).get_camel_case_capitalize().content, builtins.str(
 # #                 self.request.rest_data_timestamp_reference_file.timestamp))
         self.request.data['handler'].send_header(
-            builtins.unicode(String(self.request.options[
+            convert_to_unicode(String(self.request.options[
                 'last_data_write_date_time_header_name'
             ]).get_camel_case_to_delimited(delimiter='-').sub(
                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-            ).get_camel_case_capitalize().content, ENCODING),
+            ).get_camel_case_capitalize().content),
             convert_to_unicode(
                 self.request.rest_data_timestamp_reference_file.timestamp))
 # #
@@ -397,9 +400,9 @@ class Response(Class):
 # #                 attribute_name_camel_case = String(
 # #                     attribute_name
 # #                 ).get_delimited_to_camel_case().content
-                attribute_name_camel_case = builtins.unicode(
+                attribute_name_camel_case = convert_to_unicode(
                     String(attribute_name).get_delimited_to_camel_case(
-                    ).content, ENCODING)
+                    ).content)
 # #
                 if attribute_name_camel_case not in data or builtins.getattr(
                     file, attribute_name
