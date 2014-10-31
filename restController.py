@@ -164,6 +164,10 @@ class Response(Class):
                                 get=self.request.data['get'],
                                 data=self.request.data['data'])
                     except (SQLAlchemyError, builtins.ValueError) as exception:
+                        '''
+                            NOTE: We can't raise this exception because \
+                            frontend need it as validation message.
+                        '''
                         self.session.rollback()
                         self.request.data['handler'].send_response(
                             400 if builtins.isinstance(
@@ -172,8 +176,6 @@ class Response(Class):
                                 exception.__class__.__name__,
                                 convert_to_unicode(exception)))
                         result = {}
-                        if self.request.debug:
-                            raise
                 elif self.request.data['request_type'] == 'get':
                     if self.method_in_rest_controller:
                         result = self.model(data=self.request.data['get'])
@@ -356,16 +358,6 @@ class Response(Class):
 
         # region special request types
 
-    def delete_file_model(self, get, data):
-        '''Removes given file.'''
-        file = FileHandler(location=get['path'])
-        if file.is_file():
-            if file.remove_file():
-                self.request.rest_data_timestamp_reference_file.set_timestamp()
-            else:
-                return None
-        return{}
-
     def get_system_model(self, data):
         '''Returns all defined models.'''
         return{
@@ -417,6 +409,16 @@ class Response(Class):
             result.append(file_attributes)
         return result
 
+    def delete_file_model(self, get, data):
+        '''Removes given file.'''
+        file = FileHandler(location=get['path'])
+        if file.is_file():
+            if file.remove_file():
+                self.request.rest_data_timestamp_reference_file.set_timestamp()
+            else:
+                return None
+        return{}
+
     def put_file_model(self, get, data):
         '''Saves given files.'''
         for items in data.values():
@@ -426,7 +428,7 @@ class Response(Class):
                 ) and item.filename and item.done != -1:
                     shutil.copyfileobj(item.file, builtins.open(FileHandler(
                         self.request.options['location']['medium'] +
-                        item.filename
+                        convert_to_unicode(item.filename)
                     )._path, 'wb'))
                     self.request\
                         .rest_data_timestamp_reference_file.set_timestamp()

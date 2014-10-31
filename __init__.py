@@ -53,7 +53,7 @@ from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Module, Dictionary, String, Time
 from boostNode.extension.native import String as StringExtension
 from boostNode.extension.output import Print
-from boostNode.extension.system import CommandLine, Runnable
+from boostNode.extension.system import CommandLine, Runnable, Platform
 from boostNode.extension.type import Null
 from boostNode.paradigm.objectOrientation import Class
 from boostNode.runnable.server import Web as WebServer
@@ -287,6 +287,9 @@ class Main(Class, Runnable):
         if all:
             FileHandler(location='/').iterate_directory(
                 function=cls._render_template, recursive=True, mapping=mapping)
+            if cls.options['system_commands']['reload_proxy_server']:
+                Platform.run(command=cls.options['system_commands'][
+                    'reload_proxy_server'])
         cls._render_html_templates(mapping)
         return cls
 
@@ -742,12 +745,16 @@ class Main(Class, Runnable):
         self.__class__.frontend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_client(String(
                 key
-            ).get_delimited_to_camel_case().content),
+            ).get_delimited_to_camel_case().content if builtins.isinstance(
+                key, (builtins.unicode, builtins.str)
+            ) else key),
             'value_wrapper': self.convert_for_client}
         self.__class__.backend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_backend(String(
                 key
-            ).get_camel_case_to_delimited().content),
+            ).get_camel_case_to_delimited().content if builtins.isinstance(
+                key, (builtins.unicode, builtins.str)
+            ) else key),
             'value_wrapper': self.convert_for_backend}
 
         # # endregion

@@ -33,6 +33,11 @@
                     "minimumLength": 4,
                     "maximumLength": 100,
                     "pattern": "....+"
+                },
+                "simplePassword": {
+                    "minimumLength": 1,
+                    "maximumLength": 50,
+                    "pattern": "[a-zA-Z0-9_-]+"
                 }
             }
         },
@@ -40,13 +45,66 @@
             "image": [
                 "image/jpg", "image/jpeg", "image/pjpeg", "image/png",
                 "image/svg+xml", "image/svg", "image/vnd.microsoft.icon",
-                "image/x-icon"
+                "image/x-icon", "image/gif", "image/tiff",
+                "image/vnd.wap.wbmp", "image/x-icon", "image/x-jng",
+                "image/x-ms-bmp", "image/svg+xml", "image/webp"
             ],
-            "video": ["video/webm"],
-            "data": ["text/plain", "application/xml", "text/csv"]
+            "audio": [
+                "audio/midi", "audio/mpeg", "audio/ogg", "audio/x-m4a",
+                "audio/x-realaudio"
+            ],
+            "video": [
+                "video/webm", "video/3gpp", "video/mp2t", "video/mp4",
+                "video/mpeg", "video/quicktime", "video/x-flv",
+                "video/x-m4v", "video/x-mng", "video/x-ms-asf",
+                "video/x-ms-wmv", "video/x-msvideo",
+                "application/x-shockwave-flash"
+            ],
+            "data": [
+                "application/xml", "text/csv", "application/xml", "text/xml",
+                "application/atom+xml", "application/rss+xml",
+                "application/json", "application/vnd.google-earth.kml+xml",
+                "application/vnd.google-earth.kmz", "application/xhtml+xml",
+                "application/xspf+xml"
+            ],
+            "document": [
+                "text/plain", "text/html", "text/css", "text/mathml",
+                "text/vnd.wap.wml", "application/pdf",
+                "application/postscript", "application/rtf",
+                "application/vnd.apple.mpegurl", "application/vnd.ms-excel",
+                "application/vnd.ms-powerpoint", "application/vnd.wap.wmlc",
+                "application/msword",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            ],
+            "script": [
+                "application/javascript", "application/x-cocoa",
+                "application/x-perl", "text/x-python"
+            ],
+            "font": [
+                "application/vnd.ms-fontobject", "application/font-woff"
+            ],
+            "binary": [
+                "application/java-archive", "application/x-7z-compressed",
+                "application/zip", "application/octet-stream",
+                "application/octet-stream", "application/x-rar-compressed"
+            ],
+            "knownOther": [
+                "text/x-component", "text/vnd.sun.j2me.app-descriptor",
+                "application/mac-binhex40", "application/x-java-archive-diff",
+                "application/x-java-jnlp-file", "application/x-makeself",
+                "application/x-pilot", "application/x-redhat-package-manager",
+                "application/x-sea", "application/x-stuffit",
+                "application/x-tcl", "application/x-x509-ca-cert",
+                "application/x-xpinstall"
+            ]
         }
     },
     "backend": {
+        "systemCommands": {
+            "reloadProxyServer": "/usr/bin/env sudo nginx -s reload"
+        },
         "jsonpGetParameterIndicator": ["jsonp", "callback"],
         "restResponseTemplate": ")]}',\n%s",
         "initialTemplateRendering": true,
