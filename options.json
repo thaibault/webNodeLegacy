@@ -160,6 +160,7 @@
 
         "delimiterPattern": "(!|\\?)",
         "webServer": {
+            "hostName": "",
             "root": "/", "hostName": "127.0.0.1",
             "default": "<% location['htmlFile']['frontend'] %>",
             "requestWhitelist": [

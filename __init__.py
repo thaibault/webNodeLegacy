@@ -36,6 +36,7 @@ import logging
 import multiprocessing
 import os
 import re
+import socket
 import sys
 import time
 
@@ -174,7 +175,9 @@ class Main(Class, Runnable):
 # #             ).content),
 # #             value_wrapper=cls.convert_for_client
 # #         ).content
-        cls.options['frontend'] = Dictionary(cls.options['frontend']).convert(
+        cls.options['frontend'] = Dictionary(
+            cls.options['frontend']
+        ).convert(
             key_wrapper=lambda key, value: cls.convert_for_client(
                 convert_to_unicode(String(key).get_delimited_to_camel_case(
                     preserve_wrong_formatted_abbreviations=True
@@ -287,7 +290,8 @@ class Main(Class, Runnable):
         if all:
             FileHandler(location='/').iterate_directory(
                 function=cls._render_template, recursive=True, mapping=mapping)
-            if cls.options['system_commands']['reload_proxy_server']:
+            if(cls.proxy_port is not None and
+               cls.options['system_commands']['reload_proxy_server']):
                 Platform.run(command=cls.options['system_commands'][
                     'reload_proxy_server'])
         cls._render_html_templates(mapping)
@@ -380,7 +384,9 @@ class Main(Class, Runnable):
                 value = key
 # # python3.4
 # #             elif builtins.isinstance(key, builtins.str):
-            elif builtins.isinstance(key, (builtins.unicode, builtins.str)):
+            elif builtins.isinstance(key, (
+                builtins.unicode, builtins.str
+            )):
 # #
                 if key == 'date_time' or key.endswith('_date_time'):
                     if builtins.isinstance(
@@ -747,15 +753,25 @@ class Main(Class, Runnable):
                 key
             ).get_delimited_to_camel_case().content if builtins.isinstance(
                 key, (builtins.unicode, builtins.str)
-            ) else key),
-            'value_wrapper': self.convert_for_client}
+            ) else key), 'value_wrapper': self.convert_for_client}
         self.__class__.backend_data_wrapper = {
             'key_wrapper': lambda key, value: self.convert_for_backend(String(
                 key
             ).get_camel_case_to_delimited().content if builtins.isinstance(
                 key, (builtins.unicode, builtins.str)
-            ) else key),
-            'value_wrapper': self.convert_for_backend}
+            ) else key), 'value_wrapper': self.convert_for_backend}
+        self.__class__.port = self.given_command_line_arguments.port
+        self.__class__.options['frontend']['proxyPort'] = \
+            self.__class__.proxy_port = None
+        if socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect_ex((
+            self.options['web_server']['host_name'],
+            self.given_command_line_arguments.proxy_port
+        )) == 0:
+            self.__class__.port = self.__class__.proxy_port = \
+                self.given_command_line_arguments.proxy_port
+            self.__class__.options['frontend']['proxyPort'] = self.proxy_port
+            __logger__.info(
+                'Detected proxy server at port %d.', self.proxy_port)
 
         # # endregion
 
@@ -1239,12 +1255,14 @@ class Main(Class, Runnable):
             if(self.options['session']['key']['user_id'] in
                self.data['cookie'] and
                self.options['session']['key']['token'] in self.data['cookie']):
-                users = self.session.query(self.model.User).filter(
+                session = create_database_session(bind=cls.engine)()
+                users = session.query(self.model.User).filter(
                     self.model.User.id == self.data['cookie'][
                         self.options['session']['key']['user_id']])
                 if users.count():
                     user = users.one()
                     manifest_name = user.id
+                session.close()
             cache_file = FileHandler(
                 location='%s%s.appcache' %
                 (self.options['location']['web_cache'], manifest_name))
