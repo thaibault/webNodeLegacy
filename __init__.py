@@ -61,8 +61,11 @@ from boostNode.runnable.server import Web as WebServer
 from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
 
-# # python3.4 pass
+# # python3.4
+# # # NOTE: Should be removed if we drop python2.X support.
+# # String = StringExtension
 String = lambda content: StringExtension(convert_to_string(content))
+# #
 
 try:
     Controller = builtins.__import__('controller', {}, {}, ('Main',)).Main
@@ -70,6 +73,7 @@ try:
         'restController', {}, {}, ('Response',)
     ).Response
 except builtins.ImportError as exception:
+    raise
     module_import_error = exception
     Controller = RestResponse = None
 else:
@@ -748,18 +752,32 @@ class Main(Class, Runnable):
             location=self.options['location']['html_file']['backend'])
         self.__class__.html_template_file = FileHandler(
             location=self.options['location']['html_file']['template'])
+# # python3.4
+# #         self.__class__.frontend_data_wrapper = {
+# #             'key_wrapper': lambda key, value: self.convert_for_client(
+# #                 String(key).get_delimited_to_camel_case(
+# #                 ).content if builtins.isinstance(
+# #                     key, builtins.str
+# #                 ) else key), 'value_wrapper': self.convert_for_client}
+# #         self.__class__.backend_data_wrapper = {
+# #             'key_wrapper': lambda key, value: self.convert_for_backend(
+# #                 String(key).get_camel_case_to_delimited(
+# #                 ).content if builtins.isinstance(
+# #                     key, builtins.str
+# #                 ) else key), 'value_wrapper': self.convert_for_backend}
         self.__class__.frontend_data_wrapper = {
-            'key_wrapper': lambda key, value: self.convert_for_client(String(
-                key
-            ).get_delimited_to_camel_case().content if builtins.isinstance(
-                key, (builtins.unicode, builtins.str)
-            ) else key), 'value_wrapper': self.convert_for_client}
+            'key_wrapper': lambda key, value: self.convert_for_client(
+                String(key).get_delimited_to_camel_case(
+                ).content if builtins.isinstance(
+                    key, (builtins.unicode, builtins.str)
+                ) else key), 'value_wrapper': self.convert_for_client}
         self.__class__.backend_data_wrapper = {
-            'key_wrapper': lambda key, value: self.convert_for_backend(String(
-                key
-            ).get_camel_case_to_delimited().content if builtins.isinstance(
-                key, (builtins.unicode, builtins.str)
-            ) else key), 'value_wrapper': self.convert_for_backend}
+            'key_wrapper': lambda key, value: self.convert_for_backend(
+                String(key).get_camel_case_to_delimited(
+                ).content if builtins.isinstance(
+                    key, (builtins.unicode, builtins.str)
+                ) else key), 'value_wrapper': self.convert_for_backend}
+# #
         self.__class__.port = self.given_command_line_arguments.port
         self.__class__.options['frontend']['proxyPort'] = \
             self.__class__.proxy_port = None
@@ -948,13 +966,21 @@ class Main(Class, Runnable):
             bind=cls.engine, expire_on_commit=False
         )()
         for model_name, model in models:
-            new_schemas[model.__tablename__] = convert_to_unicode(CreateTable(
-                model.__table__))
-            # TODO Schemas can have equivalent different string
-            # representations (in python3.4 at the latest!)
+# # python3.4
+# #             new_schemas[model.__tablename__] = builtins.str(CreateTable(
+# #                 model.__table__))
+            new_schemas[model.__tablename__] = convert_to_unicode(
+                CreateTable(model.__table__))
+# #
             if model.__tablename__ in old_schemas:
+                # TODO Schemas can have equivalent different string
+                # representations (in python3.4 at the latest!)
+# # python3.4
+# #                 if(old_schemas[model.__tablename__] !=
+# #                    new_schemas[model.__tablename__] and False):
                 if(old_schemas[model.__tablename__] !=
                    new_schemas[model.__tablename__]):
+# #
                     __logger__.info('Model "%s" has changed.', model_name)
                     temporary_table_name = '%s_temp' % model.__tablename__
                     while temporary_table_name in builtins.map(
@@ -992,11 +1018,18 @@ class Main(Class, Runnable):
                     '''
                     migration_successful = True
                     for values in session.query(*old_columns.values()):
+# # python3.4
+# #                         __logger__.debug(
+# #                             'Transferring record "%s".', '", "'.join(
+# #                             builtins.map(lambda value: builtins.str(
+# #                                 value
+# #                             ), values)))
                         __logger__.debug(
                             'Transferring record "%s".', '", "'.join(
                             builtins.map(lambda value: convert_to_unicode(
                                 value
                             ), values)))
+# #
                         try:
                             session.execute(temporary_table.insert(
                                 builtins.dict(builtins.zip(

@@ -36,15 +36,18 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
 
 # # python3.4 pass
-from boostNode import ENCODING, convert_to_string, convert_to_unicode
+from boostNode import convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
     InstancePropertyInitializer
 from boostNode.extension.native import String as StringExtension
 from boostNode.paradigm.objectOrientation import Class
 
-# # python3.4 pass
+# # python3.4
+# # # NOTE: Should be removed if we drop python2.X support.
+# # String = StringExtension
 String = lambda content: StringExtension(convert_to_string(content))
+# #
 
 # endregion
 
