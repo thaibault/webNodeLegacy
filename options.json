@@ -9,7 +9,7 @@
         "lastDataWriteDateTimeHeaderName": "<% session['dataDescriptionPrefix'] %>LastDataWriteDateTime",
         "session": {
             "dataDescriptionPrefix": "application",
-            "expirationTimeInMinutes": 1440,
+            "expirationTimeDelta": 1440,
             "key": {
                 "token": "<% session['dataDescriptionPrefix'] %>SessionToken",
                 "userID": "<% session['dataDescriptionPrefix'] %>UserID",

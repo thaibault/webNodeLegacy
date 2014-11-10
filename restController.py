@@ -271,7 +271,7 @@ class Response(Class):
 # #
                         user.session_expiration_date_time = DateTime.now(
                         ) + self.request.options['session'][
-                            'expiration_interval']
+                            'expiration_time_delta']
                         '''
                             NOTE: Model data has to be rendered before \
                             session is committed, to avoid temporary lose \

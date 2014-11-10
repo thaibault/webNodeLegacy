@@ -251,8 +251,6 @@ class Main(Class, Runnable):
         ).content
 # #
         cls.options['frontend'] = frontend_options
-        cls.options['session']['expiration_interval'] = TimeDelta(
-            minutes=cls.options['session']['expiration_time_in_minutes'])
         return cls
 
     @classmethod
@@ -271,10 +269,10 @@ class Main(Class, Runnable):
             if users.count():
                 user = users.one()
                 user.session_expiration_date_time = DateTime.now(
-                ) + cls.options['session']['expiration_interval']
+                ) + cls.options['session']['expiration_time_delta']
                 __logger__.info('Authorize user "%d" for %d hours.', user.id, (
                     cls.options['session'][
-                        'expiration_interval'
+                        'expiration_time_delta'
                     ].total_seconds() / 60
                 ) / 60)
                 if location is not None:
@@ -317,6 +315,8 @@ class Main(Class, Runnable):
         if value is Null:
             value = key
         else:
+            if builtins.isinstance(value, TimeDelta):
+                return value.total_seconds()
 # # python3.4
 # #             if builtins.isinstance(value, Date):
 # #                 return time.mktime(value.timetuple())
@@ -392,6 +392,22 @@ class Main(Class, Runnable):
                 builtins.unicode, builtins.str
             )):
 # #
+                if key == 'time_delta' or key.endswith('_time_delta'):
+                    if builtins.isinstance(
+                        value, (builtins.int, builtins.float)
+                    ):
+                        try:
+                            return TimeDelta(seconds=value)
+                        except builtins.ValueError:
+                            pass
+                    converted_value = String(value).get_number()
+                    if builtins.isinstance(
+                        converted_value, (builtins.int, builtins.float)
+                    ):
+                        try:
+                            return TimeDelta(seconds=converted_value)
+                        except builtins.ValueError:
+                            pass
                 if key == 'date_time' or key.endswith('_date_time'):
                     if builtins.isinstance(
                         value, (builtins.int, builtins.float)
