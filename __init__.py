@@ -146,7 +146,7 @@ class Main(Class, Runnable):
     @classmethod
     def is_cached(cls, cache_file):
         '''Determines weather given file is a valid usable cache file.'''
-        return(sys.flags.optimize and not cls.debug) and cache_file
+        return sys.flags.optimize and not cls.debug and cache_file
 
         # # endregion
 
@@ -201,11 +201,16 @@ class Main(Class, Runnable):
         cls._merge_options().options['moduleName'] = __name__
         frontend_options = cls.options['frontend']
         del cls.options['frontend']
+        '''
+            We convert only keys to backend compatible types to make them \
+            available for the rendering phase.
+        '''
         cls.options = Dictionary(cls.options).convert(
             key_wrapper=lambda key, value: cls.convert_for_backend(key),
-            value_wrapper=cls.convert_for_backend
+            remove_wrap_indicator=False
         ).content
         cls.options['frontend'] = frontend_options
+        mockup_template = TemplateParser('', string=True)
         '''
             NOTE: We have to run over options twice to handle cyclic \
             dependencies.
@@ -214,28 +219,52 @@ class Main(Class, Runnable):
 # # python3.4
 # #             cls.options = Dictionary(cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
-# #                     value.replace('\\', 2 * '\\').replace('<%%', '<%%%'),
-# #                     string=True
+# #                     value.replace('\\', 2 * '\\').replace(
+# #                         '%s%s' % (
+# #                             mockup_template.left_code_delimiter,
+# #                             mockup_temlate.right_escaped
+# #                         ), '%s%s%s' % (
+# #                         mockup_template.left_code_delimiter,
+# #                         mockup_temlate.right_escaped,
+# #                         mockup_temlate.right_escaped
+# #                     )), string=True
 # #                 ).render(
 # #                     mapping=cls.options, module_name=__name__, main=cls
 # #                 ).output if builtins.isinstance(
 # #                     value, builtins.str
-# #                 ) else value
+# #                 ) mockup_template.left_code_delimiter in value else value,
+# #                 remove_wrap_indicator=False
 # #             ).content
+            '''
+                NOTE: A check for "<%" avoids parsing plain strings as \
+                templates and lose many performance.
+            '''
             cls.options = Dictionary(cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     convert_to_unicode(value).replace(
                         '\\', 2 * '\\'
-                    ).replace('<%%', '<%%%'), string=True
+                    ).replace('%s%s' % (
+                        mockup_template.left_code_delimiter,
+                        mockup_template.right_escaped
+                    ), '%s%s%s' % (
+                        mockup_template.left_code_delimiter,
+                        mockup_template.right_escaped,
+                        mockup_template.right_escaped
+                    )), string=True,
                 ).render(
                     mapping=cls.options, module_name=__name__, main=cls
                 ).output if builtins.isinstance(
                     value, (builtins.unicode, builtins.str)
-                ) else value
+                ) and mockup_template.left_code_delimiter in value else value,
+                remove_wrap_indicator=False
             ).content
 # #
         frontend_options = cls.options['frontend']
         del cls.options['frontend']
+        '''
+            After converting keys to backend compatible types we now convert \
+            the values after rendering phase.
+        '''
 # # python3.4
 # #         cls.options = Dictionary(cls.options).convert(
 # #             key_wrapper=lambda key, value: String(
@@ -247,7 +276,7 @@ class Main(Class, Runnable):
             key_wrapper=lambda key, value: convert_to_unicode(String(
                 key
             ).get_camel_case_to_delimited().content),
-            value_wrapper=cls.convert_for_backend
+            value_wrapper=cls.convert_for_backend,
         ).content
 # #
         cls.options['frontend'] = frontend_options
@@ -302,11 +331,23 @@ class Main(Class, Runnable):
     @classmethod
     def clear_web_cache(cls):
         '''Clears all web cache files.'''
-        __logger__.info(
-            'Clear web cache in "%s".', cls.options['location']['web_cache'])
-        for file in FileHandler(location=cls.options['location']['web_cache']):
-            if cls.is_valid_web_asset(file):
-                file.remove_deep()
+        web_cache = FileHandler(location=cls.options['location']['web_cache'])
+        if web_cache.is_directory():
+            __logger__.info(
+                'Clear web cache in "%s".', cls.options['location']['web_cache'])
+            for file in web_cache:
+                if cls.is_valid_web_asset(file):
+                    file.remove_deep()
+        template_cache = FileHandler(
+            location=cls.options['location']['web_cache'])
+        if template_cache.is_directory():
+            __logger__.info(
+                'Clear template cache in "%s".', template_cache.path)
+            for file in template_cache:
+                if file.is_file() and file.name.endswith(
+                    '.tpl.py'
+                ) or file.is_directory() and file.name.endswith('.tpl'):
+                    file.remove_deep()
         return cls
 
     @classmethod
@@ -315,8 +356,6 @@ class Main(Class, Runnable):
         if value is Null:
             value = key
         else:
-            if builtins.isinstance(value, TimeDelta):
-                return value.total_seconds()
 # # python3.4
 # #             if builtins.isinstance(value, Date):
 # #                 return time.mktime(value.timetuple())
@@ -350,6 +389,8 @@ class Main(Class, Runnable):
                 ).get_delimited_to_camel_case().content[:-1]),
                 convert_to_unicode(value[-1].upper()))
 # #
+            if builtins.isinstance(value, TimeDelta):
+                return value.total_seconds()
         if not builtins.isinstance(value, (
             builtins.int, builtins.float, builtins.type(None)
         )):
@@ -392,23 +433,9 @@ class Main(Class, Runnable):
                 builtins.unicode, builtins.str
             )):
 # #
-                if key == 'time_delta' or key.endswith('_time_delta'):
-                    if builtins.isinstance(
-                        value, (builtins.int, builtins.float)
-                    ):
-                        try:
-                            return TimeDelta(seconds=value)
-                        except builtins.ValueError:
-                            pass
-                    converted_value = String(value).get_number()
-                    if builtins.isinstance(
-                        converted_value, (builtins.int, builtins.float)
-                    ):
-                        try:
-                            return TimeDelta(seconds=converted_value)
-                        except builtins.ValueError:
-                            pass
-                if key == 'date_time' or key.endswith('_date_time'):
+                if key == 'date_time' or key.endswith(
+                    '_date_time'
+                ) or key.endswith('DateTime'):
                     if builtins.isinstance(
                         value, (builtins.int, builtins.float)
                     ):
@@ -451,7 +478,7 @@ class Main(Class, Runnable):
                                             )
                                         except builtins.ValueError:
                                             pass
-                if key == 'date' or key.endswith('_date') or key.endswith(
+                elif key == 'date' or key.endswith('_date') or key.endswith(
                     'Date'
                 ):
                     if builtins.isinstance(
@@ -499,10 +526,26 @@ class Main(Class, Runnable):
 # #
                                     except builtins.ValueError:
                                         pass
-                if key == 'time' or key.endswith('_time') or key.endswith(
+                elif key == 'time' or key.endswith('_time') or key.endswith(
                     'Time'
                 ):
                     return Time(value).content
+                elif key == 'time_delta' or key.endswith('_time_delta'):
+                    if builtins.isinstance(
+                        value, (builtins.int, builtins.float)
+                    ):
+                        try:
+                            return TimeDelta(seconds=value)
+                        except builtins.ValueError:
+                            pass
+                    converted_value = String(value).get_number()
+                    if builtins.isinstance(
+                        converted_value, (builtins.int, builtins.float)
+                    ):
+                        try:
+                            return TimeDelta(seconds=converted_value)
+                        except builtins.ValueError:
+                            pass
 # # python3.4
 # #                 if(key == 'language' or key.endswith('_language') or
 # #                    key.endswith('Language')
@@ -569,24 +612,37 @@ class Main(Class, Runnable):
 
         # endregion
 
+# # python3.4
+# #     def stop(self, *arguments, force_stopping=False, **keywords):
     def stop(self, *arguments, **keywords):
+# #
         '''
             This method is triggered if the application should die. The web \
             server will be closed.
         '''
+# # python3.4
+# #         pass
+        force_stopping, keywords = Dictionary(keywords).pop(
+            name='force_stopping', default_value=False)
+# #
         if self.web_server:
             '''
                 Take this method type by the abstract class via introspection.
             '''
-            with self.web_api_lock:
+            if force_stopping:
                 builtins.getattr(self.web_server, inspect.stack()[0][3])(
-                    *arguments, **keywords)
+                    *arguments, force_stopping=force_stopping, **keywords)
+            else:
+                with self.web_api_lock:
+                    builtins.getattr(self.web_server, inspect.stack()[0][3])(
+                        *arguments, force_stopping=force_stopping, **keywords)
         if not (Controller is None or self.controller is None):
-            self.controller.stop()
+            self.controller.stop(
+                *arguments, force_stopping=force_stopping, **keywords)
         '''Take this method type by the abstract class via introspection.'''
         return builtins.getattr(
             builtins.super(self.__class__, self), inspect.stack()[0][3]
-        )(*arguments, **keywords)
+        )(*arguments, force_stopping=force_stopping, **keywords)
 
     def get_manifest(self, user):
         '''
@@ -1226,10 +1282,10 @@ class Main(Class, Runnable):
     @classmethod
     def _set_options(cls):
         '''Renders backend and frontend options.'''
-        cls.options = Dictionary(json.loads(FileHandler(
-            location='/%s%s' % (cls.package_name, cls.CONFIGURATION_FILE_PATH)
-        ).content)).content
         configuration_file = FileHandler(location=cls.CONFIGURATION_FILE_PATH)
+        cls.options = Dictionary(json.loads(FileHandler(
+            location='/%s%s' % (cls.package_name, configuration_file.path)
+        ).content)).content
         if configuration_file.is_file():
             return cls.extend_options(options=json.loads(
                 configuration_file.content))

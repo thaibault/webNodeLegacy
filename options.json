@@ -180,7 +180,9 @@
                 "template": "<% location['template'] %>index.html.tpl"
             },
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
-            "webCache": "/cache/",
+            "cache": "/cache/",
+            "webCache": "<% location['cache'] %>web/",
+            "templateCache": "<% location['cache'] %>template/",
             "certificate": {
                 "pem": "/certificate/example.pem",
                 "key": "/certificate/example.key",

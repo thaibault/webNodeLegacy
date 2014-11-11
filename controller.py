@@ -51,7 +51,7 @@ class Main(object):
     # # # endregion
 
     @classmethod
-    def stop(cls):
+    def stop(cls, *arguments, **keywords):
         '''Is called if application is shutting down.'''
         return cls
 
