@@ -727,7 +727,6 @@ class Main(Class, Runnable):
         # # region properties
 
         self.data = __request_arguments__
-
         self.new_cookie = {}
         '''Normalize get and payload data.'''
         self.data['get'] = self.convert_dictionary_for_backend(
