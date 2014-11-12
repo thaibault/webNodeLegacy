@@ -333,13 +333,12 @@ class Main(Class, Runnable):
         '''Clears all web cache files.'''
         web_cache = FileHandler(location=cls.options['location']['web_cache'])
         if web_cache.is_directory():
-            __logger__.info(
-                'Clear web cache in "%s".', cls.options['location']['web_cache'])
+            __logger__.info('Clear web cache in "%s".', web_cache.path)
             for file in web_cache:
                 if cls.is_valid_web_asset(file):
                     file.remove_deep()
         template_cache = FileHandler(
-            location=cls.options['location']['web_cache'])
+            location=cls.options['location']['template_cache'])
         if template_cache.is_directory():
             __logger__.info(
                 'Clear template cache in "%s".', template_cache.path)
