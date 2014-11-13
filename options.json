@@ -184,9 +184,10 @@
             "webCache": "<% location['cache'] %>web/",
             "templateCache": "<% location['cache'] %>template/",
             "certificate": {
-                "pem": "/certificate/example.pem",
-                "key": "/certificate/example.key",
-                "crt": "/certificate/example.crt"
+                "folder": "/certificate/",
+                "pem": "<% location['certificate']['folder'] %>default.pem",
+                "key": "<% location['certificate']['folder'] %>default.key",
+                "crt": "<% location['certificate']['folder'] %>default.crt"
             },
             "backup": "/backup/",
             "database": {

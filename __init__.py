@@ -456,7 +456,7 @@ class Main(Class, Runnable):
                         value, (builtins.unicode, builtins.str)
                     ):
 # #
-                        for delimiter in ('.', '/'):
+                        for delimiter in ('/', '.', ':'):
                             for year_format in ('%y', '%Y'):
                                 for ms_format in ('', ':%f'):
                                     for date_time_format in (
@@ -501,7 +501,7 @@ class Main(Class, Runnable):
                         builtins.unicode, builtins.str
                     )):
 # #
-                        for delimiter in ('.', '/'):
+                        for delimiter in ('/', '.', ':'):
                             for year_format in ('%y', '%Y'):
                                 for date_format in (
                                     '%x', '%d{delimiter}%m{delimiter}{year}',
@@ -528,6 +528,7 @@ class Main(Class, Runnable):
                 elif key == 'time' or key.endswith('_time') or key.endswith(
                     'Time'
                 ):
+                    # TODO do other times like this.
                     return Time(value).content
                 elif key == 'time_delta' or key.endswith('_time_delta'):
                     if builtins.isinstance(
@@ -923,17 +924,18 @@ class Main(Class, Runnable):
     @classmethod
     def _render_html_templates(cls, mapping):
         '''Renders all frontend html templates.'''
-        for site in ('frontend', 'backend'):
-            '''
-                NOTE: Only build and admin file if there exists an admin \
-                section in frontend options.
-            '''
-            if site == 'frontend' or 'admin' in cls.options['frontend']:
-                builtins.getattr(
-                    cls, '%s_html_file' % site
-                ).content = cls._render_template_helper(
-                    cls.html_template_file, mapping,
-                    force_backend=site == 'backend')
+        if cls.html_template_file.is_file():
+            for site in ('frontend', 'backend'):
+                '''
+                    NOTE: Only build and admin file if there exists an admin \
+                    section in frontend options.
+                '''
+                if site == 'frontend' or 'admin' in cls.options['frontend']:
+                    builtins.getattr(
+                        cls, '%s_html_file' % site
+                    ).content = cls._render_template_helper(
+                        cls.html_template_file, mapping,
+                        force_backend=site == 'backend')
         return cls
 
     @classmethod
@@ -1358,7 +1360,7 @@ class Main(Class, Runnable):
             if(self.options['session']['key']['user_id'] in
                self.data['cookie'] and
                self.options['session']['key']['token'] in self.data['cookie']):
-                session = create_database_session(bind=cls.engine)()
+                session = create_database_session(bind=self.engine)()
                 users = session.query(self.model.User).filter(
                     self.model.User.id == self.data['cookie'][
                         self.options['session']['key']['user_id']])

@@ -3413,6 +3413,8 @@ class Time(Object):
 
     '''This class adds some features for dealing with times.'''
 
+    PATTERN = '(?P<hour>[0-9]{1,2}):(?P<minute>[0-9]{1,2})',
+
     # region dynamic methods
 
     # # region public
@@ -3436,23 +3438,42 @@ class Time(Object):
 
             >>> Time()
             Object of "Time" datetime.time(0, 0).
+
+            >>> Time('08:30').content
+            datetime.time(8, 30)
         '''
 
         # # # region properties
 
-        '''The main property. It saves the current time data.'''
-        content = String(content).get_number(default=0)
-        hours = builtins.int(content / 60 ** 2)
-        hours_in_seconds = hours * 60 ** 2
-        minutes = builtins.int((content - hours_in_seconds) / 60)
-        minutes_in_seconds = minutes * 60
-        seconds = builtins.int(content - hours_in_seconds - minutes_in_seconds)
-        microseconds = builtins.int((
-            content - hours_in_seconds - minutes_in_seconds - seconds
-        ) * 1000 ** 2)
-        self.content = NativeTime(
-            hour=hours, minute=minutes, second=seconds,
-            microsecond=microseconds)
+        content = String(content).get_number(default=content)
+        # TODO check branches.
+        if builtins.isinstance(content, builtins.unicode):
+            for pattern in self.PATTERN:
+# # python3.4
+# #                 match = re.compile(pattern).fullmatch(content)
+                match = re.compile('(?:%s)$' % pattern).match(content)
+# #
+                if match:
+                    result = {}
+                    for type in ('hour', 'minute', 'second', 'microsecond'):
+                        try:
+                            result[type] = builtins.int(match.group(type))
+                        except builtins.IndexError:
+                            pass
+                    self.content = NativeTime(**result)
+        else:
+            hours = builtins.int(content / 60 ** 2)
+            hours_in_seconds = hours * 60 ** 2
+            minutes = builtins.int((content - hours_in_seconds) / 60)
+            minutes_in_seconds = minutes * 60
+            seconds = builtins.int(
+                content - hours_in_seconds - minutes_in_seconds)
+            microseconds = builtins.int((
+                content - hours_in_seconds - minutes_in_seconds - seconds
+            ) * 1000 ** 2)
+            self.content = NativeTime(
+                hour=hours, minute=minutes, second=seconds,
+                microsecond=microseconds)
 
         # # # endregion
 
