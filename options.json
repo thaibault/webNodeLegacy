@@ -160,9 +160,7 @@
 
         "delimiterPattern": "(!|\\?)",
         "webServer": {
-            "hostName": "",
-            "root": "/", "hostName": "127.0.0.1",
-            "default": "<% location['htmlFile']['frontend'] %>",
+            "root": "/", "default": "<% location['htmlFile']['frontend'] %>",
             "requestWhitelist": [
                 "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+",
                 "GET:(/|(<% location['webAsset'] %>.+))",
@@ -227,6 +225,28 @@
                 "dest": "render_template"
             }
         }, {
+            "arguments": ["-n", "--host-name"],
+            "keywords": {
+                "action": "store",
+                "default": "127.0.0.1",
+                "type": {"execute": "str"},
+                "required": false,
+                "help": "Defines application server host name. If you want to make your application server reachable from any incoming domain use the empty string. The default is only listing on requests which comes from the same operating system.",
+                "dest": "host_name",
+                "metavar": "STRING"
+            }
+        }, {
+            "arguments": ["-a", "--proxy-host-name-pattern"],
+            "keywords": {
+                "action": "store",
+                "default": ".+",
+                "type": {"execute": "str"},
+                "required": false,
+                "help": "Defines the proxy host name pattern. The default is to listen on any incoming domain.",
+                "dest": "proxy_host_name_pattern",
+                "metavar": "PATTERN"
+            }
+        }, {
             "arguments": ["-p", "--port"],
             "keywords": {
                 "action": "store",
@@ -239,16 +259,16 @@
                 "metavar": "NUMBER"
             }
         }, {
-            "arguments": ["-i", "--proxy-port"],
+            "arguments": ["-i", "--proxy-ports"],
             "keywords": {
                 "action": "store",
-                "default": 80,
+                "nargs": "*",
+                "default": [80],
                 "type": {"execute": "int"},
-                "choices": {"execute": "range(2 ** 16)"},
                 "required": false,
-                "help": "Defines the proxy port number to for serving static and cached files.",
-                "dest": "proxy_port",
-                "metavar": "NUMBER"
+                "help": "Defines the proxy port numbers to listen for.",
+                "dest": "proxy_ports",
+                "metavar": "PORTS"
             }
         }]
     }

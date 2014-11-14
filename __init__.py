@@ -853,14 +853,18 @@ class Main(Class, Runnable):
         self.__class__.options['frontend']['proxyPort'] = \
             self.__class__.proxy_port = None
         if socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect_ex((
-            self.options['web_server']['host_name'],
-            self.given_command_line_arguments.proxy_port
+            self.given_command_line_arguments.host_name,
+            self.given_command_line_arguments.proxy_ports[0]
         )) == 0:
             self.__class__.port = self.__class__.proxy_port = \
-                self.given_command_line_arguments.proxy_port
+                self.given_command_line_arguments.proxy_ports[0]
             self.__class__.options['frontend']['proxyPort'] = self.proxy_port
             __logger__.info(
-                'Detected proxy server at port %d.', self.proxy_port)
+                'Detected proxy server at "%s" listing on incoming requests '
+                'which matches pattern "%s" on port %d.',
+                self.given_command_line_arguments.host_name,
+                self.given_command_line_arguments.proxy_host_name_pattern,
+                self.proxy_port)
 
         # # endregion
 
@@ -1340,6 +1344,7 @@ class Main(Class, Runnable):
         '''Starts the web server daemon as child thread.'''
         self.__class__.web_server = WebServer(
             port=self.given_command_line_arguments.port,
+            host_name=self.given_command_line_arguments.host_name,
             **self.options['web_server'])
         if callable(getattr(self.controller, 'initialize_frontend', None)):
             self.controller.initialize_frontend()
