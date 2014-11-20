@@ -13,7 +13,7 @@
             "key": {
                 "token": "<% session['dataDescriptionPrefix'] %>SessionToken",
                 "userID": "<% session['dataDescriptionPrefix'] %>UserID",
-                "expirationDateTime": "<% session['dataDescriptionPrefix'] %>SessionExpirationDateTime",
+                "expiration": "<% session['dataDescriptionPrefix'] %>SessionExpirationDateTime",
                 "location": "<% session['dataDescriptionPrefix'] %>Location"
             }
         },
@@ -102,6 +102,7 @@
         }
     },
     "backend": {
+        "finalOptionConsolidation": true,
         "systemCommands": {
             "reloadProxyServer": "/usr/bin/env sudo nginx -s reload"
         },
@@ -114,6 +115,8 @@
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
             "generic": {
+                "latitude": {"minimum": 0, "maximum": 90},
+                "longitude": {"minimum": 0, "maximum": 180},
                 "filePath": {
                     "minimumLength": 1, "maximumLength": 32000,
                     "pattern": ".+",

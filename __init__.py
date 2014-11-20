@@ -27,7 +27,7 @@ __version__ = '1.0'
 import __builtin__ as builtins
 from copy import copy, deepcopy
 from datetime import datetime as DateTime
-from datetime import time as NativeTime
+from datetime import time as Time
 from datetime import date as Date
 from datetime import timedelta as TimeDelta
 import inspect
@@ -35,7 +35,7 @@ import json
 import logging
 import multiprocessing
 import os
-import re
+import re as regularExpression
 import socket
 import sys
 import time
@@ -48,13 +48,14 @@ from sqlalchemy import event as SqlalchemyEvent
 from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
 
-# # python3.4
-from boostNode import ENCODING, convert_to_string, convert_to_unicode
+# # python3.4 pass
+from boostNode import convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
-from boostNode.extension.native import Module, Dictionary, String, Time
+from boostNode.extension.native import Dictionary, Module, Object
 from boostNode.extension.native import String as StringExtension
 from boostNode.extension.output import Print
 from boostNode.extension.system import CommandLine, Runnable, Platform
+from boostNode.extension.system import __exception__ as SystemError
 from boostNode.extension.type import Null
 from boostNode.paradigm.objectOrientation import Class
 from boostNode.runnable.server import Web as WebServer
@@ -138,8 +139,10 @@ class Main(Class, Runnable):
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
         for pattern in cls.options['ignore_web_asset_pattern']:
-# # python3.4             if re.compile(pattern).fullmatch(file.name):
-            if re.compile('(?:%s)$' % pattern).match(file.name):
+# # python3.4
+# #             if regularExpression.compile(pattern).fullmatch(file.name):
+            if regularExpression.compile('(?:%s)$' % pattern).match(file.name):
+# #
                 return False
         return True
 
@@ -153,46 +156,20 @@ class Main(Class, Runnable):
         # # region helper
 
     @classmethod
-    def extend_options(cls, options, consolidate=True):
+    def extend_options(
+        cls, options, consolidate=True, remove_wrap_indicator=False
+    ):
         '''Extends options object with given options.'''
         if options:
-            cls.options = Dictionary(cls.options).update(options).content
+            cls.options = Dictionary(content=cls.options).update(
+                options
+            ).content
             if consolidate:
-                cls.consolidate_options()
+                cls.consolidate_options(remove_wrap_indicator)
         return cls
 
     @classmethod
-    def convert_options_for_client(cls):
-        '''
-            Converts options dictionary for client. Key are converted to its \
-            camel case representation and values are converted to java script \
-            compatible types.
-        '''
-# # python3.4
-# #         cls.options['frontend'] = Dictionary(
-# #             cls.options['frontend']
-# #         ).convert(
-# #             key_wrapper=lambda key, value: cls.convert_for_client(String(
-# #                 key
-# #             ).get_delimited_to_camel_case(
-# #                 preserve_wrong_formatted_abbreviations=True
-# #             ).content),
-# #             value_wrapper=cls.convert_for_client
-# #         ).content
-        cls.options['frontend'] = Dictionary(
-            cls.options['frontend']
-        ).convert(
-            key_wrapper=lambda key, value: cls.convert_for_client(
-                convert_to_unicode(String(key).get_delimited_to_camel_case(
-                    preserve_wrong_formatted_abbreviations=True
-                ).content)),
-            value_wrapper=cls.convert_for_client
-        ).content
-# #
-        return cls
-
-    @classmethod
-    def consolidate_options(cls):
+    def consolidate_options(cls, remove_wrap_indicator=False):
         '''Merges, renders and resolves internal option dependencies.'''
         '''
             NOTE: This is the only backend needed camel case option, because \
@@ -205,7 +182,7 @@ class Main(Class, Runnable):
             We convert only keys to backend compatible types to make them \
             available for the rendering phase.
         '''
-        cls.options = Dictionary(cls.options).convert(
+        cls.options = Dictionary(content=cls.options).convert(
             key_wrapper=lambda key, value: cls.convert_for_backend(key),
             remove_wrap_indicator=False
         ).content
@@ -217,7 +194,7 @@ class Main(Class, Runnable):
         '''
         for number in builtins.range(2):
 # # python3.4
-# #             cls.options = Dictionary(cls.options).convert(
+# #             cls.options = Dictionary(content=cls.options).convert(
 # #                 value_wrapper=lambda key, value: TemplateParser(
 # #                     value.replace('\\', 2 * '\\').replace(
 # #                         '%s%s' % (
@@ -239,7 +216,7 @@ class Main(Class, Runnable):
                 NOTE: A check for "<%" avoids parsing plain strings as \
                 templates and lose many performance.
             '''
-            cls.options = Dictionary(cls.options).convert(
+            cls.options = Dictionary(content=cls.options).convert(
                 value_wrapper=lambda key, value: TemplateParser(
                     convert_to_unicode(value).replace(
                         '\\', 2 * '\\'
@@ -266,17 +243,19 @@ class Main(Class, Runnable):
             the values after rendering phase.
         '''
 # # python3.4
-# #         cls.options = Dictionary(cls.options).convert(
+# #         cls.options = Dictionary(content=cls.options).convert(
 # #             key_wrapper=lambda key, value: String(
 # #                 key
-# #             ).get_camel_case_to_delimited().content,
-# #             value_wrapper=cls.convert_for_backend
+# #             ).camel_case_to_delimited(.content,
+# #             value_wrapper=cls.convert_for_backend,
+# #             remove_wrap_indicator=remove_wrap_indicator
 # #         ).content
-        cls.options = Dictionary(cls.options).convert(
+        cls.options = Dictionary(content=cls.options).convert(
             key_wrapper=lambda key, value: convert_to_unicode(String(
                 key
-            ).get_camel_case_to_delimited().content),
+            ).camel_case_to_delimited.content),
             value_wrapper=cls.convert_for_backend,
+            remove_wrap_indicator=remove_wrap_indicator
         ).content
 # #
         cls.options['frontend'] = frontend_options
@@ -323,8 +302,15 @@ class Main(Class, Runnable):
                 function=cls._render_template, recursive=True, mapping=mapping)
             if(cls.proxy_port is not None and
                cls.options['system_commands']['reload_proxy_server']):
-                Platform.run(command=cls.options['system_commands'][
-                    'reload_proxy_server'])
+                try:
+                    Platform.run(
+                        command=cls.options['system_commands'][
+                            'reload_proxy_server'])
+                except SystemError as exception:
+                    __logger__.warning(
+                        '%s: %s You may have a miss configured proxy server '
+                        'at port %d.', exception.__class__.__name__,
+                        builtins.str(exception), cls.proxy_port)
         cls._render_html_templates(mapping)
         return cls
 
@@ -354,220 +340,53 @@ class Main(Class, Runnable):
         '''Returns the serialized version of given value.'''
         if value is Null:
             value = key
-        else:
 # # python3.4
-# #             if builtins.isinstance(value, Date):
-# #                 return time.mktime(value.timetuple())
-# #             if builtins.isinstance(value, DateTime):
-# #                 return value.timestamp(
-# #                 ) + builtins.float(value.microsecond) / 1000 ** 2
-            if builtins.isinstance(value, Date):
-                return time.mktime(value.timetuple())
-            if builtins.isinstance(value, DateTime):
-                return(
-                    time.mktime(value.timetuple()) +
-                    value.microsecond / 1000 ** 2)
+# #         if(builtins.isinstance(key, builtins.str) and (
+# #             key == 'language' or key.endswith('_language') or
+# #             key.endswith('Language')
+# #         )) and regularExpression.compile('[a-z]{2}_[a-z]{2}').fullmatch(
+# #             value
+# #         ):
+# #             return '%s%s' % (String(
+# #                 value
+# #             ).delimited_to_camel_case.content[:-1], value[-1].upper())
+        if(builtins.isinstance(key, builtins.unicode) and (
+            key == 'language' or key.endswith('_language') or
+            key.endswith('Language')
+        )) and regularExpression.compile('[a-z]{2}_[a-z]{2}$').match(value):
+            return '%s%s' % (convert_to_unicode(String(
+                value
+            ).delimited_to_camel_case.content[:-1]),
+            convert_to_unicode(value[-1].upper()))
 # #
-            if builtins.isinstance(value, NativeTime):
-                return(
-                    60.0 ** 2 * value.hour + 60 * value.minute +
-                    value.second + value.microsecond / 1000 ** 2)
-# # python3.4
-# #             if(builtins.isinstance(key, builtins.str) and (
-# #                 key == 'language' or key.endswith('_language') or
-# #                 key.endswith('Language')
-# #             )) and re.compile('[a-z]{2}_[a-z]{2}').fullmatch(value):
-# #                 return '%s%s' % (String(value).get_delimited_to_camel_case(
-# #                 ).content[:-1], value[-1].upper())
-            if(builtins.isinstance(key, builtins.unicode) and (
-                key == 'language' or key.endswith('_language') or
-                key.endswith('Language')
-            )) and re.compile('[a-z]{2}_[a-z]{2}$').match(value):
-                return '%s%s' % (convert_to_unicode(String(
-                    value
-                ).get_delimited_to_camel_case().content[:-1]),
-                convert_to_unicode(value[-1].upper()))
-# #
-            if builtins.isinstance(value, TimeDelta):
-                return value.total_seconds()
-        if not builtins.isinstance(value, (
-            builtins.int, builtins.float, builtins.type(None)
-        )):
-# # python3.4             return builtins.str(value)
-            return convert_to_unicode(value)
-
-        return value
-
-    @classmethod
-    def convert_dictionary_for_backend(cls, data):
-        '''Converts a given dictionary in backend compatible data types.'''
-# # python3.4
-# #         return Dictionary(data).convert(
-# #             key_wrapper=lambda key, value: String(
-# #                 key
-# #             ).get_camel_case_to_delimited().content if builtins.isinstance(
-# #                 key, builtins.str
-# #             ) else cls.convert_for_backend(key),
-# #             value_wrapper=cls.convert_for_backend
-# #         ).content
-        return Dictionary(data).convert(
-            key_wrapper=lambda key, value: convert_to_unicode(
-                String(key).get_camel_case_to_delimited().content
-            ) if builtins.isinstance(
-                key, (builtins.unicode, builtins.str)
-            ) else cls.convert_for_backend(key),
-            value_wrapper=cls.convert_for_backend
-        ).content
-# #
+        return Object(content=value).compatible_type
 
     @classmethod
     def convert_for_backend(cls, key, value=Null):
         '''Converts data from client to python specific data objects.'''
-        if value is not None:
-            if value is Null:
-                value = key
+        if value is Null:
+            value = key
 # # python3.4
-# #             elif builtins.isinstance(key, builtins.str):
-            elif builtins.isinstance(key, (
-                builtins.unicode, builtins.str
-            )):
+# #         if builtins.isinstance(
+# #             key, builtins.str
+# #         ) and (key == 'language' or key.endswith('_language') or
+# #         key.endswith('Language')) and regularExpression.compile(
+# #             '[a-z]{2}[A-Z]{2}'
+# #         ).fullmatch(value):
+# #             return String(
+# #                 value
+# #             ).camel_case_to_delimited.content
+        if builtins.isinstance(key, (
+            builtins.unicode, builtins.str
+        )) and (key == 'language' or key.endswith('_language') or
+            key.endswith('Language')
+        ) and regularExpression.compile('[a-z]{2}[A-Z]{2}$').match(value):
+            return convert_to_unicode(String(
+                value
+            ).camel_case_to_delimited.content)
 # #
-                if key == 'date_time' or key.endswith(
-                    '_date_time'
-                ) or key.endswith('DateTime'):
-                    if builtins.isinstance(
-                        value, (builtins.int, builtins.float)
-                    ):
-                        try:
-                            return DateTime.fromtimestamp(value)
-                        except builtins.ValueError:
-                            pass
-                    converted_value = String(value).get_number()
-                    if builtins.isinstance(
-                        converted_value, (builtins.int, builtins.float)
-                    ):
-                        try:
-                            return DateTime.fromtimestamp(converted_value)
-                        except builtins.ValueError:
-                            pass
-# # python3.4
-# #                     if builtins.isinstance(value, builtins.str):
-                    if builtins.isinstance(
-                        value, (builtins.unicode, builtins.str)
-                    ):
-# #
-                        for delimiter in ('/', '.', ':'):
-                            for year_format in ('%y', '%Y'):
-                                for ms_format in ('', ':%f'):
-                                    for date_time_format in (
-                                        '%c',
-                                        '%d{delimiter}%m{delimiter}{year} '
-                                        '%X{microsecond}',
-                                        '%m{delimiter}%d{delimiter}{year} '
-                                        '%X{microsecond}',
-                                        '%w{delimiter}%m{delimiter}{year} '
-                                        '%X{microsecond}',
-                                    ):
-                                        try:
-                                            return DateTime.strptime(
-                                                value, date_time_format.format(
-                                                    delimiter=delimiter,
-                                                    year=year_format,
-                                                    microsecond=ms_format)
-                                            )
-                                        except builtins.ValueError:
-                                            pass
-                elif key == 'date' or key.endswith('_date') or key.endswith(
-                    'Date'
-                ):
-                    if builtins.isinstance(
-                        value, (builtins.int, builtins.float)
-                    ):
-                        try:
-                            return Date.fromtimestamp(value)
-                        except builtins.ValueError:
-                            pass
-                    converted_value = String(value).get_number()
-                    if builtins.isinstance(converted_value, (
-                        builtins.int, builtins.float
-                    )):
-                        try:
-                            return Date.fromtimestamp(converted_value)
-                        except builtins.ValueError:
-                            pass
-# # python3.4
-# #                     if builtins.isinstance(value, builtins.str):
-                    if builtins.isinstance(value, (
-                        builtins.unicode, builtins.str
-                    )):
-# #
-                        for delimiter in ('/', '.', ':'):
-                            for year_format in ('%y', '%Y'):
-                                for date_format in (
-                                    '%x', '%d{delimiter}%m{delimiter}{year}',
-                                    '%m{delimiter}%d{delimiter}{year}',
-                                    '%w{delimiter}%m{delimiter}{year}'
-                                ):
-                                    try:
-# # python3.4
-# #                                        return Date.fromtimestamp(
-# #                                            DateTime.strptime(
-# #                                                value, date_format.format(
-# #                                                    delimiter=delimiter,
-# #                                                    year=year_format
-# #                                                )).timestamp())
-                                        return Date.fromtimestamp(time.mktime(
-                                            DateTime.strptime(
-                                                value, date_format.format(
-                                                    delimiter=delimiter,
-                                                    year=year_format
-                                                )).timetuple()))
-# #
-                                    except builtins.ValueError:
-                                        pass
-                elif key == 'time' or key.endswith('_time') or key.endswith(
-                    'Time'
-                ):
-                    # TODO do other times like this.
-                    return Time(value).content
-                elif key == 'time_delta' or key.endswith('_time_delta'):
-                    if builtins.isinstance(
-                        value, (builtins.int, builtins.float)
-                    ):
-                        try:
-                            return TimeDelta(seconds=value)
-                        except builtins.ValueError:
-                            pass
-                    converted_value = String(value).get_number()
-                    if builtins.isinstance(
-                        converted_value, (builtins.int, builtins.float)
-                    ):
-                        try:
-                            return TimeDelta(seconds=converted_value)
-                        except builtins.ValueError:
-                            pass
-# # python3.4
-# #                 if(key == 'language' or key.endswith('_language') or
-# #                    key.endswith('Language')
-# #                    ) and re.compile('[a-z]{2}[A-Z]{2}').fullmatch(value):
-# #                     return String(
-# #                         value
-# #                     ).get_camel_case_to_delimited().content
-# #             if builtins.isinstance(value, builtins.str):
-# #                 return String(value).get_number()
-                if(key == 'language' or key.endswith('_language') or
-                   key.endswith('Language')
-                   ) and re.compile('[a-z]{2}[A-Z]{2}$').match(value):
-                    return convert_to_unicode(String(
-                        value
-                    ).get_camel_case_to_delimited().content)
-            if builtins.isinstance(value, (builtins.unicode, builtins.str)):
-                number = String(value).get_number()
-                if builtins.isinstance(number, builtins.str):
-                    return convert_to_unicode(number)
-                return number
-# #
-        return value
+        return Object(content=value).get_known_type(
+            description=None if key == value else key)
 
         # # endregion
 
@@ -622,7 +441,7 @@ class Main(Class, Runnable):
         '''
 # # python3.4
 # #         pass
-        force_stopping, keywords = Dictionary(keywords).pop(
+        force_stopping, keywords = Dictionary(content=keywords).pop(
             name='force_stopping', default_value=False)
 # #
         if self.web_server:
@@ -669,7 +488,7 @@ class Main(Class, Runnable):
         if user is not None:
             account_data = user.dictionary
             account_state = builtins.hash(
-                Dictionary(account_data).get_immutable())
+                Dictionary(content=account_data).get_immutable())
         return TemplateParser(
             offline_manifest_template_file,
             template_context_default_indent=self.options[
@@ -723,19 +542,55 @@ class Main(Class, Runnable):
         # region runnable implementation
 
     def _initialize(self):
-        '''Starts the web controller if already started.'''
+        '''Starts the web controller if server is already running.'''
 
         # # region properties
 
         self.data = __request_arguments__
         self.new_cookie = {}
         '''Normalize get and payload data.'''
-        self.data['get'] = self.convert_dictionary_for_backend(
-            self.data['get'])
+# # python3.4
+# #         self.data['get'] = Dictionary(content=self.data['get']).convert(
+# #             key_wrapper=lambda key, value: self.convert_for_backend(String(
+# #                 key
+# #             ).camel_case_to_delimited.content if isinstance(
+# #                 key, str
+# #             ) else key), value_wrapper=self.convert_for_backend
+# #         ).content
+        self.data['get'] = Dictionary(content=self.data['get']).convert(
+            key_wrapper=lambda key, value: self.convert_for_backend(String(
+                key
+            ).camel_case_to_delimited.content if isinstance(
+                key, (unicode, str)
+            ) else key), value_wrapper=self.convert_for_backend
+        ).content
+# #
         if builtins.isinstance(self.data['data'], builtins.list):
             for index, item in builtins.enumerate(self.data['data']):
-                self.data['data'][index] = self.convert_dictionary_for_backend(
-                    item)
+# # python3.4
+# #                 self.data['data'][index] = Dictionary(
+# #                     content=item
+# #                 ).convert(
+# #                     key_wrapper=lambda key, value:
+# #                         self.convert_for_backend(
+# #                             String(
+# #                                 key
+# #                             ).camel_case_to_delimited.content if \
+# #                                 isinstance(key, str) else key
+# #                         ), value_wrapper=self.convert_for_backend
+# #                 ).content
+                self.data['data'][index] = Dictionary(
+                    content=item
+                ).convert(
+                    key_wrapper=lambda key, value:
+                        self.convert_for_backend(
+                            String(
+                                key
+                            ).camel_case_to_delimited.content if \
+                                isinstance(key, (unicode, str)) else key
+                        ), value_wrapper=self.convert_for_backend
+                ).content
+# #
         else:
             if self.options['remove_duplicated_request_key']:
                 for key, value in self.data['data'].items():
@@ -744,8 +599,30 @@ class Main(Class, Runnable):
                             self.data['data'][key] = value[0]
                         else:
                             self.data['data'][key] = None
-            self.data['data'] = self.convert_dictionary_for_backend(
-                self.data['data'])
+# # pythoin3.4
+# #             self.data['data'] = Dictionary(
+# #                 content=self.data['data']
+# #             ).convert(
+# #                 key_wrapper=lambda key, value: self.convert_for_backend(
+# #                     String(
+# #                         key
+# #                     ).camel_case_to_delimited.content if isinstance(
+# #                         key, str
+# #                     ) else key
+# #                 ), value_wrapper=self.convert_for_backend
+# #             ).content
+            self.data['data'] = Dictionary(
+                content=self.data['data']
+            ).convert(
+                key_wrapper=lambda key, value: self.convert_for_backend(
+                    String(
+                        key
+                    ).camel_case_to_delimited.content if isinstance(
+                        key, (unicode, str)
+                    ) else key
+                ), value_wrapper=self.convert_for_backend
+            ).content
+# #
         self.authorized_user = self.authenticate()
 
         # # endregion
@@ -798,17 +675,6 @@ class Main(Class, Runnable):
             sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
         if Controller is not None:
             self.__class__.controller = Controller(main=self.__class__)
-            if 'authentication_handler' in self.options['web_server']:
-# # python3.4
-# #                 self.options['web_server']['authentication_handler'] = \
-# #                 builtins.eval(
-# #                     self.options['web_server']['authentication_handler'],
-# #                     {'controller': self.controller})
-                self.options['web_server']['authentication_handler'] = \
-                builtins.eval(
-                    self.options['web_server']['authentication_handler'],
-                    {'controller': self.controller})
-# #
         try:
             self.__class__.model = builtins.__import__('model')
         except builtins.ImportError:
@@ -823,32 +689,6 @@ class Main(Class, Runnable):
             location=self.options['location']['html_file']['backend'])
         self.__class__.html_template_file = FileHandler(
             location=self.options['location']['html_file']['template'])
-# # python3.4
-# #         self.__class__.frontend_data_wrapper = {
-# #             'key_wrapper': lambda key, value: self.convert_for_client(
-# #                 String(key).get_delimited_to_camel_case(
-# #                 ).content if builtins.isinstance(
-# #                     key, builtins.str
-# #                 ) else key), 'value_wrapper': self.convert_for_client}
-# #         self.__class__.backend_data_wrapper = {
-# #             'key_wrapper': lambda key, value: self.convert_for_backend(
-# #                 String(key).get_camel_case_to_delimited(
-# #                 ).content if builtins.isinstance(
-# #                     key, builtins.str
-# #                 ) else key), 'value_wrapper': self.convert_for_backend}
-        self.__class__.frontend_data_wrapper = {
-            'key_wrapper': lambda key, value: self.convert_for_client(
-                String(key).get_delimited_to_camel_case(
-                ).content if builtins.isinstance(
-                    key, (builtins.unicode, builtins.str)
-                ) else key), 'value_wrapper': self.convert_for_client}
-        self.__class__.backend_data_wrapper = {
-            'key_wrapper': lambda key, value: self.convert_for_backend(
-                String(key).get_camel_case_to_delimited(
-                ).content if builtins.isinstance(
-                    key, (builtins.unicode, builtins.str)
-                ) else key), 'value_wrapper': self.convert_for_backend}
-# #
         self.__class__.port = self.given_command_line_arguments.port
         self.__class__.options['frontend']['proxyPort'] = \
             self.__class__.proxy_port = None
@@ -878,7 +718,27 @@ class Main(Class, Runnable):
         self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
-        self.convert_options_for_client()
+# # python3.4
+# #         if self.controller is not None and builtins.isinstance(
+# #             self.options['web_server'].get('authentication_handler'),
+# #             builtins.str
+# #         ):
+# #             self.options['web_server']['authentication_handler'] = \
+# #             builtins.eval(
+# #                 self.options['web_server']['authentication_handler'],
+# #                 {'controller': self.controller})
+        if self.controller is not None and builtins.isinstance(
+            self.options['web_server'].get('authentication_handler'),
+            (builtins.unicode, builtins.str)
+        ):
+            self.options['web_server']['authentication_handler'] = \
+            builtins.eval(
+                self.options['web_server']['authentication_handler'],
+                {'controller': self.controller})
+# #
+        self.__class__.options['frontend'] = Dictionary(
+            content=self.options['frontend']
+        ).compatible_types.content
         if(self.options['initial_template_rendering'] or
            self.given_command_line_arguments.render_template):
             __logger__.info('Render template files.')
@@ -965,7 +825,7 @@ class Main(Class, Runnable):
         mapping = cls.controller.get_template_scope(deepcopy(mapping))
         if mapping['options']['frontend']['admin']:
             mapping['options']['frontend'] = Dictionary(
-                mapping['options']['frontend']
+                content=mapping['options']['frontend']
             ).update(cls.options['frontend']['admin']).content
         return TemplateParser(
             file, template_context_default_indent=cls.options[
@@ -1193,7 +1053,14 @@ class Main(Class, Runnable):
     @classmethod
     def _append_model_informations_to_options(cls):
         '''Appends validation strings to the global options object.'''
-        cls.options['type'] = {}
+        '''
+            NOTE: If final option consolidation is activated we don't have to \
+            explicitly prevent type property rendering.
+        '''
+        cls.options['type'] = {'__no_wrapping__': {}}
+        option_target = cls.options['type']['__no_wrapping__']
+        if cls.options['final_option_consolidation']:
+            option_target = cls.options['type'] = {}
         for model_name, model in Module.get_defined_objects(cls.model):
             name = model_name[0]
             if len(model_name) > 1:
@@ -1201,57 +1068,55 @@ class Main(Class, Runnable):
             if builtins.isinstance(
                 model, builtins.type
             ) and builtins.issubclass(model, cls.model.Model):
-                cls.options['type'][name] = {}
+                option_target[name] = {}
                 for property in model.__table__.columns:
-                    cls.options['type'][name][property.name] = {
-                        'required': True}
+                    option_target[name][property.name] = {'required': True}
                     if property.info:
-                        cls.options['type'][name][property.name].update(
+                        option_target[name][property.name].update(
                             property.info)
                     if builtins.hasattr(
                         property.type, 'length'
                     ) and builtins.isinstance(
                         property.type.length, builtins.int
                     ):
-                        cls.options['type'][name][property.name][
+                        option_target[name][property.name][
                             'maximum_length'
                         ] = property.type.length
                     if(builtins.hasattr(property, 'default') and
                        property.default is not None):
-                        cls.options['type'][name][property.name][
-                            'required'
-                        ] = False
+                        option_target[name][property.name]['required'] = False
                         default_value = property.default.arg
                         if builtins.callable(default_value):
                             if builtins.hasattr(
                                 cls.model,
                                 'determine_language_specific_default_value'
                             ) and default_value == cls.model\
-                                    .determine_language_specific_default_value:
+                            .determine_language_specific_default_value:
 # # python3.4
-# #                                 default_value = Dictionary(cls.options[
-# #                                     'model'
-# #                                 ]['generic']['language_specific'][
-# #                                     'default'
-# #                                 ][property.name]).convert(
-# #                                     key_wrapper=lambda key, value: cls
-# #                                     .convert_for_client(String(
-# #                                         key
-# #                                     ).get_delimited_to_camel_case(
-# #                                     ).content)
-# #                                 ).content
-                                default_value = Dictionary(cls.options[
-                                    'model'
-                                ]['generic']['language_specific'][
-                                    'default'
-                                ][property.name]).convert(
-                                    key_wrapper=lambda key, value: cls
-                                    .convert_for_client(convert_to_unicode(
-                                        String(
-                                            key
-                                        ).get_delimited_to_camel_case(
-                                        ).content))
-                                ).content
+# #                                 default_value = Dictionary(
+# #                                     content=cls.options['model'][
+# #                                         'generic'
+# #                                     ]['language_specific']['default'][
+# #                                         property.name
+# #                                     ]).convert(
+# #                                         key_wrapper=lambda key, value: cls
+# #                                         .convert_for_client(String(
+# #                                             key
+# #                                         ).delimited_to_camel_case.content)
+# #                                     ).content
+                                default_value = Dictionary(
+                                    content=cls.options['model'][
+                                        'generic'
+                                    ]['language_specific']['default'][
+                                        property.name
+                                    ]).convert(
+                                        key_wrapper=lambda key, value: cls
+                                        .convert_for_client(
+                                            convert_to_unicode(String(
+                                                key
+                                            ).delimited_to_camel_case\
+                                            .content))
+                                    ).content
 # #
                             else:
                                 default_value = property.default.arg(
@@ -1261,39 +1126,39 @@ class Main(Class, Runnable):
                         else:
                             default_value = cls.convert_for_client(
                                 key=property.name, value=default_value)
-                        cls.options['type'][name][property.name][
-                            'default_value'
-                        ] = default_value
+                        option_target[name][property.name]['default_value'] = \
+                            default_value
                     elif builtins.hasattr(
                         property, 'nullable'
                     ) and property.nullable:
-                        cls.options['type'][name][property.name][
-                            'required'
-                        ] = False
+                        option_target[name][property.name]['required'] = False
         return cls
 
     @classmethod
     def _merge_options(cls):
         '''Merge frontend and backend options.'''
-        cls.options = Dictionary(cls.options).update(
+        cls.options = Dictionary(content=cls.options).update(
             cls.options['both']
         ).update(cls.options['backend']).content
-        cls.options['frontend'] = Dictionary(cls.options['both']).update(
-            cls.options['frontend']
-        ).content
+        cls.options['frontend'] = Dictionary(
+            content=cls.options['both']
+        ).update(cls.options['frontend']).content
         return cls
 
     @classmethod
     def _set_options(cls):
         '''Renders backend and frontend options.'''
         configuration_file = FileHandler(location=cls.CONFIGURATION_FILE_PATH)
-        cls.options = Dictionary(json.loads(FileHandler(
+        cls.options = Dictionary(content=json.loads(FileHandler(
             location='/%s%s' % (cls.package_name, configuration_file.path)
         ).content)).content
         if configuration_file.is_file():
-            return cls.extend_options(options=json.loads(
-                configuration_file.content))
-        return cls.consolidate_options()
+            return cls.extend_options(
+                options=json.loads(configuration_file.content),
+                remove_wrap_indicator=cls.options['backend'][
+                    'finalOptionConsolidation'])
+        return cls.consolidate_options(
+            remove_wrap_indicator=cls.options['final_option_consolidation'])
 
     @SqlalchemyEvent.listens_for(SqlalchemyEngine, 'connect')
     def _set_sqlite_foreign_key_pragma(dbapi_connection, connection_record):
@@ -1336,8 +1201,6 @@ class Main(Class, Runnable):
 
         # # endregion
 
-        # endregion
-
         # region web server
 
     def _start_web_server(self):
@@ -1346,7 +1209,9 @@ class Main(Class, Runnable):
             port=self.given_command_line_arguments.port,
             host_name=self.given_command_line_arguments.host_name,
             **self.options['web_server'])
-        if callable(getattr(self.controller, 'initialize_frontend', None)):
+        if builtins.callable(builtins.getattr(
+            self.controller, 'initialize_frontend', None
+        )):
             self.controller.initialize_frontend()
         return self.wait_for_order()
 
@@ -1435,6 +1300,8 @@ class Main(Class, Runnable):
         return self
 
         # endregion
+
+    # # endregion
 
     # endregion
 

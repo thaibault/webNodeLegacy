@@ -28,7 +28,7 @@ from datetime import datetime as DateTime
 import inspect
 import json
 import os
-import re
+import re as regularExpression
 import shutil
 import time
 
@@ -99,12 +99,12 @@ class Response(Class):
 # #                 method_name = '%s_%s_model' % (
 # #                     self.request.data['request_type'], String(
 # #                         self.request.data['get']['__model__']
-# #                     ).get_camel_case_to_delimited().content)
+# #                     ).camel_case_to_delimited.content)
                 method_name = '%s_%s_model' % (
                     self.request.data['request_type'], convert_to_unicode(
                         String(
                             self.request.data['get']['__model__']
-                        ).get_camel_case_to_delimited().content))
+                        ).camel_case_to_delimited.content))
 # #
                 if builtins.hasattr(self, method_name):
                     self.model = builtins.getattr(self, method_name)
@@ -113,10 +113,27 @@ class Response(Class):
                     self.model = builtins.getattr(
                         self.request.controller, method_name)
             '''
-                A mapping to wrap each respond to client. Can be overridden \
-                in subclasses.
+                Converter keywords to wrap each respond to client. Can be \
+                overridden in subclasses.
             '''
-            self.data_wrapper = self.request.frontend_data_wrapper
+# # python3.4
+# #             self.data_wrapper = {
+# #                 'key_wrapper': lambda key, value:
+# #                     self.request.convert_for_client(String(
+# #                         key
+# #                     ).delimited_to_camel_case.content if \
+# #                         builtins.isinstance(key, builtins.str) else key),
+# #                 'value_wrapper': self.request.convert_for_client}
+            self.data_wrapper = {
+                'key_wrapper': lambda key, value:
+                    self.request.convert_for_client(String(
+                        key
+                    ).delimited_to_camel_case.content if \
+                        builtins.isinstance(key, (
+                            builtins.unicode, builtins.str
+                        )) else key),
+                'value_wrapper': self.request.convert_for_client}
+# #
 
         # # endregion
 
@@ -149,13 +166,10 @@ class Response(Class):
                             for index, item in builtins.enumerate(
                                 self.request.data[dataType]
                             ):
-                                self.request.data[dataType][index] = \
-                                    self.request.controller\
-                                    .convert_for_database(item)
+                                self.request.data[dataType][index] = item
                         else:
-                            self.request.data[dataType] = \
-                                self.request.controller.convert_for_database(
-                                    self.request.data[dataType])
+                            self.request.data[dataType] = self.request.data[
+                                dataType]
                 if builtins.hasattr(self.model, '__table__'):
                     method = builtins.getattr(
                         self, 'process_%s' % self.request.data['request_type'])
@@ -172,12 +186,20 @@ class Response(Class):
                             frontend need it as validation message.
                         '''
                         self.session.rollback()
+# # python3.4
+# #                         self.request.data['handler'].send_response(
+# #                             400 if builtins.isinstance(
+# #                                 exception, builtins.ValueError
+# #                             ) else 409, '%s: "%s"' % (
+# #                                 exception.__class__.__name__,
+# #                                 builtins.str(exception)))
                         self.request.data['handler'].send_response(
                             400 if builtins.isinstance(
                                 exception, builtins.ValueError
                             ) else 409, '%s: "%s"' % (
                                 exception.__class__.__name__,
                                 convert_to_unicode(exception)))
+# #
                         result = {}
                 elif self.request.data['request_type'] == 'get':
                     if self.method_in_rest_controller:
@@ -206,14 +228,14 @@ class Response(Class):
 # #                 'last_data_write_date_time_header_name'
 # #             ]).get_camel_case_to_delimited(delimiter='-').sub(
 # #                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-# #             ).get_camel_case_capitalize().content, builtins.str(
+# #             ).camel_case_capitalize.content, builtins.str(
 # #                 self.request.rest_data_timestamp_reference_file.timestamp))
         self.request.data['handler'].send_header(
             convert_to_unicode(String(self.request.options[
                 'last_data_write_date_time_header_name'
             ]).get_camel_case_to_delimited(delimiter='-').sub(
                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-            ).get_camel_case_capitalize().content),
+            ).camel_case_capitalize.content),
             convert_to_unicode(
                 self.request.rest_data_timestamp_reference_file.timestamp))
 # #
@@ -380,8 +402,12 @@ class Response(Class):
         ):
             ignored = False
             for pattern in self.request.options['ignore_web_asset_pattern']:
-# # python3.4                 if re.compile(pattern).fullmatch(file.name):
-                if re.compile('(?:%s)$' % pattern).match(file.name):
+# # python3.4
+# #                 if regularExpression.compile(pattern).fullmatch(file.name):
+                if regularExpression.compile('(?:%s)$' % pattern).match(
+                    file.name
+                ):
+# #
                     ignored = True
                     break
             if ignored:
@@ -394,10 +420,10 @@ class Response(Class):
 # # python3.4
 # #                 attribute_name_camel_case = String(
 # #                     attribute_name
-# #                 ).get_delimited_to_camel_case().content
-                attribute_name_camel_case = convert_to_unicode(
-                    String(attribute_name).get_delimited_to_camel_case(
-                    ).content)
+# #                 ).delimited_to_camel_case.content
+                attribute_name_camel_case = convert_to_unicode(String(
+                    attribute_name
+                ).delimited_to_camel_case.content)
 # #
                 if attribute_name_camel_case not in data or builtins.getattr(
                     file, attribute_name

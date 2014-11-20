@@ -78,11 +78,6 @@ class Main(object):
         '''Returns manipulated main index html template scope variables.'''
         return current_scope
 
-    @classmethod
-    def convert_for_database(cls, data):
-        '''Converts given data to database compatible values.'''
-        return data
-
         # endregion
 
     def response(
