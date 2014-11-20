@@ -173,7 +173,7 @@
             "requestParameterDelimiter": "<% delimiterPattern %>",
             "authentication": false, "moduleLoading": "<% moduleName %>",
             "authenticationFileName": "", "stopOrder": "",
-            "directoryListing": false, "maximumNumberOfProcesses": 4
+            "directoryListing": false, "maximumNumberOfProcesses": 0
         },
         "location": {
             "htmlFile": {
