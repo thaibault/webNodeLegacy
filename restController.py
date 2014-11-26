@@ -301,10 +301,12 @@ class Response(Class):
                         '''
                         result = user.get_dictionary(**self.data_wrapper)
                         return result
-            elif(self.request.authorized_user is not None and
-                 data.get('id') == self.request.authorized_user.id):
-                return self.request.authorized_user.get_dictionary(
-                    **self.data_wrapper)
+            elif(self.request.authorized_user_id is not None and
+                 data.get('id') == self.request.authorized_user_id):
+                users = self.session.query(self.model).filter_by(
+                    id=self.request.authorized_user_id)
+                if users.count():
+                    return users.one().get_dictionary(**self.data_wrapper)
 
     def process_put(self, get, data):
         '''Computes the put response object.'''

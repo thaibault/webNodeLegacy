@@ -9,7 +9,7 @@
         "lastDataWriteDateTimeHeaderName": "<% session['dataDescriptionPrefix'] %>LastDataWriteDateTime",
         "session": {
             "dataDescriptionPrefix": "application",
-            "expirationTimeDelta": 1440,
+            "expirationTimeDelta": 3600,
             "key": {
                 "token": "<% session['dataDescriptionPrefix'] %>SessionToken",
                 "userID": "<% session['dataDescriptionPrefix'] %>UserID",
@@ -124,7 +124,8 @@
                 },
                 "fileName": {
                     "minimumLength": "<% model['generic']['filePath']['minimumLength'] %>",
-                    "maximumLength": 255, "pattern": "<% model['generic']['filePath']['pattern'] %>",
+                    "maximumLength": 255,
+                    "pattern": "<% model['generic']['filePath']['pattern'] %>",
                     "fileReference": "<% location['medium'] %>%s"
                 },
                 "text": {"pattern": "(\\s|.)*"},

@@ -53,6 +53,7 @@ from boostNode import convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, Object
 from boostNode.extension.native import String as StringExtension
+from boostNode.extension.native import __exception__ as NativeError
 from boostNode.extension.output import Print
 from boostNode.extension.system import CommandLine, Runnable, Platform
 from boostNode.extension.system import __exception__ as SystemError
@@ -74,7 +75,6 @@ try:
         'restController', {}, {}, ('Response',)
     ).Response
 except builtins.ImportError as exception:
-    raise
     module_import_error = exception
     Controller = RestResponse = None
 else:
@@ -265,8 +265,11 @@ class Main(Class, Runnable):
     def extend_user_authorization(
         cls, user_id, session_token, location=None
     ):
-        '''Extends user authorization time.'''
-        user = None
+        '''
+            Extends user authorization time. If successfully the user id will \
+            be returned "None" otherwise.
+        '''
+        result = None
         if user_id and session_token:
             session = create_database_session(bind=cls.engine)()
             users = session.query(cls.model.User).filter(
@@ -278,15 +281,16 @@ class Main(Class, Runnable):
                 user = users.one()
                 user.session_expiration_date_time = DateTime.now(
                 ) + cls.options['session']['expiration_time_delta']
-                __logger__.info('Authorize user "%d" for %d hours.', user.id, (
-                    cls.options['session'][
+                __logger__.info('Authorize user "%d" for %.2f hours.', user.id,
+                    (cls.options['session'][
                         'expiration_time_delta'
-                    ].total_seconds() / 60
-                ) / 60)
+                    ].total_seconds() / 60) / 60)
                 if location is not None:
                     user.location = location
                 session.commit()
-        return user
+                result = user.id
+            session.close()
+        return result
 
     @classmethod
     def render_templates(cls, all=False):
@@ -385,8 +389,11 @@ class Main(Class, Runnable):
                 value
             ).camel_case_to_delimited.content)
 # #
-        return Object(content=value).get_known_type(
-            description=None if key == value else key)
+        try:
+            return Object(content=value).get_known_type(
+                description=None if key == value else key)
+        except NativeError:
+            return value
 
         # # endregion
 
@@ -623,7 +630,7 @@ class Main(Class, Runnable):
                 ), value_wrapper=self.convert_for_backend
             ).content
 # #
-        self.authorized_user = self.authenticate()
+        self.authorized_user_id = self.authenticate()
 
         # # endregion
 
@@ -683,12 +690,6 @@ class Main(Class, Runnable):
             else:
                 raise
         self._append_model_informations_to_options()
-        self.__class__.frontend_html_file = FileHandler(
-            location=self.options['location']['html_file']['frontend'])
-        self.__class__.backend_html_file = FileHandler(
-            location=self.options['location']['html_file']['backend'])
-        self.__class__.html_template_file = FileHandler(
-            location=self.options['location']['html_file']['template'])
         self.__class__.port = self.given_command_line_arguments.port
         self.__class__.options['frontend']['proxyPort'] = \
             self.__class__.proxy_port = None
@@ -718,6 +719,12 @@ class Main(Class, Runnable):
         self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
+        self.__class__.frontend_html_file = FileHandler(
+            location=self.options['location']['html_file']['frontend'])
+        self.__class__.backend_html_file = FileHandler(
+            location=self.options['location']['html_file']['backend'])
+        self.__class__.html_template_file = FileHandler(
+            location=self.options['location']['html_file']['template'])
 # # python3.4
 # #         if self.controller is not None and builtins.isinstance(
 # #             self.options['web_server'].get('authentication_handler'),
@@ -750,6 +757,9 @@ class Main(Class, Runnable):
             self.clear_web_cache()
         if not self.rest_data_timestamp_reference_file:
             self.__class__.rest_data_timestamp_reference_file.content = ''
+        if self.controller is not None:
+            self.controller.launch()
+        self._check_database_file_references()
         if not self.given_command_line_arguments.render_template:
             return self._start_web_server()
 
@@ -1192,11 +1202,10 @@ class Main(Class, Runnable):
             cls.model.Model.metadata.create_all(cls.engine)
         '''Create a persistent inter thread database session.'''
         cls._check_database_schema_version(database_backup_file)
-        cls._check_database_file_references()
         if cls.controller is not None:
-            cls.controller.insert_needed_database_record()
+            cls.controller.initialize_model()
             if cls.debug:
-                cls.controller.insert_database_mockup()
+                cls.controller.initialize_model_mockup()
         return cls
 
         # # endregion
