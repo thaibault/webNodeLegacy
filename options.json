@@ -214,7 +214,7 @@
 
         "commandLineArguments": [{
             "arguments": ["-w", "--web-cache"],
-            "keywords": {
+            "specification": {
                 "action": "store_true",
                 "default": false,
                 "help": "Activates the static file full web cache.",
@@ -222,7 +222,7 @@
             }
         }, {
             "arguments": ["-r", "--render-template"],
-            "keywords": {
+            "specification": {
                 "action": "store_true",
                 "default": false,
                 "help": "Indicates weather the application should simply render the main html entry file and terminate.",
@@ -230,7 +230,7 @@
             }
         }, {
             "arguments": ["-n", "--host-name"],
-            "keywords": {
+            "specification": {
                 "action": "store",
                 "default": "127.0.0.1",
                 "type": {"execute": "str"},
@@ -241,7 +241,7 @@
             }
         }, {
             "arguments": ["-a", "--proxy-host-name-pattern"],
-            "keywords": {
+            "specification": {
                 "action": "store",
                 "default": ".+",
                 "type": {"execute": "str"},
@@ -251,8 +251,19 @@
                 "metavar": "PATTERN"
             }
         }, {
+            "arguments": ["-b", "--proxy-host-name-prefix"],
+            "specification": {
+                "action": "store",
+                "default": "",
+                "type": {"execute": "str"},
+                "required": false,
+                "help": "Defines the proxy host name prefix. This prefix will be sliced out by the application server logic. The default is empty.",
+                "dest": "proxy_host_name_prefix",
+                "metavar": "STRING"
+            }
+        }, {
             "arguments": ["-p", "--port"],
-            "keywords": {
+            "specification": {
                 "action": "store",
                 "default": 8080,
                 "type": {"execute": "int"},
@@ -264,7 +275,7 @@
             }
         }, {
             "arguments": ["-i", "--proxy-ports"],
-            "keywords": {
+            "specification": {
                 "action": "store",
                 "nargs": "*",
                 "default": [80],
