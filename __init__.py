@@ -691,21 +691,24 @@ class Main(Class, Runnable):
                 raise
         self._append_model_informations_to_options()
         self.__class__.port = self.given_command_line_arguments.port
-        self.__class__.options['frontend']['proxyPort'] = \
-            self.__class__.proxy_port = None
+        self.__class__.options['frontend']['proxy'] = {'port': None}
+        self.__class__.proxy_port = None
         if socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect_ex((
             self.given_command_line_arguments.host_name,
             self.given_command_line_arguments.proxy_ports[0]
         )) == 0:
             self.__class__.port = self.__class__.proxy_port = \
                 self.given_command_line_arguments.proxy_ports[0]
-            self.__class__.options['frontend']['proxyPort'] = self.proxy_port
+            self.__class__.options['frontend']['proxy']['port'] = \
+                self.proxy_port
             __logger__.info(
                 'Detected proxy server at "%s" listing on incoming requests '
                 'which matches pattern "%s" on port %d.',
                 self.given_command_line_arguments.host_name,
                 self.given_command_line_arguments.proxy_host_name_pattern,
                 self.proxy_port)
+        self.__class__.options['frontend']['proxy']['hostNamePrefix'] = \
+            self.given_command_line_arguments.proxy_host_name_prefix
 
         # # endregion
 

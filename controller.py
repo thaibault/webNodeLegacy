@@ -64,13 +64,21 @@ class Main(object):
         return cls.main.options
 
     @classmethod
-    def insert_needed_database_record(cls):
+    def initialize_model(cls):
         '''Inserts some needed initialisation records to the database.'''
         return cls
 
     @classmethod
-    def insert_database_mockup(cls):
+    def initialize_model_mockup(cls):
         '''Inserts some example data to the database.'''
+        return cls
+
+    @classmethod
+    def launch(cls):
+        '''
+            This method is triggered if everything has finished and \
+            application service can be launched.
+        '''
         return cls
 
     @classmethod
