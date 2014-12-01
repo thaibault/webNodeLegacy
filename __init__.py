@@ -62,6 +62,8 @@ from boostNode.paradigm.objectOrientation import Class
 from boostNode.runnable.server import Web as WebServer
 from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
+from boostNode import highPerformanceModification
+
 
 # # python3.4
 # # # NOTE: Should be removed if we drop python2.X support.
@@ -189,35 +191,19 @@ class Main(Class, Runnable):
         cls.options['frontend'] = frontend_options
         mockup_template = TemplateParser('', string=True)
         '''
-            NOTE: We have to run over options twice to handle cyclic \
-            dependencies.
+            NOTE: A check for left template code delimiter avoids parsing \
+            plain strings as templates and lose many performance.
         '''
-        for number in builtins.range(2):
+        def value_wrapper(key, value):
 # # python3.4
-# #             cls.options = Dictionary(content=cls.options).convert(
-# #                 value_wrapper=lambda key, value: TemplateParser(
-# #                     value.replace('\\', 2 * '\\').replace(
-# #                         '%s%s' % (
-# #                             mockup_template.left_code_delimiter,
-# #                             mockup_temlate.right_escaped
-# #                         ), '%s%s%s' % (
-# #                         mockup_template.left_code_delimiter,
-# #                         mockup_temlate.right_escaped,
-# #                         mockup_temlate.right_escaped
-# #                     )), string=True
-# #                 ).render(
-# #                     mapping=cls.options, module_name=__name__, main=cls
-# #                 ).output if builtins.isinstance(
-# #                     value, builtins.str
-# #                 ) mockup_template.left_code_delimiter in value else value,
-# #                 remove_wrap_indicator=False
-# #             ).content
-            '''
-                NOTE: A check for "<%" avoids parsing plain strings as \
-                templates and lose many performance.
-            '''
-            cls.options = Dictionary(content=cls.options).convert(
-                value_wrapper=lambda key, value: TemplateParser(
+# #             while builtins.isinstance(
+# #                 value, builtins.str
+# #             ) and mockup_template.left_code_delimiter in value:
+            while builtins.isinstance(
+                value, (builtins.unicode, builtins.str)
+            ) and mockup_template.left_code_delimiter in value:
+# #
+                value = TemplateParser(
                     convert_to_unicode(value).replace(
                         '\\', 2 * '\\'
                     ).replace('%s%s' % (
@@ -230,12 +216,11 @@ class Main(Class, Runnable):
                     )), string=True,
                 ).render(
                     mapping=cls.options, module_name=__name__, main=cls
-                ).output if builtins.isinstance(
-                    value, (builtins.unicode, builtins.str)
-                ) and mockup_template.left_code_delimiter in value else value,
-                remove_wrap_indicator=False
-            ).content
-# #
+                ).output
+            return value
+        cls.options = Dictionary(content=cls.options).convert(
+            value_wrapper=value_wrapper, remove_wrap_indicator=False
+        ).content
         frontend_options = cls.options['frontend']
         del cls.options['frontend']
         '''
@@ -657,6 +642,16 @@ class Main(Class, Runnable):
     def _run(self):
         '''Initializes the web server.'''
 
+        # # Profiling area
+        start = time.clock()
+        #try:
+        #    import cProfile as profile
+        #except ImportError:
+        #    import profile
+        #profiler = profile.Profile()
+        #profiler.enable()
+        # #
+
         # # region properties
 
         self.__class__.package_name = Module.get_package_name(
@@ -667,6 +662,7 @@ class Main(Class, Runnable):
             output_with_root_prefix=True
         ).directory.directory)
         self.__class__.ROOT_PATH = FileHandler.get_root().path
+        highPerformanceModification.ROOT_PATH = self.ROOT_PATH
         self.__class__.controller = None
         if not (__test_mode__ or module_import_error is None):
             raise module_import_error
@@ -763,6 +759,18 @@ class Main(Class, Runnable):
         if self.controller is not None:
             self.controller.launch()
         self._check_database_file_references()
+
+        # # Profiling area
+        #profiler.disable()
+        __logger__.info(
+            'Elapsed time for starting webApp: %.2f seconds',
+            time.clock() - start)
+        #profiler.print_stats(sort=0) # Call count
+        #profiler.print_stats(sort=1) # Internal function time
+        #profiler.print_stats(sort=2) # Cumulative time
+        # #
+
+
         if not self.given_command_line_arguments.render_template:
             return self._start_web_server()
 
@@ -778,7 +786,7 @@ class Main(Class, Runnable):
             Renders each template and distinguishes between backend and \
             frontend templates.
         '''
-        if(file.is_symbolic_link() or
+        if(file.name.startswith('.') or file.is_symbolic_link() or
            file.path in cls.options['location']['template_ignored']):
             '''Don't enter ignored locations or parse ignored files.'''
             return None

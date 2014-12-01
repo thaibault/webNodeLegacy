@@ -42,63 +42,65 @@
             }
         },
         "allowedTypes": {
-            "image": [
-                "image/jpg", "image/jpeg", "image/pjpeg", "image/png",
-                "image/svg+xml", "image/svg", "image/vnd.microsoft.icon",
-                "image/x-icon", "image/gif", "image/tiff",
-                "image/vnd.wap.wbmp", "image/x-icon", "image/x-jng",
-                "image/x-ms-bmp", "image/svg+xml", "image/webp"
-            ],
-            "audio": [
-                "audio/midi", "audio/mpeg", "audio/ogg", "audio/x-m4a",
-                "audio/x-realaudio"
-            ],
-            "video": [
-                "video/webm", "video/3gpp", "video/mp2t", "video/mp4",
-                "video/mpeg", "video/quicktime", "video/x-flv",
-                "video/x-m4v", "video/x-mng", "video/x-ms-asf",
-                "video/x-ms-wmv", "video/x-msvideo",
-                "application/x-shockwave-flash"
-            ],
-            "data": [
-                "application/xml", "text/csv", "application/xml", "text/xml",
-                "application/atom+xml", "application/rss+xml",
-                "application/json", "application/vnd.google-earth.kml+xml",
-                "application/vnd.google-earth.kmz", "application/xhtml+xml",
-                "application/xspf+xml"
-            ],
-            "document": [
-                "text/plain", "text/html", "text/css", "text/mathml",
-                "text/vnd.wap.wml", "application/pdf",
-                "application/postscript", "application/rtf",
-                "application/vnd.apple.mpegurl", "application/vnd.ms-excel",
-                "application/vnd.ms-powerpoint", "application/vnd.wap.wmlc",
-                "application/msword",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            ],
-            "script": [
-                "application/javascript", "application/x-cocoa",
-                "application/x-perl", "text/x-python"
-            ],
-            "font": [
-                "application/vnd.ms-fontobject", "application/font-woff"
-            ],
-            "binary": [
-                "application/java-archive", "application/x-7z-compressed",
-                "application/zip", "application/octet-stream",
-                "application/octet-stream", "application/x-rar-compressed"
-            ],
-            "knownOther": [
-                "text/x-component", "text/vnd.sun.j2me.app-descriptor",
-                "application/mac-binhex40", "application/x-java-archive-diff",
-                "application/x-java-jnlp-file", "application/x-makeself",
-                "application/x-pilot", "application/x-redhat-package-manager",
-                "application/x-sea", "application/x-stuffit",
-                "application/x-tcl", "application/x-x509-ca-cert",
-                "application/x-xpinstall"
-            ]
+            "__no_wrapping__": {
+                "image": [
+                    "image/jpg", "image/jpeg", "image/pjpeg", "image/png",
+                    "image/svg+xml", "image/svg", "image/vnd.microsoft.icon",
+                    "image/x-icon", "image/gif", "image/tiff",
+                    "image/vnd.wap.wbmp", "image/x-icon", "image/x-jng",
+                    "image/x-ms-bmp", "image/svg+xml", "image/webp"
+                ],
+                "audio": [
+                    "audio/midi", "audio/mpeg", "audio/ogg", "audio/x-m4a",
+                    "audio/x-realaudio"
+                ],
+                "video": [
+                    "video/webm", "video/3gpp", "video/mp2t", "video/mp4",
+                    "video/mpeg", "video/quicktime", "video/x-flv",
+                    "video/x-m4v", "video/x-mng", "video/x-ms-asf",
+                    "video/x-ms-wmv", "video/x-msvideo",
+                    "application/x-shockwave-flash"
+                ],
+                "data": [
+                    "application/xml", "text/csv", "application/xml", "text/xml",
+                    "application/atom+xml", "application/rss+xml",
+                    "application/json", "application/vnd.google-earth.kml+xml",
+                    "application/vnd.google-earth.kmz", "application/xhtml+xml",
+                    "application/xspf+xml"
+                ],
+                "document": [
+                    "text/plain", "text/html", "text/css", "text/mathml",
+                    "text/vnd.wap.wml", "application/pdf",
+                    "application/postscript", "application/rtf",
+                    "application/vnd.apple.mpegurl", "application/vnd.ms-excel",
+                    "application/vnd.ms-powerpoint", "application/vnd.wap.wmlc",
+                    "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                ],
+                "script": [
+                    "application/javascript", "application/x-cocoa",
+                    "application/x-perl", "text/x-python"
+                ],
+                "font": [
+                    "application/vnd.ms-fontobject", "application/font-woff"
+                ],
+                "binary": [
+                    "application/java-archive", "application/x-7z-compressed",
+                    "application/zip", "application/octet-stream",
+                    "application/octet-stream", "application/x-rar-compressed"
+                ],
+                "knownOther": [
+                    "text/x-component", "text/vnd.sun.j2me.app-descriptor",
+                    "application/mac-binhex40", "application/x-java-archive-diff",
+                    "application/x-java-jnlp-file", "application/x-makeself",
+                    "application/x-pilot", "application/x-redhat-package-manager",
+                    "application/x-sea", "application/x-stuffit",
+                    "application/x-tcl", "application/x-x509-ca-cert",
+                    "application/x-xpinstall"
+                ]
+            }
         }
     },
     "backend": {
@@ -109,7 +111,6 @@
         "jsonpGetParameterIndicator": ["jsonp", "callback"],
         "restResponseTemplate": ")]}',\n%s",
         "initialTemplateRendering": true,
-        "secretDjangoKey": "",
         "removeDuplicatedRequestKey": false,
         "databaseEnginePrefix": "sqlite:///",
         "maximumCookieAgeInSeconds": 31536000,
@@ -206,85 +207,89 @@
 
         "ignoreWebAssetPattern": [".*\\.swp", "\\..*"],
 
-        "exportableFileAttributes": [
-            "path", "name", "basename", "encoding", "extension",
-            "extension_suffix", "timestamp", "size", "human_readable_size",
-            "type", "mime_type"
-        ],
+        "exportableFileAttributes": {
+            "__no_wrapping__": [
+                "path", "name", "basename", "encoding", "extension",
+                "extension_suffix", "timestamp", "size", "human_readable_size",
+                "type", "mime_type"
+            ]
+        },
 
-        "commandLineArguments": [{
-            "arguments": ["-w", "--web-cache"],
-            "specification": {
-                "action": "store_true",
-                "default": false,
-                "help": "Activates the static file full web cache.",
-                "dest": "web_cache"
-            }
-        }, {
-            "arguments": ["-r", "--render-template"],
-            "specification": {
-                "action": "store_true",
-                "default": false,
-                "help": "Indicates weather the application should simply render the main html entry file and terminate.",
-                "dest": "render_template"
-            }
-        }, {
-            "arguments": ["-n", "--host-name"],
-            "specification": {
-                "action": "store",
-                "default": "127.0.0.1",
-                "type": {"execute": "str"},
-                "required": false,
-                "help": "Defines application server host name. If you want to make your application server reachable from any incoming domain use the empty string. The default is only listing on requests which comes from the same operating system.",
-                "dest": "host_name",
-                "metavar": "STRING"
-            }
-        }, {
-            "arguments": ["-a", "--proxy-host-name-pattern"],
-            "specification": {
-                "action": "store",
-                "default": ".+",
-                "type": {"execute": "str"},
-                "required": false,
-                "help": "Defines the proxy host name pattern. The default is to listen on any incoming domain.",
-                "dest": "proxy_host_name_pattern",
-                "metavar": "PATTERN"
-            }
-        }, {
-            "arguments": ["-b", "--proxy-host-name-prefix"],
-            "specification": {
-                "action": "store",
-                "default": "",
-                "type": {"execute": "str"},
-                "required": false,
-                "help": "Defines the proxy host name prefix. This prefix will be sliced out by the application server logic. The default is empty.",
-                "dest": "proxy_host_name_prefix",
-                "metavar": "STRING"
-            }
-        }, {
-            "arguments": ["-p", "--port"],
-            "specification": {
-                "action": "store",
-                "default": 8080,
-                "type": {"execute": "int"},
-                "choices": {"execute": "range(2 ** 16)"},
-                "required": false,
-                "help": "Defines the port number to access the web server. If zero given a free port will be determined.",
-                "dest": "port",
-                "metavar": "NUMBER"
-            }
-        }, {
-            "arguments": ["-i", "--proxy-ports"],
-            "specification": {
-                "action": "store",
-                "nargs": "*",
-                "default": [80],
-                "type": {"execute": "int"},
-                "required": false,
-                "help": "Defines the proxy port numbers to listen for.",
-                "dest": "proxy_ports",
-                "metavar": "PORTS"
-            }
-        }]
+        "commandLineArguments": {
+            "__no_wrapping__": [{
+                "arguments": ["-w", "--web-cache"],
+                "specification": {
+                    "action": "store_true",
+                    "default": false,
+                    "help": "Activates the static file full web cache.",
+                    "dest": "web_cache"
+                }
+            }, {
+                "arguments": ["-r", "--render-template"],
+                "specification": {
+                    "action": "store_true",
+                    "default": false,
+                    "help": "Indicates weather the application should simply render the main html entry file and terminate.",
+                    "dest": "render_template"
+                }
+            }, {
+                "arguments": ["-n", "--host-name"],
+                "specification": {
+                    "action": "store",
+                    "default": "127.0.0.1",
+                    "type": {"execute": "str"},
+                    "required": false,
+                    "help": "Defines application server host name. If you want to make your application server reachable from any incoming domain use the empty string. The default is only listing on requests which comes from the same operating system.",
+                    "dest": "host_name",
+                    "metavar": "STRING"
+                }
+            }, {
+                "arguments": ["-a", "--proxy-host-name-pattern"],
+                "specification": {
+                    "action": "store",
+                    "default": ".+",
+                    "type": {"execute": "str"},
+                    "required": false,
+                    "help": "Defines the proxy host name pattern. The default is to listen on any incoming domain.",
+                    "dest": "proxy_host_name_pattern",
+                    "metavar": "PATTERN"
+                }
+            }, {
+                "arguments": ["-b", "--proxy-host-name-prefix"],
+                "specification": {
+                    "action": "store",
+                    "default": "",
+                    "type": {"execute": "str"},
+                    "required": false,
+                    "help": "Defines the proxy host name prefix. This prefix will be sliced out by the application server logic. The default is empty.",
+                    "dest": "proxy_host_name_prefix",
+                    "metavar": "STRING"
+                }
+            }, {
+                "arguments": ["-p", "--port"],
+                "specification": {
+                    "action": "store",
+                    "default": 8080,
+                    "type": {"execute": "int"},
+                    "choices": {"execute": "range(2 ** 16)"},
+                    "required": false,
+                    "help": "Defines the port number to access the web server. If zero given a free port will be determined.",
+                    "dest": "port",
+                    "metavar": "NUMBER"
+                }
+            }, {
+                "arguments": ["-i", "--proxy-ports"],
+                "specification": {
+                    "action": "store",
+                    "nargs": "*",
+                    "default": [80],
+                    "type": {"execute": "int"},
+                    "required": false,
+                    "help": "Defines the proxy port numbers to listen for.",
+                    "dest": "proxy_ports",
+                    "metavar": "PORTS"
+                }
+            }]
+        }
     }
 }
