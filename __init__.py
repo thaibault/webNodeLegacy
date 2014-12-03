@@ -159,7 +159,7 @@ class Main(Class, Runnable):
 
     @classmethod
     def extend_options(
-        cls, options, consolidate=True, remove_wrap_indicator=False
+        cls, options, consolidate=True, remove_no_wrap_indicator=False
     ):
         '''Extends options object with given options.'''
         if options:
@@ -167,11 +167,11 @@ class Main(Class, Runnable):
                 options
             ).content
             if consolidate:
-                cls.consolidate_options(remove_wrap_indicator)
+                cls.consolidate_options(remove_no_wrap_indicator)
         return cls
 
     @classmethod
-    def consolidate_options(cls, remove_wrap_indicator=False):
+    def consolidate_options(cls, remove_no_wrap_indicator=False):
         '''Merges, renders and resolves internal option dependencies.'''
         '''
             NOTE: This is the only backend needed camel case option, because \
@@ -186,7 +186,7 @@ class Main(Class, Runnable):
         '''
         cls.options = Dictionary(content=cls.options).convert(
             key_wrapper=lambda key, value: cls.convert_for_backend(key),
-            remove_wrap_indicator=False
+            remove_no_wrap_indicator=False
         ).content
         cls.options['frontend'] = frontend_options
         mockup_template = TemplateParser('', string=True)
@@ -219,7 +219,7 @@ class Main(Class, Runnable):
                 ).output
             return value
         cls.options = Dictionary(content=cls.options).convert(
-            value_wrapper=value_wrapper, remove_wrap_indicator=False
+            value_wrapper=value_wrapper, remove_no_wrap_indicator=False
         ).content
         frontend_options = cls.options['frontend']
         del cls.options['frontend']
@@ -233,14 +233,14 @@ class Main(Class, Runnable):
 # #                 key
 # #             ).camel_case_to_delimited(.content,
 # #             value_wrapper=cls.convert_for_backend,
-# #             remove_wrap_indicator=remove_wrap_indicator
+# #             remove_no_wrap_indicator=remove_no_wrap_indicator
 # #         ).content
         cls.options = Dictionary(content=cls.options).convert(
             key_wrapper=lambda key, value: convert_to_unicode(String(
                 key
             ).camel_case_to_delimited.content),
             value_wrapper=cls.convert_for_backend,
-            remove_wrap_indicator=remove_wrap_indicator
+            remove_no_wrap_indicator=remove_no_wrap_indicator
         ).content
 # #
         cls.options['frontend'] = frontend_options
@@ -1176,10 +1176,10 @@ class Main(Class, Runnable):
         if configuration_file.is_file():
             return cls.extend_options(
                 options=json.loads(configuration_file.content),
-                remove_wrap_indicator=cls.options['backend'][
+                remove_no_wrap_indicator=cls.options['backend'][
                     'finalOptionConsolidation'])
         return cls.consolidate_options(
-            remove_wrap_indicator=cls.options['final_option_consolidation'])
+            remove_no_wrap_indicator=cls.options['final_option_consolidation'])
 
     @SqlalchemyEvent.listens_for(SqlalchemyEngine, 'connect')
     def _set_sqlite_foreign_key_pragma(dbapi_connection, connection_record):
