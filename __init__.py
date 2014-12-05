@@ -1003,7 +1003,7 @@ class Main(Class, Runnable):
                             migration_successful = False
                     session.commit()
                     if(migration_successful and
-                       cls.options['database_engine_prefix'].startswith(
+                       cls.options['database']['engine_prefix'].startswith(
                            'sqlite:')):
                         __logger__.info(
                             'Drop old table "%s".', model.__tablename__)
@@ -1011,6 +1011,9 @@ class Main(Class, Runnable):
                             NOTE: We have to temporary remove foreign key \
                             checks.
                         '''
+                        # TODO Check
+                        # defer_foreign_keys=ON
+                        # ignore_check_constraints=ON
                         session.execute('PRAGMA foreign_keys=OFF;')
                         session.execute(DropTable(Table(
                             model.__tablename__, MetaData(bind=cls.engine))))
@@ -1182,17 +1185,18 @@ class Main(Class, Runnable):
             remove_no_wrap_indicator=cls.options['final_option_consolidation'])
 
     @SqlalchemyEvent.listens_for(SqlalchemyEngine, 'connect')
-    def _set_sqlite_foreign_key_pragma(dbapi_connection, connection_record):
-        '''Activates sqlite3 foreign key support.'''
+    def _set_database_initialisation(dbapi_connection, connection_record):
+        '''Activates configured database features.'''
         if builtins.isinstance(dbapi_connection, SQLite3Connection):
             cursor = dbapi_connection.cursor()
-            cursor.execute('PRAGMA foreign_keys=ON;')
+            for command in OPTIONS['database']['initialisation_commands']:
+                cursor.execute(command)
             cursor.close()
 
     @classmethod
     def _initialize_model(cls):
         '''Initializes the model.'''
-        if cls.options['database_engine_prefix'].startswith('sqlite:'):
+        if cls.options['database']['engine_prefix'].startswith('sqlite:'):
             database_file = FileHandler(
                 location=cls.options['location']['database']['url'])
             database_backup_file = FileHandler(
@@ -1206,9 +1210,10 @@ class Main(Class, Runnable):
                     database_backup_file.path)
                 database_file.copy(target=database_backup_file)
         cls.engine = create_database_engine('%s%s%s' % (
-            cls.options['database_engine_prefix'], cls.ROOT_PATH,
+            cls.options['database']['engine_prefix'], cls.ROOT_PATH,
             cls.options['location']['database']['url']
-        ), echo=__logger__.isEnabledFor(logging.DEBUG))
+        ), echo=__logger__.isEnabledFor(logging.DEBUG),
+        connect_args=cls.options['database']['connection_arguments'])
         if cls.model is not None:
             cls.model.Model.metadata.create_all(cls.engine)
         '''Create a persistent inter thread database session.'''

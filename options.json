@@ -112,7 +112,14 @@
         "restResponseTemplate": ")]}',\n%s",
         "initialTemplateRendering": true,
         "removeDuplicatedRequestKey": false,
-        "databaseEnginePrefix": "sqlite:///",
+        "database": {
+            "enginePrefix": "sqlite:///",
+            "connectionArguments": {"timeout": 60},
+            "initialisationCommands": [
+                "PRAGMA foreign_keys=ON", "PRAGMA journal_mode=WAL",
+                "PRAGMA busy_timeout=60000"
+            ]
+        },
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
             "generic": {
