@@ -142,8 +142,8 @@ class Main(Class, Runnable):
         '''Checks if the given file is a valid web application asset.'''
         for pattern in cls.options['ignore_web_asset_pattern']:
 # # python3.4
-# #             if regularExpression.compile(pattern).fullmatch(file.name):
-            if regularExpression.compile('(?:%s)$' % pattern).match(file.name):
+# #             if regularExpression.compile(pattern).fullmatch(file.path):
+            if regularExpression.compile('(?:%s)$' % pattern).match(file.path):
 # #
                 return False
         return True
