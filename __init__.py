@@ -1071,6 +1071,8 @@ class Main(Class, Runnable):
             __logger__.info(
                 'Save long term database file "%s".',
                 long_term_database_file.path)
+            if not long_term_database_file.directory.is_directory():
+                long_term_database_file.directory.make_directories()
             database_backup_file.copy(target=long_term_database_file)
         return cls
 
@@ -1208,7 +1210,11 @@ class Main(Class, Runnable):
                 __logger__.info(
                     'Backup database "%s" to "%s".', database_file.path,
                     database_backup_file.path)
+                if not database_backup_file.directory.is_directory():
+                    database_backup_file.directory.make_directories()
                 database_file.copy(target=database_backup_file)
+            elif not database_file.directory.is_directory():
+                database_file.directory.make_directories()
         cls.engine = create_database_engine('%s%s%s' % (
             cls.options['database']['engine_prefix'], cls.ROOT_PATH,
             cls.options['location']['database']['url']

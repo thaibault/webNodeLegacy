@@ -189,6 +189,10 @@
                 "frontend": "/index.html", "backend": "/admin.html",
                 "template": "<% location['template'] %>index.html.tpl"
             },
+            "nginxConfiguration": {
+                "folder": "/backendNginxConfiguration/",
+                "login": "<% location['nginxConfiguration']['folder'] %>login.txt.tpl"
+            },
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
             "cache": "/cache/",
             "webCache": "<% location['cache'] %>web/",
@@ -208,6 +212,7 @@
                 "backup": "<% location['backup'] %>database/"
             },
             "templateIgnored": [
+                "<% location['nginxConfiguration']['login'] %>",
                 "<% location['backup'] %>", "<% location['webCache'] %>",
                 "/boostNode/", "/webNode/", "/database/", "/.git/"]
         },
