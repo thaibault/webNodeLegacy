@@ -219,7 +219,29 @@ class Response(Class):
                 if result is None:
                     self.request.data['handler'].send_response(401)
                     result = {}
-                self.session.commit()
+                try:
+                    self.session.commit()
+                except (SQLAlchemyError, builtins.ValueError) as exception:
+                    # TODO remove redundance from above.
+                    '''
+                        NOTE: We can't raise this exception because \
+                        frontend need it as validation message.
+                    '''
+                    self.session.rollback()
+# # python3.4
+# #                    self.request.data['handler'].send_response(
+# #                        400 if builtins.isinstance(
+# #                            exception, builtins.ValueError
+# #                        ) else 409, '%s: "%s"' % (
+# #                            exception.__class__.__name__,
+# #                            builtins.str(exception)))
+                    self.request.data['handler'].send_response(
+                        400 if builtins.isinstance(
+                            exception, builtins.ValueError
+                        ) else 409, '%s: "%s"' % (
+                            exception.__class__.__name__,
+                            convert_to_unicode(exception)))
+# #
                 self.session.close()
         self.request.data['handler'].send_response(200)
 # # python3.4

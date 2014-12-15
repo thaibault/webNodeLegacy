@@ -3,7 +3,11 @@
         "requestFileName": "<% moduleName %>",
         "freeSpaceInByte": "<% FileHandler(location='/').free_space %>",
         "usedSpaceInByte": "<% FileHandler(location='/').disk_used_space %>",
-        "startTimeStamp": "<% __time_stamp__ %>"
+        "startTimeStamp": "<% __time_stamp__ %>",
+        "requestRetries": {
+            "409": {"number": 3, "statusPattern": "^.*locked.*$"},
+            "504": {"number": 3, "statusPattern": "^.*$"}
+        }
     },
     "both": {
         "lastDataWriteDateTimeHeaderName": "<% session['dataDescriptionPrefix'] %>LastDataWriteDateTime",
@@ -106,7 +110,13 @@
     "backend": {
         "finalOptionConsolidation": true,
         "systemCommands": {
-            "reloadProxyServer": "/usr/bin/env sudo nginx -s reload"
+            "proxyServer": {
+                "__no_wrapping__": {
+                    "stop": "/usr/bin/env sudo nginx -s stop",
+                    "start": "/usr/bin/env sudo nginx",
+                    "reload": "/usr/bin/env sudo nginx -s reload"
+                }
+            }
         },
         "jsonpGetParameterIndicator": ["jsonp", "callback"],
         "restResponseTemplate": ")]}',\n%s",
@@ -114,10 +124,10 @@
         "removeDuplicatedRequestKey": false,
         "database": {
             "enginePrefix": "sqlite:///",
-            "connectionArguments": {"timeout": 60},
+            "connectionArguments": {"timeout": 10},
             "initialisationCommands": [
                 "PRAGMA foreign_keys=ON", "PRAGMA journal_mode=WAL",
-                "PRAGMA busy_timeout=60000"
+                "PRAGMA busy_timeout=10000"
             ]
         },
         "maximumCookieAgeInSeconds": 31536000,
@@ -136,14 +146,27 @@
                     "pattern": "<% model['generic']['filePath']['pattern'] %>",
                     "fileReference": "<% location['medium'] %>%s"
                 },
+                "name": {
+                    "default": "",
+                    "pattern": "[a-zA-Z -]+",
+                    "minimumLength": 1,
+                    "maximumLength": 100
+                },
                 "text": {"pattern": "(\\s|.)*"},
                 "url": {
-                    "minimumLength": 1, "maximumLength": 2000, "pattern": ".+"
+                    "minimumLength": 1,
+                    "maximumLength": 2000,
+                    "pattern": "(https?://)?(www\\.)?[a-zA-Z0-9.-]+\\.[a-z]{2,3}(/.*)?"
+                },
+                "loginEMailAddress": {
+                    "minimumLength": 5,
+                    "maximumLength": 100,
+                    "pattern": "((admin)|(<% model['generic']['eMailAddress']['pattern'] %>))"
                 },
                 "eMailAddress": {
                     "minimumLength": 5,
                     "maximumLength": 100,
-                    "pattern": "((admin)|([_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})))"
+                    "pattern": "[_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})"
                 },
                 "phoneNumber": {
                     "minimumLength": 1,
@@ -283,7 +306,6 @@
                     "action": "store",
                     "default": 8080,
                     "type": {"execute": "int"},
-                    "choices": {"execute": "range(2 ** 16)"},
                     "required": false,
                     "help": "Defines the port number to access the web server. If zero given a free port will be determined.",
                     "dest": "port",

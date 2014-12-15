@@ -41,6 +41,7 @@ import sys
 import time
 
 from sqlalchemy.engine.default import DefaultExecutionContext
+from sqlalchemy.exc import OperationalError
 from sqlalchemy import create_engine as create_database_engine
 from sqlalchemy.orm import sessionmaker as create_database_session
 from sqlalchemy.schema import CreateTable, DropTable, Table, MetaData
@@ -148,11 +149,6 @@ class Main(Class, Runnable):
                 return False
         return True
 
-    @classmethod
-    def is_cached(cls, cache_file):
-        '''Determines weather given file is a valid usable cache file.'''
-        return sys.flags.optimize and not cls.debug and cache_file
-
         # # endregion
 
         # # region helper
@@ -255,30 +251,52 @@ class Main(Class, Runnable):
             be returned "None" otherwise.
         '''
         result = None
-        if user_id and session_token:
-            session = create_database_session(bind=cls.engine)()
-            users = session.query(cls.model.User).filter(
-                cls.model.User.enabled == True,
-                cls.model.User.id == builtins.int(user_id),
-                cls.model.User.session_token == session_token,
-                cls.model.User.session_expiration_date_time > DateTime.now())
-            if users.count():
-                user = users.one()
-                user.session_expiration_date_time = DateTime.now(
-                ) + cls.options['session']['expiration_time_delta']
-                __logger__.info('Authorize user "%d" for %.2f hours.', user.id,
-                    (cls.options['session'][
-                        'expiration_time_delta'
-                    ].total_seconds() / 60) / 60)
-                if location is not None:
-                    user.location = location
-                session.commit()
+        while user_id and session_token:
+            try:
+                session = create_database_session(bind=cls.engine)()
+                users = session.query(cls.model.User).filter(
+                    cls.model.User.enabled == True,
+                    cls.model.User.id == builtins.int(user_id),
+                    cls.model.User.session_token == session_token,
+                    cls.model.User.session_expiration_date_time > DateTime.now(
+                    ))
+                if users.count():
+                    user = users.one()
+                    user.session_expiration_date_time = DateTime.now(
+                    ) + cls.options['session']['expiration_time_delta']
+                    __logger__.info('Authorize user "%d" for %.2f hours.',
+                        user.id, (cls.options['session'][
+                            'expiration_time_delta'
+                        ].total_seconds() / 60) / 60)
+                    if location is not None:
+                        user.location = location
+                    session.commit()
+            except OperationalError as exception:
+                session.close()
+# # python3.4
+# #                  if 'database is locked' in builtins.str(exception):
+# #                      __logger__.warning(
+# #                          'Database seems to be locked. Retrying to connect'
+# #                          '. %s: %s', exception.__class__.__name__,
+# #                          builtins.str(exception))
+                if 'database is locked' in builtins.str(exception):
+                    __logger__.warning(
+                        'Database seems to be locked. Retrying to connect'
+                        '. %s: %s',
+                        exception.__class__.__name__,
+                        builtins.str(exception))
+# #
+                    time.sleep(1)
+                    continue
+                raise
+            else:
                 result = user.id
-            session.close()
+                session.close()
+                break
         return result
 
     @classmethod
-    def render_templates(cls, all=False):
+    def render_templates(cls, all=False, proxy_restart=False):
         '''Renders the main index html file.'''
         mapping = {
             'options': deepcopy(cls.options),
@@ -289,17 +307,51 @@ class Main(Class, Runnable):
         if all:
             FileHandler(location='/').iterate_directory(
                 function=cls._render_template, recursive=True, mapping=mapping)
-            if(cls.proxy_port is not None and
-               cls.options['system_commands']['reload_proxy_server']):
-                try:
-                    Platform.run(
-                        command=cls.options['system_commands'][
-                            'reload_proxy_server'])
-                except SystemError as exception:
-                    __logger__.warning(
-                        '%s: %s You may have a miss configured proxy server '
-                        'at port %d.', exception.__class__.__name__,
-                        builtins.str(exception), cls.proxy_port)
+            if cls.proxy_port is not None:
+                if(proxy_restart and
+                   cls.options['system_commands']['proxy_server']['start'] and
+                   cls.options['system_commands']['proxy_server']['stop']
+                ):
+                    for command in ('stop', 'start'):
+                        __logger__.debug(
+                            'Run "%s".', cls.options['system_commands'][
+                                'proxy_server'][command])
+                        try:
+                            Platform.run(
+                                command=cls.options['system_commands'][
+                                    'proxy_server'
+                                ][command], native_shell=True)
+                        except SystemError as exception:
+                            __logger__.warning(
+                                '%s: %s You may have a miss configured proxy '
+                                'server at port %d or we have not enough '
+                                'permissions to control the proxy server. '
+                                'Command was "%s".',
+                                exception.__class__.__name__,
+                                builtins.str(exception), cls.proxy_port,
+                                cls.options['system_commands']['proxy_server'][
+                                    command])
+                        else:
+                            if command == 'stop':
+                                time.sleep(0.1)
+                elif cls.options['system_commands']['proxy_server']['reload']:
+                    __logger__.debug(
+                        'Run "%s".', cls.options['system_commands'][
+                            'proxy_server']['reload'])
+                    try:
+                        Platform.run(
+                            command=cls.options['system_commands'][
+                                'proxy_server'
+                            ]['reload'])
+                    except SystemError as exception:
+                        __logger__.warning(
+                            '%s: %s You may have a miss configured proxy '
+                            'server at port %d or we have not enough '
+                            'permissions to control the proxy server. '
+                            'Command was "%s".', exception.__class__.__name__,
+                            builtins.str(exception), cls.proxy_port,
+                            cls.options['system_commands']['proxy_server'][
+                                'reload'])
         cls._render_html_templates(mapping)
         return cls
 
@@ -748,7 +800,7 @@ class Main(Class, Runnable):
         if(self.options['initial_template_rendering'] or
            self.given_command_line_arguments.render_template):
             __logger__.info('Render template files.')
-            self.render_templates(all=True)
+            self.render_templates(all=True, proxy_restart=True)
         self.__class__.rest_data_timestamp_reference_file = FileHandler(
             location=self.options['location']['database'][
                 'rest_data_timestamp_reference_file_path'])
@@ -1071,8 +1123,7 @@ class Main(Class, Runnable):
             __logger__.info(
                 'Save long term database file "%s".',
                 long_term_database_file.path)
-            if not long_term_database_file.directory.is_directory():
-                long_term_database_file.directory.make_directories()
+            long_term_database_file.directory.make_directories()
             database_backup_file.copy(target=long_term_database_file)
         return cls
 
@@ -1206,15 +1257,13 @@ class Main(Class, Runnable):
                     cls.options['location']['database']['backup'],
                     database_file.basename,
                     database_file.extension_suffix))
+            database_backup_file.directory.make_directories()
             if database_file:
                 __logger__.info(
                     'Backup database "%s" to "%s".', database_file.path,
                     database_backup_file.path)
-                if not database_backup_file.directory.is_directory():
-                    database_backup_file.directory.make_directories()
+                database_backup_file.directory.make_directories()
                 database_file.copy(target=database_backup_file)
-            elif not database_file.directory.is_directory():
-                database_file.directory.make_directories()
         cls.engine = create_database_engine('%s%s%s' % (
             cls.options['database']['engine_prefix'], cls.ROOT_PATH,
             cls.options['location']['database']['url']
@@ -1273,7 +1322,7 @@ class Main(Class, Runnable):
                 location='%s%s.appcache' %
                 (self.options['location']['web_cache'], manifest_name))
             if(self.given_command_line_arguments.web_cache and
-               self.is_cached(cache_file)):
+               cache_file.is_file()):
                 __logger__.info('Response cache from "%s".', cache_file.path)
             else:
                 cache_file.content = self.get_manifest(user)
