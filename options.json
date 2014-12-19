@@ -222,9 +222,10 @@
             "templateCache": "<% location['cache'] %>template/",
             "certificate": {
                 "folder": "/certificate/",
-                "pem": "<% location['certificate']['folder'] %>default.pem",
-                "key": "<% location['certificate']['folder'] %>default.key",
-                "crt": "<% location['certificate']['folder'] %>default.crt"
+                "pem": "<% location['certificate']['folder'] %>localhost.pem",
+                "key": "<% location['certificate']['folder'] %>localhost.key",
+                "crt": "<% location['certificate']['folder'] %>localhost.crt",
+                "intermediatePem": "<% location['certificate']['folder'] %>localhost.intermediate.pem"
             },
             "backup": "/backup/",
             "database": {

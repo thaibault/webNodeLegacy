@@ -30,13 +30,14 @@ from datetime import datetime as DateTime
 from datetime import time as Time
 from datetime import date as Date
 from datetime import timedelta as TimeDelta
+from httplib import HTTPConnection
 import inspect
 import json
 import logging
 import multiprocessing
 import os
 import re as regularExpression
-import socket
+from socket import error as SocketError
 import sys
 import time
 
@@ -105,6 +106,8 @@ class Main(Class, Runnable):
     '''Saves the sandboxed application root path.'''
     CONFIGURATION_FILE_PATH = '/options.json'
     '''Saves a path pointing to the applications global configuration file.'''
+    SUPPORTED_PROXY_SERVER_NAME_PATTERN = 'nginx/.+',
+    '''Saves all supported proxy server name patterns.'''
     rest_data_timestamp_reference_file = None
     '''Saves a database timestamp reference file.'''
     web_server = None
@@ -129,6 +132,16 @@ class Main(Class, Runnable):
     '''Saves the template file for frontend and backend based html file.'''
     package_name = ''
     '''Saves dynamically determined package name.'''
+    port = None
+    '''
+        Saves port (eather proxy or application server) of currently running \
+        web application.
+    '''
+    proxy_port = None
+    '''
+        Saves proxy port if available and "None" if no proxy server could be \
+        determined.
+    '''
 
     # endregion
 
@@ -227,7 +240,7 @@ class Main(Class, Runnable):
 # #         cls.options = Dictionary(content=cls.options).convert(
 # #             key_wrapper=lambda key, value: String(
 # #                 key
-# #             ).camel_case_to_delimited(.content,
+# #             ).camel_case_to_delimited.content,
 # #             value_wrapper=cls.convert_for_backend,
 # #             remove_no_wrap_indicator=remove_no_wrap_indicator
 # #         ).content
@@ -253,10 +266,11 @@ class Main(Class, Runnable):
         result = None
         while user_id and session_token:
             try:
+                user_id = builtins.int(user_id)
                 session = create_database_session(bind=cls.engine)()
                 users = session.query(cls.model.User).filter(
                     cls.model.User.enabled == True,
-                    cls.model.User.id == builtins.int(user_id),
+                    cls.model.User.id == user_id,
                     cls.model.User.session_token == session_token,
                     cls.model.User.session_expiration_date_time > DateTime.now(
                     ))
@@ -270,6 +284,7 @@ class Main(Class, Runnable):
                         ].total_seconds() / 60) / 60)
                     if location is not None:
                         user.location = location
+                    result = user.id
                     session.commit()
             except OperationalError as exception:
                 session.close()
@@ -290,7 +305,6 @@ class Main(Class, Runnable):
                     continue
                 raise
             else:
-                result = user.id
                 session.close()
                 break
         return result
@@ -738,23 +752,42 @@ class Main(Class, Runnable):
             else:
                 raise
         self._append_model_informations_to_options()
-        self.__class__.port = self.given_command_line_arguments.port
         self.__class__.options['frontend']['proxy'] = {'port': None}
-        self.__class__.proxy_port = None
-        if socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect_ex((
+        self.__class__.port = self.given_command_line_arguments.port
+        '''Search for suitable proxy server.'''
+        connection = HTTPConnection(
             self.given_command_line_arguments.host_name,
-            self.given_command_line_arguments.proxy_ports[0]
-        )) == 0:
-            self.__class__.port = self.__class__.proxy_port = \
-                self.given_command_line_arguments.proxy_ports[0]
-            self.__class__.options['frontend']['proxy']['port'] = \
-                self.proxy_port
-            __logger__.info(
-                'Detected proxy server at "%s" listing on incoming requests '
-                'which matches pattern "%s" on port %d.',
-                self.given_command_line_arguments.host_name,
-                self.given_command_line_arguments.proxy_host_name_pattern,
-                self.proxy_port)
+            self.given_command_line_arguments.proxy_ports[0])
+        try:
+            connection.request('HEAD', '')
+        except SocketError:
+            pass
+        else:
+            server_name = builtins.dict(
+                connection.getresponse().getheaders()
+            ).get('server')
+            for pattern in self.SUPPORTED_PROXY_SERVER_NAME_PATTERN:
+# # python3.4
+# #                 if regularExpression.compile(pattern).fullmatch(
+# #                     server_name
+# #                 ):
+                if regularExpression.compile('(?:%s)$' % pattern).match(
+                    server_name
+                ):
+# #
+                    self.__class__.port = self.__class__.proxy_port = \
+                        self.given_command_line_arguments.proxy_ports[0]
+                    self.__class__.options['frontend']['proxy']['port'] = \
+                        self.proxy_port
+                    __logger__.info(
+                        'Detected proxy server "%s" at "%s" listing on '
+                        'incoming requests which matches pattern "%s" on port '
+                        '%d.', server_name,
+                        self.given_command_line_arguments.host_name,
+                        self.given_command_line_arguments.\
+                            proxy_host_name_pattern,
+                        self.proxy_port)
+                    break
         self.__class__.options['frontend']['proxy']['hostNamePrefix'] = \
             self.given_command_line_arguments.proxy_host_name_prefix
 
