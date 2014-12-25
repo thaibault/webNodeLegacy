@@ -2761,6 +2761,11 @@ class Dictionary(Object, builtins.dict):
             ...     value_wrapper=lambda key, value: '_%s_' % value
             ... ).content == {'_a_': {'_b_'}, '_b_': ['_0_', '_1_']}
             True
+
+            >>> Dictionary({'key': {'__no_wrapping__': 'value'}}).convert(
+            ...     value_wrapper=lambda key, value: '_%s_' % value
+            ... ).content == {'key': 'value'}
+            True
         '''
         '''
             NOTE: We have to copy to avoid double convert of some keys or \
@@ -4320,7 +4325,6 @@ class TimeDelta(Object):
 class PhoneNumber(Object):
 
     '''This class adds some features for dealing with phone numbers.'''
-
 
     # region dynamic methods
 
