@@ -421,6 +421,10 @@ class Main(Class, Runnable):
         '''Converts data from client to python specific data objects.'''
         if value is Null:
             value = key
+        if 'data_keys_to_ignore' in cls.options and key in cls.options[
+            'data_keys_to_ignore'
+        ]:
+            return value
 # # python3.4
 # #         if builtins.isinstance(
 # #             key, builtins.str
@@ -1004,6 +1008,7 @@ class Main(Class, Runnable):
                 entity[1], builtins.type
             ) and builtins.issubclass(entity[1], cls.model.Model),
             Module.get_defined_objects(cls.model))
+        migration_successful = True
         session = create_database_session(
             bind=cls.engine, expire_on_commit=False
         )()
@@ -1058,7 +1063,6 @@ class Main(Class, Runnable):
                         explicitly because some properties may not exist in \
                         old database reflection.
                     '''
-                    migration_successful = True
                     for values in session.query(*old_columns.values()):
 # # python3.4
 # #                         __logger__.debug(
@@ -1113,7 +1117,7 @@ class Main(Class, Runnable):
                             'Automatic migration of model "%s" was '
                             'successful.', model_name)
                     else:
-                        __logger__.info(
+                        __logger__.critical(
                             'Please migrate table "%s" by hand or prepare '
                             'for next try.', model.__tablename__)
                         new_schemas[model.__tablename__] = \
@@ -1141,6 +1145,8 @@ class Main(Class, Runnable):
                 sort_keys=True, indent=cls.options['default_indent_level'])
 # #
         session.close()
+        if not migration_successful:
+            sys.exit(1)
         if(database_schema_file.content != serialized_schema and
            database_backup_file):
             now = DateTime.now()

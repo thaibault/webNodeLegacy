@@ -108,6 +108,7 @@
         }
     },
     "backend": {
+        "dataKeysToIgnore": [],
         "finalOptionConsolidation": true,
         "systemCommands": {
             "proxyServer": {
