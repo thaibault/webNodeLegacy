@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.4
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
 # region header
@@ -8,10 +8,10 @@
     and starts the web socket.
 '''
 
-# # python2.7
-# # from __future__ import absolute_import, division, print_function, \
-# #     unicode_literals
-pass
+# # python3.4
+# # pass
+from __future__ import absolute_import, division, print_function, \
+    unicode_literals
 # #
 
 __author__ = 'Torben Sickert'
@@ -23,8 +23,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python2.7 import __builtin__ as builtins
-import builtins
+# # python3.4 import builtins
+import __builtin__ as builtins
 from copy import copy, deepcopy
 from datetime import datetime as DateTime
 from datetime import time as Time
@@ -50,8 +50,8 @@ from sqlalchemy import event as SqlalchemyEvent
 from sqlalchemy.engine import Engine as SqlalchemyEngine
 from sqlite3 import Connection as SQLite3Connection
 
-# # python2.7 from boostNode import convert_to_string, convert_to_unicode
-pass
+# # python3.4 pass
+from boostNode import convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, Object
 from boostNode.extension.native import String as StringExtension
@@ -67,10 +67,10 @@ from boostNode.runnable.template import __exception__ as TemplateError
 from boostNode import highPerformanceModification
 
 
-# # python2.7
-# # String = lambda content: StringExtension(convert_to_string(content))
-# NOTE: Should be removed if we drop python2.X support.
-String = StringExtension
+# # python3.4
+# # # NOTE: Should be removed if we drop python2.X support.
+# # String = StringExtension
+String = lambda content: StringExtension(convert_to_string(content))
 # #
 
 try:
@@ -155,9 +155,9 @@ class Main(Class, Runnable):
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
         for pattern in cls.options['ignore_web_asset_pattern']:
-# # python2.7
-# #             if regularExpression.compile('(?:%s)$' % pattern).match(file.path):
-            if regularExpression.compile(pattern).fullmatch(file.path):
+# # python3.4
+# #             if regularExpression.compile(pattern).fullmatch(file.path):
+            if regularExpression.compile('(?:%s)$' % pattern).match(file.path):
 # #
                 return False
         return True
@@ -204,12 +204,12 @@ class Main(Class, Runnable):
             plain strings as templates and lose many performance.
         '''
         def value_wrapper(key, value):
-# # python2.7
+# # python3.4
 # #             while builtins.isinstance(
-# #                 value, (builtins.unicode, builtins.str)
+# #                 value, builtins.str
 # #             ) and mockup_template.left_code_delimiter in value:
             while builtins.isinstance(
-                value, builtins.str
+                value, (builtins.unicode, builtins.str)
             ) and mockup_template.left_code_delimiter in value:
 # #
                 value = TemplateParser(
@@ -236,18 +236,18 @@ class Main(Class, Runnable):
             After converting keys to backend compatible types we now convert \
             the values after rendering phase.
         '''
-# # python2.7
+# # python3.4
 # #         cls.options = Dictionary(content=cls.options).convert(
-# #             key_wrapper=lambda key, value: convert_to_unicode(String(
+# #             key_wrapper=lambda key, value: String(
 # #                 key
-# #             ).camel_case_to_delimited.content),
+# #             ).camel_case_to_delimited.content,
 # #             value_wrapper=cls.convert_for_backend,
 # #             remove_no_wrap_indicator=remove_no_wrap_indicator
 # #         ).content
         cls.options = Dictionary(content=cls.options).convert(
-            key_wrapper=lambda key, value: String(
+            key_wrapper=lambda key, value: convert_to_unicode(String(
                 key
-            ).camel_case_to_delimited.content,
+            ).camel_case_to_delimited.content),
             value_wrapper=cls.convert_for_backend,
             remove_no_wrap_indicator=remove_no_wrap_indicator
         ).content
@@ -289,17 +289,17 @@ class Main(Class, Runnable):
                     session.commit()
             except OperationalError as exception:
                 session.close()
-# # python2.7
+# # python3.4
 # #                 if 'database is locked' in builtins.str(exception):
 # #                     __logger__.warning(
 # #                         'Database seems to be locked. Retrying to connect'
-# #                         '. %s: %s',
-# #                         exception.__class__.__name__,
+# #                         '. %s: %s', exception.__class__.__name__,
 # #                         builtins.str(exception))
                 if 'database is locked' in builtins.str(exception):
                     __logger__.warning(
                         'Database seems to be locked. Retrying to connect'
-                        '. %s: %s', exception.__class__.__name__,
+                        '. %s: %s',
+                        exception.__class__.__name__,
                         builtins.str(exception))
 # #
                     time.sleep(1)
@@ -358,24 +358,24 @@ class Main(Class, Runnable):
         '''Returns the serialized version of given value.'''
         if value is Null:
             value = key
-# # python2.7
-# #         if(builtins.isinstance(key, builtins.unicode) and (
+# # python3.4
+# #         if(builtins.isinstance(key, builtins.str) and (
 # #             key == 'language' or key.endswith('_language') or
 # #             key.endswith('Language')
-# #         )) and regularExpression.compile('[a-z]{2}_[a-z]{2}$').match(value):
-# #             return '%s%s' % (convert_to_unicode(String(
+# #         )) and regularExpression.compile('[a-z]{2}_[a-z]{2}').fullmatch(
+# #             value
+# #         ):
+# #             return '%s%s' % (String(
 # #                 value
-# #             ).delimited_to_camel_case.content[:-1]),
-# #             convert_to_unicode(value[-1].upper()))
-        if(builtins.isinstance(key, builtins.str) and (
+# #             ).delimited_to_camel_case.content[:-1], value[-1].upper())
+        if(builtins.isinstance(key, builtins.unicode) and (
             key == 'language' or key.endswith('_language') or
             key.endswith('Language')
-        )) and regularExpression.compile('[a-z]{2}_[a-z]{2}').fullmatch(
-            value
-        ):
-            return '%s%s' % (String(
+        )) and regularExpression.compile('[a-z]{2}_[a-z]{2}$').match(value):
+            return '%s%s' % (convert_to_unicode(String(
                 value
-            ).delimited_to_camel_case.content[:-1], value[-1].upper())
+            ).delimited_to_camel_case.content[:-1]),
+            convert_to_unicode(value[-1].upper()))
 # #
         return Object(content=value).compatible_type
 
@@ -388,24 +388,24 @@ class Main(Class, Runnable):
             'data_keys_to_ignore'
         ]:
             return value
-# # python2.7
-# #         if builtins.isinstance(key, (
-# #             builtins.unicode, builtins.str
-# #         )) and (key == 'language' or key.endswith('_language') or
-# #             key.endswith('Language')
-# #         ) and regularExpression.compile('[a-z]{2}[A-Z]{2}$').match(value):
-# #             return convert_to_unicode(String(
+# # python3.4
+# #         if builtins.isinstance(
+# #             key, builtins.str
+# #         ) and (key == 'language' or key.endswith('_language') or
+# #         key.endswith('Language')) and regularExpression.compile(
+# #             '[a-z]{2}[A-Z]{2}'
+# #         ).fullmatch(value):
+# #             return String(
 # #                 value
-# #             ).camel_case_to_delimited.content)
-        if builtins.isinstance(
-            key, builtins.str
-        ) and (key == 'language' or key.endswith('_language') or
-        key.endswith('Language')) and regularExpression.compile(
-            '[a-z]{2}[A-Z]{2}'
-        ).fullmatch(value):
-            return String(
+# #             ).camel_case_to_delimited.content
+        if builtins.isinstance(key, (
+            builtins.unicode, builtins.str
+        )) and (key == 'language' or key.endswith('_language') or
+            key.endswith('Language')
+        ) and regularExpression.compile('[a-z]{2}[A-Z]{2}$').match(value):
+            return convert_to_unicode(String(
                 value
-            ).camel_case_to_delimited.content
+            ).camel_case_to_delimited.content)
 # #
         try:
             return Object(content=value).get_known_type(
@@ -520,15 +520,15 @@ class Main(Class, Runnable):
            file.path in cls.options['location']['template_ignored']):
             '''Don't enter ignored locations or parse ignored files.'''
             return None
-# # python2.7
+# # python3.4
 # #         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION and
 # #         FileHandler(
 # #             location='%s%s' % (file.directory.path, file.basename)
-# #         ).extension and not (file == cls.html_template_file)):
+# #         ).extension and file != cls.html_template_file):
         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION and
         FileHandler(
             location='%s%s' % (file.directory.path, file.basename)
-        ).extension and file != cls.html_template_file):
+        ).extension and not (file == cls.html_template_file)):
 # #
             FileHandler(location='%s%s' % (
                 file.directory.path, file.name[:-builtins.len('%s%s' % (
@@ -632,12 +632,11 @@ class Main(Class, Runnable):
     @classmethod
     def _check_database_schema_version(cls, database_backup_file):
         '''Checke if the database schema has changed.'''
-        if cls.model is None:
-            return cls
-        database_schema_file = FileHandler(
-            location=cls.options['location']['database']['schema_file'])
+        if cls.model is None: return cls
         old_schemas = {}
         serialized_schema = ''
+        database_schema_file = FileHandler(
+            location=cls.options['location']['database']['schema_file'])
         if database_schema_file:
             serialized_schema = database_schema_file.content
             old_schemas = json.loads(
@@ -653,147 +652,132 @@ class Main(Class, Runnable):
             bind=cls.engine, expire_on_commit=False
         )()
         for model_name, model in models:
-# # python2.7
-# #             new_schemas[model.__tablename__] = convert_to_unicode(
-# #                 CreateTable(model.__table__))
-            new_schemas[model.__tablename__] = builtins.str(CreateTable(
-                model.__table__))
+# # python3.4
+# #             new_schemas[model.__tablename__] = builtins.str(CreateTable(
+# #                 model.__table__))
+            new_schemas[model.__tablename__] = convert_to_unicode(
+                CreateTable(model.__table__))
 # #
             if model.__tablename__ in old_schemas:
                 # TODO Schemas can have equivalent different string
                 # representations (in python3.4 at the latest!)
-# # python2.7
+# # python3.4
 # #                 if(old_schemas[model.__tablename__] !=
-# #                    new_schemas[model.__tablename__]):
+# #                    new_schemas[model.__tablename__] and False):
                 if(old_schemas[model.__tablename__] !=
-                   new_schemas[model.__tablename__] and False):
+                   new_schemas[model.__tablename__]):
 # #
                     __logger__.info('Model "%s" has changed.', model_name)
-                    temporary_table_name = '%s_temp' % model.__tablename__
-                    while temporary_table_name in builtins.map(
-                        lambda model: model[1].__tablename__, models
-                    ):
-                        temporary_table_name = '%s_temp' % temporary_table_name
-                    __logger__.info(
-                        'Create new temporary table "%s".',
-                        temporary_table_name)
-                    temporary_table = Table(
-                        temporary_table_name, MetaData(bind=cls.engine))
-                    old_columns = {}
-                    for column in model.__table__.columns:
-                        if column.name in old_schemas[model.__tablename__]:
-                            old_columns[column.name] = builtins.getattr(
-                                model, column.name)
-                        temporary_table.append_column(column.copy())
-                    for constraint in model.__table__.constraints:
-                        '''
-                            NOTE: Produces a warning. Constraints seems not \
-                            to reference local columns. "constraint.copy()" \
-                            is no option because the result loses the column \
-                            bounding.
-                        '''
-                        temporary_table.append_constraint(constraint)
-                    temporary_table.create(cls.engine)
-                    session.commit()
-                    __logger__.info(
-                        'Transferring old records from "%s" to "%s".',
-                        model.__tablename__, temporary_table_name)
-                    '''
-                        NOTE: We have to select all old column names \
-                        explicitly because some properties may not exist in \
-                        old database reflection.
-                    '''
-                    for values in session.query(*old_columns.values()):
-# # python2.7
-# #                         __logger__.debug(
-# #                             'Transferring record "%s".', '", "'.join(
-# #                             builtins.map(lambda value: convert_to_unicode(
-# #                                 value
-# #                             ), values)))
-                        __logger__.debug(
-                            'Transferring record "%s".', '", "'.join(
-                            builtins.map(lambda value: builtins.str(
-                                value
-                            ), values)))
-# #
-                        try:
-                            session.execute(temporary_table.insert(
-                                builtins.dict(builtins.zip(
-                                    old_columns.keys(), values))))
-                        except builtins.Exception as exception:
-# # python2.7
-# #                             __logger__.critical(
-# #                                 '%s: %s', exception.__class__.__name__,
-# #                                 convert_to_unicode(exception))
-                            __logger__.critical(
-                                '%s: %s', exception.__class__.__name__,
-                                builtins.str(exception))
-# #
-                            migration_successful = False
-                    session.commit()
-                    if(migration_successful and
-                       cls.options['database']['engine_prefix'].startswith(
-                           'sqlite:')):
-                        __logger__.info(
-                            'Drop old table "%s".', model.__tablename__)
-                        '''
-                            NOTE: We have to temporary remove foreign key \
-                            checks.
-                        '''
-                        # TODO Check
-                        # defer_foreign_keys=ON
-                        # ignore_check_constraints=ON
-                        session.execute('PRAGMA foreign_keys=OFF;')
-                        session.execute(DropTable(Table(
-                            model.__tablename__, MetaData(bind=cls.engine))))
-                        __logger__.info(
-                            'Rename new table "%s" to old table name "%s".',
-                            temporary_table_name, model.__tablename__)
-                        session.execute('ALTER TABLE %s RENAME TO %s;' % (
-                            temporary_table_name, model.__tablename__))
-                        session.execute('PRAGMA foreign_key_check;')
-                        session.execute('PRAGMA foreign_keys=ON;')
-                        __logger__.info(
-                            'Automatic migration of model "%s" was '
-                            'successful.', model_name)
-                    else:
-                        __logger__.critical(
-                            'Please migrate table "%s" by hand or prepare '
-                            'for next try.', model.__tablename__)
-                        new_schemas[model.__tablename__] = \
-                            old_schemas[model.__tablename__]
-                    session.commit()
+                    migration_successful = cls._migrate_table(
+                        model, models, migration_successful, session)
             elif model.__tablename__ not in old_schemas:
                 __logger__.info('New model "%s" detected.', model_name)
                 '''NOTE: sqlalchemy will create this table automatically.'''
-        '''Load all existing table names from current database.'''
-        cls.model.Model.metadata.reflect(cls.engine)
-        for table_name in cls.model.Model.metadata.tables.keys():
-            if table_name not in new_schemas and cls.engine.dialect.has_table(
-                cls.engine.connect(), table_name
-            ):
-                session.execute(DropTable(Table(table_name, MetaData(
-                    bind=cls.engine))))
-                session.commit()
-                __logger__.info('Table "%s" has been removed.', table_name)
-# # python2.7
-# #             database_schema_file.content = json.dumps(
-# #                 new_schemas, encoding=cls.options['encoding'],
-# #                 sort_keys=True, indent=cls.options['default_indent_level'])
-            database_schema_file.content = json.dumps(
-                new_schemas, sort_keys=True,
-                indent=cls.options['default_indent_level'])
-# #
+        cls._save_database_schema(database_schema_file, session, new_schemas)
         session.close()
-        if not migration_successful:
-            sys.exit(1)
+        if not migration_successful: sys.exit(1)
+        return cls._save_database_backup(
+            database_schema_file, serialized_schema, database_backup_file)
+
+    @classmethod
+    def _migrate_model(cls, model, models, migration_successful, session):
+        '''
+            Migrates given model. Creates new schema and copies old data to \
+            them.
+        '''
+        temporary_table_name = '%s_temp' % model.__tablename__
+        while temporary_table_name in builtins.map(
+            lambda model: model[1].__tablename__, models
+        ):
+            temporary_table_name = '%s_temp' % temporary_table_name
+        __logger__.info(
+            'Create new temporary table "%s".', temporary_table_name)
+        temporary_table = Table(
+            temporary_table_name, MetaData(bind=cls.engine))
+        old_columns = {}
+        for column in model.__table__.columns:
+            if column.name in old_schemas[model.__tablename__]:
+                old_columns[column.name] = builtins.getattr(model, column.name)
+            temporary_table.append_column(column.copy())
+        for constraint in model.__table__.constraints:
+            '''
+                NOTE: Produces a warning. Constraints seems not to reference \
+                local columns. "constraint.copy()" is no option because the \
+                result loses the column bounding.
+            '''
+            temporary_table.append_constraint(constraint)
+        temporary_table.create(cls.engine)
+        session.commit()
+        __logger__.info(
+            'Transferring old records from "%s" to "%s".', model.__tablename__,
+            temporary_table_name)
+        '''
+            NOTE: We have to select all old column names explicitly because \
+            some properties may not exist in old database reflection.
+        '''
+        for values in session.query(*old_columns.values()):
+# # python3.4
+# #             __logger__.debug(
+# #                 'Transferring record "%s".', '", "'.join(builtins.map(
+# #                     lambda value: builtins.str(value), values)))
+            __logger__.debug(
+                'Transferring record "%s".', '", "'.join(builtins.map(
+                    lambda value: convert_to_unicode(value), values)))
+# #
+            try:
+                session.execute(temporary_table.insert(builtins.dict(
+                    builtins.zip(old_columns.keys(), values))))
+            except builtins.Exception as exception:
+# # python3.4
+# #                 __logger__.critical(
+# #                     '%s: %s', exception.__class__.__name__,
+# #                     builtins.str(exception))
+                __logger__.critical(
+                    '%s: %s', exception.__class__.__name__,
+                    convert_to_unicode(exception))
+# #
+                migration_successful = False
+        session.commit()
+        if(migration_successful and
+           cls.options['database']['engine_prefix'].startswith('sqlite:')):
+            __logger__.info('Drop old table "%s".', model.__tablename__)
+            '''NOTE: We have to temporary remove foreign key checks.'''
+            # TODO Check
+            # defer_foreign_keys=ON
+            # ignore_check_constraints=ON
+            session.execute('PRAGMA foreign_keys=OFF;')
+            session.execute(DropTable(Table(model.__tablename__, MetaData(
+                bind=cls.engine))))
+            __logger__.info(
+                'Rename new table "%s" to old table name "%s".',
+                temporary_table_name, model.__tablename__)
+            session.execute('ALTER TABLE %s RENAME TO %s;' % (
+                temporary_table_name, model.__tablename__))
+            session.execute('PRAGMA foreign_key_check;')
+            session.execute('PRAGMA foreign_keys=ON;')
+            __logger__.info(
+                'Automatic migration of model "%s" was successful.',
+                model_name)
+        else:
+            __logger__.critical(
+                'Please migrate table "%s" by hand or prepare for next try.',
+                model.__tablename__)
+            new_schemas[model.__tablename__] = old_schemas[model.__tablename__]
+        session.commit()
+        return migration_successful
+
+    @classmethod
+    def _save_database_backup(
+        cls, database_schema_file, serialized_schema, database_backup_file
+    ):
+        '''Saves a database backup of current database state.'''
         if(database_schema_file.content != serialized_schema and
            database_backup_file):
             now = DateTime.now()
-# # python2.7
-# #             time_stamp = time.mktime(now.timetuple()) + \
-# #                 now.microsecond / 1000 ** 2
-            time_stamp = now.timestamp() + now.microsecond / 1000 ** 2
+# # python3.4
+# #             time_stamp = now.timestamp() + now.microsecond / 1000 ** 2
+            time_stamp = time.mktime(now.timetuple()) + \
+                now.microsecond / 1000 ** 2
 # #
             long_term_database_file = FileHandler(location='%s%s%d%s' % (
                 database_backup_file.directory.path,
@@ -804,6 +788,28 @@ class Main(Class, Runnable):
                 long_term_database_file.path)
             long_term_database_file.directory.make_directories()
             database_backup_file.copy(target=long_term_database_file)
+        return cls
+
+    @classmethod
+    def _save_database_schema(cls, database_schema_file, session, new_schemas):
+        '''Load all existing table names from current database.'''
+        cls.model.Model.metadata.reflect(cls.engine)
+        for table_name in cls.model.Model.metadata.tables.keys():
+            if table_name not in new_schemas and cls.engine.dialect.has_table(
+                cls.engine.connect(), table_name
+            ):
+                session.execute(DropTable(Table(table_name, MetaData(
+                    bind=cls.engine))))
+                session.commit()
+                __logger__.info('Table "%s" has been removed.', table_name)
+# # python3.4
+# #         database_schema_file.content = json.dumps(
+# #             new_schemas, sort_keys=True,
+# #             indent=cls.options['default_indent_level'])
+        database_schema_file.content = json.dumps(
+            new_schemas, encoding=cls.options['encoding'],
+            sort_keys=True, indent=cls.options['default_indent_level'])
+# #
         return cls
 
     @classmethod
@@ -853,25 +859,25 @@ class Main(Class, Runnable):
                     cls.model, 'determine_language_specific_default_value'
                 ) and result['default_value'] == cls.model\
                 .determine_language_specific_default_value:
-# # python2.7
+# # python3.4
 # #                     result['default_value'] = Dictionary(
 # #                         content=cls.options['model']['generic'][
 # #                             'language_specific'
 # #                         ]['default'][property.name]).convert(
 # #                             key_wrapper=lambda key, value: cls
-# #                             .convert_for_client(convert_to_unicode(
-# #                                 String(
-# #                                     key
-# #                                 ).delimited_to_camel_case.content))
+# #                             .convert_for_client(String(
+# #                                 key
+# #                             ).delimited_to_camel_case.content)
 # #                         ).content
                     result['default_value'] = Dictionary(
                         content=cls.options['model']['generic'][
                             'language_specific'
                         ]['default'][property.name]).convert(
                             key_wrapper=lambda key, value: cls
-                            .convert_for_client(String(
-                                key
-                            ).delimited_to_camel_case.content)
+                            .convert_for_client(convert_to_unicode(
+                                String(
+                                    key
+                                ).delimited_to_camel_case.content))
                         ).content
 # #
                 else:
@@ -1129,18 +1135,18 @@ class Main(Class, Runnable):
 
     # # # endregion
 
-# # python2.7
-# #     def stop(self, *arguments, **keywords):
-    def stop(self, *arguments, force_stopping=False, **keywords):
+# # python3.4
+# #     def stop(self, *arguments, force_stopping=False, **keywords):
+    def stop(self, *arguments, **keywords):
 # #
         '''
             This method is triggered if the application should die. The web \
             server will be closed.
         '''
-# # python2.7
-# #         force_stopping, keywords = Dictionary(content=keywords).pop(
-# #             name='force_stopping', default_value=False)
-        pass
+# # python3.4
+# #         pass
+        force_stopping, keywords = Dictionary(content=keywords).pop(
+            name='force_stopping', default_value=False)
 # #
         if self.web_server:
             '''
@@ -1202,25 +1208,25 @@ class Main(Class, Runnable):
         self.data = __request_arguments__
         self.new_cookie = {}
         '''Normalize get and payload data.'''
-# # python2.7
+# # python3.4
 # #         self.data['get'] = Dictionary(content=self.data['get']).convert(
 # #             key_wrapper=lambda key, value: self.convert_for_backend(String(
 # #                 key
 # #             ).camel_case_to_delimited.content if isinstance(
-# #                 key, (unicode, str)
+# #                 key, str
 # #             ) else key), value_wrapper=self.convert_for_backend
 # #         ).content
         self.data['get'] = Dictionary(content=self.data['get']).convert(
             key_wrapper=lambda key, value: self.convert_for_backend(String(
                 key
             ).camel_case_to_delimited.content if isinstance(
-                key, str
+                key, (unicode, str)
             ) else key), value_wrapper=self.convert_for_backend
         ).content
 # #
         if builtins.isinstance(self.data['data'], builtins.list):
             for index, item in builtins.enumerate(self.data['data']):
-# # python2.7
+# # python3.4
 # #                 self.data['data'][index] = Dictionary(
 # #                     content=item
 # #                 ).convert(
@@ -1229,7 +1235,7 @@ class Main(Class, Runnable):
 # #                             String(
 # #                                 key
 # #                             ).camel_case_to_delimited.content if \
-# #                                 isinstance(key, (unicode, str)) else key
+# #                                 isinstance(key, str) else key
 # #                         ), value_wrapper=self.convert_for_backend
 # #                 ).content
                 self.data['data'][index] = Dictionary(
@@ -1240,7 +1246,7 @@ class Main(Class, Runnable):
                             String(
                                 key
                             ).camel_case_to_delimited.content if \
-                                isinstance(key, str) else key
+                                isinstance(key, (unicode, str)) else key
                         ), value_wrapper=self.convert_for_backend
                 ).content
 # #
@@ -1288,12 +1294,12 @@ class Main(Class, Runnable):
             self._web_controller()
         except TemplateError as exception:
             if self.debug:
-# # python2.7
+# # python3.4
 # #                 self.data['handler'].send_error(500, '%s: "%s"' % (
-# #                     exception.__class__.__name__, convert_to_unicode(
-# #                         exception)))
+# #                     exception.__class__.__name__, builtins.str(exception)))
                 self.data['handler'].send_error(500, '%s: "%s"' % (
-                    exception.__class__.__name__, builtins.str(exception)))
+                    exception.__class__.__name__, convert_to_unicode(
+                        exception)))
 # #
             else:
                 '''NOTE: The web server will handle this.'''
@@ -1348,47 +1354,8 @@ class Main(Class, Runnable):
         self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
-        self.__class__.frontend_html_file = FileHandler(
-            location=self.options['location']['html_file']['frontend'])
-        self.__class__.backend_html_file = FileHandler(
-            location=self.options['location']['html_file']['backend'])
-        self.__class__.html_template_file = FileHandler(
-            location=self.options['location']['html_file']['template'])
-# # python2.7
-# #         if self.controller is not None and builtins.isinstance(
-# #             self.options['web_server'].get('authentication_handler'),
-# #             (builtins.unicode, builtins.str)
-# #         ):
-# #             self.options['web_server']['authentication_handler'] = \
-# #             builtins.eval(
-# #                 self.options['web_server']['authentication_handler'],
-# #                 {'controller': self.controller})
-        if self.controller is not None and builtins.isinstance(
-            self.options['web_server'].get('authentication_handler'),
-            builtins.str
-        ):
-            self.options['web_server']['authentication_handler'] = \
-            builtins.eval(
-                self.options['web_server']['authentication_handler'],
-                {'controller': self.controller})
-# #
-        self.__class__.options['frontend'] = Dictionary(
-            content=self.options['frontend']
-        ).compatible_types.content
-        if(self.options['initial_template_rendering'] or
-           self.given_command_line_arguments.render_template):
-            __logger__.info('Render template files.')
-            self.render_templates(all=True, proxy_restart=True)
-        self.__class__.rest_data_timestamp_reference_file = FileHandler(
-            location=self.options['location']['database'][
-                'rest_data_timestamp_reference_file_path'])
-        if self.debug:
-            self.clear_web_cache()
-        if not self.rest_data_timestamp_reference_file:
-            self.__class__.rest_data_timestamp_reference_file.content = ''
-        if self.controller is not None:
-            self.controller.launch()
-        self._check_database_file_references()
+        self._initialize_templates()
+        self._initialize_data_structure()
 
         # # Profiling area
         #profiler.disable()
@@ -1405,6 +1372,60 @@ class Main(Class, Runnable):
 
     # # # endregion
 
+    def _initialize_templates(self):
+        '''Determines templates files and renders them.'''
+        self.__class__.frontend_html_file = FileHandler(
+            location=self.options['location']['html_file']['frontend'])
+        self.__class__.backend_html_file = FileHandler(
+            location=self.options['location']['html_file']['backend'])
+        self.__class__.html_template_file = FileHandler(
+            location=self.options['location']['html_file']['template'])
+        self._register_authentication_handler()
+        self.__class__.options['frontend'] = Dictionary(
+            content=self.options['frontend']
+        ).compatible_types.content
+        if(self.options['initial_template_rendering'] or
+           self.given_command_line_arguments.render_template):
+            __logger__.info('Render template files.')
+            self.render_templates(all=True, proxy_restart=True)
+        return self
+
+    def _register_authentication_handler(self):
+        '''Registers a basic http authentication handler to webserver.'''
+# # python3.4
+# #         if self.controller is not None and builtins.isinstance(
+# #             self.options['web_server'].get('authentication_handler'),
+# #             builtins.str
+# #         ):
+# #             self.options['web_server']['authentication_handler'] = \
+# #             builtins.eval(
+# #                 self.options['web_server']['authentication_handler'],
+# #                 {'controller': self.controller})
+        if self.controller is not None and builtins.isinstance(
+            self.options['web_server'].get('authentication_handler'),
+            (builtins.unicode, builtins.str)
+        ):
+            self.options['web_server']['authentication_handler'] = \
+            builtins.eval(
+                self.options['web_server']['authentication_handler'],
+                {'controller': self.controller})
+# #
+        return self
+
+    def _initialize_data_structure(self):
+        '''Initializes database and file based caching layer.'''
+        self.__class__.rest_data_timestamp_reference_file = FileHandler(
+            location=self.options['location']['database'][
+                'rest_data_timestamp_reference_file_path'])
+        if self.debug:
+            self.clear_web_cache()
+        if not self.rest_data_timestamp_reference_file:
+            self.__class__.rest_data_timestamp_reference_file.content = ''
+        if self.controller is not None:
+            self.controller.launch()
+        self._check_database_file_references()
+        return self
+
     def _determine_suitable_proxy_server(self):
         '''Search for suitable proxy server.'''
         connection = HTTPConnection(
@@ -1419,11 +1440,11 @@ class Main(Class, Runnable):
                 connection.getresponse().getheaders()
             ).get('server')
             for pattern in self.SUPPORTED_PROXY_SERVER_NAME_PATTERN:
-# # python2.7
-# #                 if regularExpression.compile('(?:%s)$' % pattern).match(
+# # python3.4
+# #                 if regularExpression.compile(pattern).fullmatch(
 # #                     server_name
 # #                 ):
-                if regularExpression.compile(pattern).fullmatch(
+                if regularExpression.compile('(?:%s)$' % pattern).match(
                     server_name
                 ):
 # #
