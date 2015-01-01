@@ -1,14 +1,14 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
 
 '''Provides the orm models for the application.'''
 
-# # python3.4
-# # pass
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+# # python2.7
+# # from __future__ import absolute_import, division, print_function, \
+# #     unicode_literals
+pass
 # #
 
 __author__ = 'Torben Sickert'
@@ -20,8 +20,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 import builtins
-import __builtin__ as builtins
+# # python2.7 import __builtin__ as builtins
+import builtins
 from datetime import datetime as DateTimeNative
 import inspect
 
@@ -62,14 +62,14 @@ def determine_language_specific_default_value(context):
         '''
         if(column.default.arg is builtins.globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
-# # python3.4
-# #              return OPTIONS['model']['generic']['language_specific'][
-# #                 'default'
-# #             ][column.name][language]
-
-             return OPTIONS['model']['generic']['language_specific']['default'][
-                column.name
-            ][language].decode(OPTIONS['encoding'])
+# # python2.7
+# # 
+# #              return OPTIONS['model']['generic']['language_specific']['default'][
+# #                 column.name
+# #             ][language].decode(OPTIONS['encoding'])
+             return OPTIONS['model']['generic']['language_specific'][
+                'default'
+            ][column.name][language]
 # #
 
 # endregion
@@ -111,26 +111,25 @@ class ApplicationMetaModel(MetaModel, DeclarativeMeta):
                 '''
                 for property_name, value in base_class.__dict__.items():
                     if(builtins.callable(value) and
-                       property_name[3:] not in class_scope):
-                        if property_name.startswith('get_'):
-                            if builtins.isinstance(value, FunctionDecorator):
-                                value = value.__func__
-                            class_scope[property_name[4:]] = hybrid_property(
-                                value)
-                            if('set_' + property_name[4:] in
-                               base_class.__dict__):
-                                class_scope['set_' + property_name[4:]] = \
-                                    class_scope[property_name[4:]].setter(
-                                        base_class.__dict__[
-                                            'set_' + property_name[4:]])
+                       property_name[3:] not in class_scope and
+                       property_name.startswith('get_')):
+                        if builtins.isinstance(value, FunctionDecorator):
+                            value = value.__func__
+                        class_scope[property_name[4:]] = hybrid_property(value)
+                        if('set_' + property_name[4:] in
+                           base_class.__dict__):
+                            class_scope['set_' + property_name[4:]] = \
+                                class_scope[property_name[4:]].setter(
+                                    base_class.__dict__[
+                                        'set_' + property_name[4:]])
         '''Take this method name via introspection.'''
         return builtins.getattr(
             builtins.super(ApplicationMetaModel, cls), inspect.stack()[0][3]
         )(cls, class_name, base_classes, class_scope, *arguments, **keywords)
 
 
-# # python3.4 class UpdateTriggerModel:
-class UpdateTriggerModel(builtins.object):
+# # python2.7 class UpdateTriggerModel(builtins.object):
+class UpdateTriggerModel:
 
     '''
         Provides a property to register each write access on corresponding \

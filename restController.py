@@ -1,14 +1,14 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
 
 '''Provides a generic Response object for any web based web application.'''
 
-# # python3.4
-# # pass
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+# # python2.7
+# # from __future__ import absolute_import, division, print_function, \
+# #     unicode_literals
+pass
 # #
 
 __author__ = 'Torben Sickert'
@@ -20,8 +20,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 import builtins
-import __builtin__ as builtins
+# # python2.7 import __builtin__ as builtins
+import builtins
 from base64 import b64encode as base64_encode
 from copy import copy
 from datetime import datetime as DateTime
@@ -35,18 +35,18 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
 
-# # python3.4 pass
-from boostNode import convert_to_string, convert_to_unicode
+# # python2.7 from boostNode import convert_to_string, convert_to_unicode
+pass
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
     InstancePropertyInitializer
 from boostNode.extension.native import String as StringExtension
 from boostNode.paradigm.objectOrientation import Class
 
-# # python3.4
-# # # NOTE: Should be removed if we drop python2.X support.
-# # String = StringExtension
-String = lambda content: StringExtension(convert_to_string(content))
+# # python2.7
+# # String = lambda content: StringExtension(convert_to_string(content))
+# NOTE: Should be removed if we drop python2.X support.
+String = StringExtension
 # #
 
 # endregion
@@ -65,9 +65,6 @@ class Response(Class):
     @InstancePropertyInitializer
     def __init__(self, request):
         '''Retrieves request meta data.'''
-
-        # # region properties
-
         '''Saves current selected model.'''
         self.model = None
         self.method_in_rest_controller = True
@@ -85,58 +82,29 @@ class Response(Class):
                     jsonp_get_parameter_indicator]
                 del self.request.data['get'][jsonp_get_parameter_indicator]
         if self.request.data['request_type'] != 'head':
-            if self.request.data['get'][
-                '__model__'
-            ] != self.request.model.Model.__name__ and builtins.hasattr(
-                self.request.model, self.request.data['get']['__model__']
-            ):
-                model = builtins.getattr(
-                    self.request.model, self.request.data['get']['__model__'])
-                if builtins.issubclass(model, self.request.model.Model):
-                    self.model = model
-            if self.model is None:
-# # python3.4
-# #                 method_name = '%s_%s_model' % (
-# #                     self.request.data['request_type'], String(
-# #                         self.request.data['get']['__model__']
-# #                     ).camel_case_to_delimited.content)
-                method_name = '%s_%s_model' % (
-                    self.request.data['request_type'], convert_to_unicode(
-                        String(
-                            self.request.data['get']['__model__']
-                        ).camel_case_to_delimited.content))
-# #
-                if builtins.hasattr(self, method_name):
-                    self.model = builtins.getattr(self, method_name)
-                elif builtins.hasattr(self.request.controller, method_name):
-                    self.method_in_rest_controller = False
-                    self.model = builtins.getattr(
-                        self.request.controller, method_name)
+            self._determine_model()
             '''
                 Converter keywords to wrap each respond to client. Can be \
                 overridden in subclasses.
             '''
-# # python3.4
+# # python2.7
 # #             self.data_wrapper = {
 # #                 'key_wrapper': lambda key, value:
 # #                     self.request.convert_for_client(String(
 # #                         key
 # #                     ).delimited_to_camel_case.content if \
-# #                         builtins.isinstance(key, builtins.str) else key),
+# #                         builtins.isinstance(key, (
+# #                             builtins.unicode, builtins.str
+# #                         )) else key),
 # #                 'value_wrapper': self.request.convert_for_client}
             self.data_wrapper = {
                 'key_wrapper': lambda key, value:
                     self.request.convert_for_client(String(
                         key
                     ).delimited_to_camel_case.content if \
-                        builtins.isinstance(key, (
-                            builtins.unicode, builtins.str
-                        )) else key),
+                        builtins.isinstance(key, builtins.str) else key),
                 'value_wrapper': self.request.convert_for_client}
 # #
-
-        # # endregion
-
         if self.model is not None:
             del self.request.data['get']['__model__']
 
@@ -154,111 +122,23 @@ class Response(Class):
                     510, 'Requested model "%s" doesn\'t exist.' %
                     self.request.data['get']['__model__'])
             else:
-                self.session = create_database_session(
-                    bind=self.request.engine, expire_on_commit=False,
-                    autoflush=False
-                )()
-                if not self.model.__name__.endswith('_file_model'):
-                    for dataType in ('get', 'data'):
-                        if builtins.isinstance(
-                            self.request.data[dataType], builtins.list
-                        ):
-                            for index, item in builtins.enumerate(
-                                self.request.data[dataType]
-                            ):
-                                self.request.data[dataType][index] = item
-                        else:
-                            self.request.data[dataType] = self.request.data[
-                                dataType]
-                if builtins.hasattr(self.model, '__table__'):
-                    method = builtins.getattr(
-                        self, 'process_%s' % self.request.data['request_type'])
-                    try:
-                        if self.request.data['request_type'] == 'get':
-                            result = method(data=self.request.data['get'])
-                        else:
-                            result = method(
-                                get=self.request.data['get'],
-                                data=self.request.data['data'])
-                    except (SQLAlchemyError, builtins.ValueError) as exception:
-                        '''
-                            NOTE: We can't raise this exception because \
-                            frontend need it as validation message.
-                        '''
-                        self.session.rollback()
-# # python3.4
-# #                         self.request.data['handler'].send_response(
-# #                             400 if builtins.isinstance(
-# #                                 exception, builtins.ValueError
-# #                             ) else 409, '%s: "%s"' % (
-# #                                 exception.__class__.__name__,
-# #                                 builtins.str(exception)))
-                        self.request.data['handler'].send_response(
-                            400 if builtins.isinstance(
-                                exception, builtins.ValueError
-                            ) else 409, '%s: "%s"' % (
-                                exception.__class__.__name__,
-                                convert_to_unicode(exception)))
-# #
-                        result = {}
-                elif self.request.data['request_type'] == 'get':
-                    if self.method_in_rest_controller:
-                        result = self.model(data=self.request.data['get'])
-                    else:
-                        result = self.model(
-                            data=self.request.data['get'],
-                            rest_controller=self)
-                elif self.method_in_rest_controller:
-                    result = self.model(
-                        get=self.request.data['get'],
-                        data=self.request.data['data'])
-                else:
-                    result = self.model(
-                        get=self.request.data['get'],
-                        data=self.request.data['data'], rest_controller=self)
-                if result is None:
-                    self.request.data['handler'].send_response(401)
-                    result = {}
-                try:
-                    self.session.commit()
-                except (SQLAlchemyError, builtins.ValueError) as exception:
-                    # TODO remove redundance from above.
-                    '''
-                        NOTE: We can't raise this exception because \
-                        frontend need it as validation message.
-                    '''
-                    self.session.rollback()
-# # python3.4
-# #                    self.request.data['handler'].send_response(
-# #                        400 if builtins.isinstance(
-# #                            exception, builtins.ValueError
-# #                        ) else 409, '%s: "%s"' % (
-# #                            exception.__class__.__name__,
-# #                            builtins.str(exception)))
-                    self.request.data['handler'].send_response(
-                        400 if builtins.isinstance(
-                            exception, builtins.ValueError
-                        ) else 409, '%s: "%s"' % (
-                            exception.__class__.__name__,
-                            convert_to_unicode(exception)))
-# #
-                self.session.close()
+                result = self._handle_data_exchange()
         self.request.data['handler'].send_response(200)
-# # python3.4
+# # python2.7
 # #         self.request.data['handler'].send_header(
-# #             String(self.request.options[
+# #             convert_to_unicode(String(self.request.options[
 # #                 'last_data_write_date_time_header_name'
-# #             ]).get_camel_case_to_delimited(delimiter='-').sub(
+# #             ]).get_camel_case_to_delimited(delimiter='-').substitute(
 # #                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-# #             ).camel_case_capitalize.content, builtins.str(
+# #             ).camel_case_capitalize.content),
+# #             convert_to_unicode(
 # #                 self.request.rest_data_timestamp_reference_file.timestamp))
         self.request.data['handler'].send_header(
-            convert_to_unicode(String(self.request.options[
+            String(self.request.options[
                 'last_data_write_date_time_header_name'
-            ]).get_camel_case_to_delimited(delimiter='-').sub(
+            ]).get_camel_case_to_delimited(delimiter='-').substitute(
                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-            ).camel_case_capitalize.content),
-            convert_to_unicode(
+            ).camel_case_capitalize.content, builtins.str(
                 self.request.rest_data_timestamp_reference_file.timestamp))
 # #
         if result is not None:
@@ -274,7 +154,7 @@ class Response(Class):
 
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
-# # python3.4
+# # python2.7
 # #         self.session.query(self.model).filter_by(
 # #             **get
 # #         ).update(self.model(**data).get_dictionary(prefix_filter=''))
@@ -291,40 +171,36 @@ class Response(Class):
             if 'has_password' in data:
                 value = data['has_password']
                 del data['has_password']
-                users = self.session.query(self.model).filter_by(
-                    **data)
-                if users.count():
-                    user = users.one()
-                    if user.enabled and user.has_password(value):
-                        '''
-                            Save session token in database with expiration \
-                            time.
-                        '''
-# # python3.4
-# #                         user.session_token = base64_encode(os.urandom(
-# #                             self.request.options['model'][
-# #                                 'authentication'
-# #                             ]['session_token']['length']
-# #                         )).decode().strip()
-                        user.session_token = convert_to_unicode(
-                            base64_encode(os.urandom(
-                                self.request.options['model'][
-                                    'authentication'
-                                ]['session_token']['length']
-                            )).strip())
+                users = self.session.query(self.model).filter_by(**data)
+                user = users.one() if users.count() else None
+                if user is not None and user.enabled and user.has_password(
+                    value
+                ):
+                    '''Save session token in database with expiration time.'''
+# # python2.7
+# #                     user.session_token = convert_to_unicode(base64_encode(
+# #                         os.urandom(self.request.options['model'][
+# #                             'authentication'
+# #                         ]['session_token']['length'])
+# #                     ).strip())
+                    user.session_token = base64_encode(os.urandom(
+                        self.request.options['model']['authentication'][
+                            'session_token'
+                        ]['length']
+                    )).decode().strip()
 # #
-                        user.session_expiration_date_time = DateTime.now(
-                        ) + self.request.options['session'][
-                            'expiration_time_delta']
-                        '''
-                            NOTE: Model data has to be rendered before \
-                            session is committed, to avoid temporary lose \
-                            data.
-                        '''
-                        result = user.get_dictionary(**self.data_wrapper)
-                        return result
-            elif(self.request.authorized_user_id is not None and
-                 data.get('id') == self.request.authorized_user_id):
+                    user.session_expiration_date_time = DateTime.now(
+                    ) + self.request.options['session'][
+                        'expiration_time_delta']
+                    '''
+                        NOTE: Model data has to be rendered before session is \
+                        committed, to avoid temporary lose data.
+                    '''
+                    result = user.get_dictionary(**self.data_wrapper)
+                    return result
+            elif(self.request.authorized_user_id is not None and data.get(
+                'id'
+            ) == self.request.authorized_user_id):
                 users = self.session.query(self.model).filter_by(
                     id=self.request.authorized_user_id)
                 if users.count():
@@ -338,17 +214,16 @@ class Response(Class):
                     Determine additional primary key parts of the data object.
                 '''
                 new_get = copy(get)
-                for primary_key in self.model.__mapper__.primary_key:
-                    if(primary_key.name not in get and
-                       primary_key.name in item):
-                        new_get[primary_key.name] = item[primary_key.name]
-                if new_get and self.session.query(
-                    self.model
-                ).filter_by(**new_get).count():
-                    self.session.query(self.model).filter_by(
-                        **new_get
-                    ).update(self.model(**item).get_dictionary(
-                        prefix_filter=''))
+                for primary_key in builtins.filter(
+                    lambda key: key.name not in get and key.name in item,
+                    self.model.__mapper__.primary_key
+                ):
+                    new_get[primary_key.name] = item[primary_key.name]
+                if new_get and self.session.query(self.model).filter_by(
+                    **new_get
+                ).count():
+                    self.session.query(self.model).filter_by(**new_get).update(
+                        self.model(**item).get_dictionary(prefix_filter=''))
                 else:
                     new_get.update(item)
                     self.session.add(self.model(**new_get))
@@ -371,10 +246,11 @@ class Response(Class):
                     Determine additional primary key parts of the data object.
                 '''
                 new_get = copy(get)
-                for primary_key in self.model.__mapper__.primary_key:
-                    if(primary_key.name not in get and
-                       primary_key.name in item):
-                        new_get[primary_key.name] = item[primary_key.name]
+                for primary_key in builtins.filter(
+                    lambda key: key.name not in get and key.name in item,
+                    self.model.__mapper__.primary_key
+                ):
+                    new_get[primary_key.name] = item[primary_key.name]
                 if new_get and self.session.query(
                     self.model
                 ).filter_by(**new_get).count():
@@ -425,15 +301,22 @@ class Response(Class):
             location=data['location'] if 'location' in data else '/'
         ):
             ignored = False
-            for pattern in self.request.options['ignore_web_asset_pattern']:
-# # python3.4
-# #                 if regularExpression.compile(pattern).fullmatch(file.name):
-                if regularExpression.compile('(?:%s)$' % pattern).match(
-                    file.name
-                ):
+# # python2.7
+# #             for pattern in builtins.filter(
+# #                 lambda pattern: regularExpression.compile(
+# #                     '(?:%s)$' % pattern
+# #                 ).match(file.name),
+# #                 self.request.options['ignore_web_asset_pattern']
+# #             ):
+            for pattern in builtins.filter(
+                lambda pattern: regularExpression.compile(
+                    pattern
+                ).fullmatch(file.name),
+                self.request.options['ignore_web_asset_pattern']
+            ):
 # #
-                    ignored = True
-                    break
+                ignored = True
+                break
             if ignored:
                 continue
             file_attributes = {}
@@ -441,13 +324,13 @@ class Response(Class):
             for attribute_name in self.request.options[
                 'exportable_file_attributes'
             ]:
-# # python3.4
-# #                 attribute_name_camel_case = String(
+# # python2.7
+# #                 attribute_name_camel_case = convert_to_unicode(String(
 # #                     attribute_name
-# #                 ).delimited_to_camel_case.content
-                attribute_name_camel_case = convert_to_unicode(String(
+# #                 ).delimited_to_camel_case.content)
+                attribute_name_camel_case = String(
                     attribute_name
-                ).delimited_to_camel_case.content)
+                ).delimited_to_camel_case.content
 # #
                 if attribute_name_camel_case not in data or builtins.getattr(
                     file, attribute_name
@@ -500,48 +383,147 @@ class Response(Class):
             corresponding linked attribute names and values.
         '''
         data = Dictionary(data).convert(
-            key_wrapper=lambda key, value: '%s_%s' % (
-                get['source'].lower(), key)
+            key_wrapper=lambda key, value: '%s_%s' % (get['source'].lower(
+            ), key)
         ).content
-        for model_name, model in Module.get_defined_objects(
-            self.request.model
+        for model_name, model in builtins.filter(
+            lambda model: builtins.isinstance(
+                model[1], builtins.type
+            ) and builtins.issubclass(model[1], self.request.model.Model),
+            Module.get_defined_objects(self.request.model)
         ):
-            if builtins.isinstance(
-                model, builtins.type
-            ) and builtins.issubclass(model, self.request.model.Model):
-                column_names = builtins.list(builtins.map(
-                    lambda property: property.name, model.__table__.columns))
-                is_referenced = True
-                for key_name in keys:
-                    if key_name not in column_names:
-                        is_referenced = False
-                        break
-                if is_referenced:
-                    '''
-                        NOTE: Property names have to be determined once. \
-                        Because sometimes the result is empty due to an \
-                        internal caching bug. Additionally this workaround \
-                        brings a little performance improvement.
-                    '''
-                    property_names = []
-                    for column in model.__table__.columns:
-                        '''Remove unique identifiers for record copies.'''
-                        if column.name != 'id':
-                            property_names.append(column.name)
-                    self.session.commit()
-                    for record in self.session.query(
-                        model
-                    ).filter_by(**keys):
-                        self.session.add(model(
-                            **record.get_dictionary(
-                                value_wrapper=lambda key, value:
-                                    data[key] if key in data else value,
-                                    property_names=property_names)))
-                    self.request\
-                        .rest_data_timestamp_reference_file.set_timestamp()
+            column_names = builtins.list(builtins.map(
+                lambda property: property.name, model.__table__.columns))
+            is_referenced = True
+            for key_name in builtis.filter(
+                lambda key_name: key_name not in column_names, keys
+            ):
+                is_referenced = False
+                break
+            if is_referenced:
+                '''
+                    NOTE: Property names have to be determined once. Because \
+                    sometimes the result is empty due to an internal caching \
+                    bug. Additionally this workaround brings a little \
+                    performance improvement.
+                '''
+                property_names = []
+                for column in builtins.filter(
+                    lambda column: column.name != 'id',
+                    model.__table__.columns
+                ):
+                    '''Remove unique identifiers for record copies.'''
+                    property_names.append(column.name)
+                self.session.commit()
+                for record in self.session.query(model).filter_by(**keys):
+                    self.session.add(model(**record.get_dictionary(
+                        value_wrapper=lambda key, value:
+                            data[key] if key in data else value,
+                            property_names=property_names)))
+                self.request.rest_data_timestamp_reference_file.set_timestamp()
         return{}
 
         # endregion
+
+    # endregion
+
+    # region protected methods
+
+    def _handle_data_exchange(self):
+        '''
+            Handles each get and data requests and performs needed actions on \
+            database.
+        '''
+        self.session = create_database_session(
+            bind=self.request.engine, expire_on_commit=False, autoflush=False
+        )()
+        if builtins.hasattr(self.model, '__table__'):
+            method = builtins.getattr(
+                self, 'process_%s' % self.request.data['request_type'])
+            try:
+                if self.request.data['request_type'] == 'get':
+                    result = method(data=self.request.data['get'])
+                else:
+                    result = method(
+                        get=self.request.data['get'],
+                        data=self.request.data['data'])
+            except (SQLAlchemyError, builtins.ValueError) as exception:
+                self._handle_database_exception(exception)
+                result = {}
+        elif self.request.data['request_type'] == 'get':
+            if self.method_in_rest_controller:
+                result = self.model(data=self.request.data['get'])
+            else:
+                result = self.model(
+                    data=self.request.data['get'], rest_controller=self)
+        elif self.method_in_rest_controller:
+            result = self.model(
+                get=self.request.data['get'], data=self.request.data['data'])
+        else:
+            result = self.model(
+                get=self.request.data['get'], data=self.request.data['data'],
+                rest_controller=self)
+        if result is None:
+            self.request.data['handler'].send_response(401)
+            result = {}
+        try:
+            self.session.commit()
+        except (SQLAlchemyError, builtins.ValueError) as exception:
+            self._handle_database_exception(exception)
+        self.session.close()
+        return result
+
+    def _handle_database_exception(self, exception):
+        '''
+            Deals with unexpected database behavior. NOTE: We can't raise \
+            this exception because frontend need it as validation message.
+        '''
+        self.session.rollback()
+# # python2.7
+# #         self.request.data['handler'].send_response(
+# #             400 if builtins.isinstance(
+# #                 exception, builtins.ValueError
+# #             ) else 409, '%s: "%s"' % (
+# #                 exception.__class__.__name__,
+# #                 convert_to_unicode(exception)))
+        self.request.data['handler'].send_response(
+            400 if builtins.isinstance(
+                exception, builtins.ValueError
+            ) else 409, '%s: "%s"' % (
+                exception.__class__.__name__, builtins.str(exception)))
+# #
+        return self
+
+    def _determine_model(self):
+        '''Determines requested model from client.'''
+        if self.request.data['get'][
+            '__model__'
+        ] != self.request.model.Model.__name__ and builtins.hasattr(
+            self.request.model, self.request.data['get']['__model__']
+        ):
+            model = builtins.getattr(
+                self.request.model, self.request.data['get']['__model__'])
+            if builtins.issubclass(model, self.request.model.Model):
+                self.model = model
+        if self.model is None:
+# # python2.7
+# #             method_name = '%s_%s_model' % (
+# #                 self.request.data['request_type'], convert_to_unicode(
+# #                     String(
+# #                         self.request.data['get']['__model__']
+# #                     ).camel_case_to_delimited.content))
+            method_name = '%s_%s_model' % (
+                self.request.data['request_type'], String(
+                    self.request.data['get']['__model__']
+                ).camel_case_to_delimited.content)
+# #
+            if builtins.hasattr(self, method_name):
+                self.model = builtins.getattr(self, method_name)
+            elif builtins.hasattr(self.request.controller, method_name):
+                self.method_in_rest_controller = False
+                self.model = builtins.getattr(
+                    self.request.controller, method_name)
+        return self
 
     # endregion
 
