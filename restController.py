@@ -1,14 +1,14 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 # -*- coding: utf-8 -*-
 
 # region header
 
 '''Provides a generic Response object for any web based web application.'''
 
-# # python3.4
-# # pass
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
+# # python2.7
+# # from __future__ import absolute_import, division, print_function, \
+# #     unicode_literals
+pass
 # #
 
 __author__ = 'Torben Sickert'
@@ -20,8 +20,8 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 import builtins
-import __builtin__ as builtins
+# # python2.7 import __builtin__ as builtins
+import builtins
 from base64 import b64encode as base64_encode
 from copy import copy
 from datetime import datetime as DateTime
@@ -35,18 +35,18 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
 
-# # python3.4 pass
-from boostNode import convert_to_string, convert_to_unicode
+# # python2.7 from boostNode import convert_to_string, convert_to_unicode
+pass
 from boostNode.extension.file import Handler as FileHandler
 from boostNode.extension.native import Dictionary, Module, \
     InstancePropertyInitializer
 from boostNode.extension.native import String as StringExtension
 from boostNode.paradigm.objectOrientation import Class
 
-# # python3.4
-# # # NOTE: Should be removed if we drop python2.X support.
-# # String = StringExtension
-String = lambda content: StringExtension(convert_to_string(content))
+# # python2.7
+# # String = lambda content: StringExtension(convert_to_string(content))
+# NOTE: Should be removed if we drop python2.X support.
+String = StringExtension
 # #
 
 # endregion
@@ -87,22 +87,22 @@ class Response(Class):
                 Converter keywords to wrap each respond to client. Can be \
                 overridden in subclasses.
             '''
-# # python3.4
+# # python2.7
 # #             self.data_wrapper = {
 # #                 'key_wrapper': lambda key, value:
 # #                     self.request.convert_for_client(String(
 # #                         key
 # #                     ).delimited_to_camel_case.content if \
-# #                         builtins.isinstance(key, builtins.str) else key),
+# #                         builtins.isinstance(key, (
+# #                             builtins.unicode, builtins.str
+# #                         )) else key),
 # #                 'value_wrapper': self.request.convert_for_client}
             self.data_wrapper = {
                 'key_wrapper': lambda key, value:
                     self.request.convert_for_client(String(
                         key
                     ).delimited_to_camel_case.content if \
-                        builtins.isinstance(key, (
-                            builtins.unicode, builtins.str
-                        )) else key),
+                        builtins.isinstance(key, builtins.str) else key),
                 'value_wrapper': self.request.convert_for_client}
 # #
         if self.model is not None:
@@ -124,21 +124,21 @@ class Response(Class):
             else:
                 result = self._handle_data_exchange()
         self.request.data['handler'].send_response(200)
-# # python3.4
+# # python2.7
 # #         self.request.data['handler'].send_header(
-# #             String(self.request.options[
+# #             convert_to_unicode(String(self.request.options[
 # #                 'last_data_write_date_time_header_name'
 # #             ]).get_camel_case_to_delimited(delimiter='-').substitute(
 # #                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-# #             ).camel_case_capitalize.content, builtins.str(
+# #             ).camel_case_capitalize.content),
+# #             convert_to_unicode(
 # #                 self.request.rest_data_timestamp_reference_file.timestamp))
         self.request.data['handler'].send_header(
-            convert_to_unicode(String(self.request.options[
+            String(self.request.options[
                 'last_data_write_date_time_header_name'
             ]).get_camel_case_to_delimited(delimiter='-').substitute(
                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-            ).camel_case_capitalize.content),
-            convert_to_unicode(
+            ).camel_case_capitalize.content, builtins.str(
                 self.request.rest_data_timestamp_reference_file.timestamp))
 # #
         if result is not None:
@@ -154,7 +154,7 @@ class Response(Class):
 
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
-# # python3.4
+# # python2.7
 # #         self.session.query(self.model).filter_by(
 # #             **get
 # #         ).update(self.model(**data).get_dictionary(prefix_filter=''))
@@ -177,17 +177,17 @@ class Response(Class):
                     value
                 ):
                     '''Save session token in database with expiration time.'''
-# # python3.4
-# #                     user.session_token = base64_encode(os.urandom(
-# #                         self.request.options['model']['authentication'][
-# #                             'session_token'
-# #                         ]['length']
-# #                     )).decode().strip()
-                    user.session_token = convert_to_unicode(base64_encode(
-                        os.urandom(self.request.options['model'][
-                            'authentication'
-                        ]['session_token']['length'])
-                    ).strip())
+# # python2.7
+# #                     user.session_token = convert_to_unicode(base64_encode(
+# #                         os.urandom(self.request.options['model'][
+# #                             'authentication'
+# #                         ]['session_token']['length'])
+# #                     ).strip())
+                    user.session_token = base64_encode(os.urandom(
+                        self.request.options['model']['authentication'][
+                            'session_token'
+                        ]['length']
+                    )).decode().strip()
 # #
                     user.session_expiration_date_time = DateTime.now(
                     ) + self.request.options['session'][
@@ -301,17 +301,17 @@ class Response(Class):
             location=data['location'] if 'location' in data else '/'
         ):
             ignored = False
-# # python3.4
+# # python2.7
 # #             for pattern in builtins.filter(
 # #                 lambda pattern: regularExpression.compile(
-# #                     pattern
-# #                 ).fullmatch(file.name),
+# #                     '(?:%s)$' % pattern
+# #                 ).match(file.name),
 # #                 self.request.options['ignore_web_asset_pattern']
 # #             ):
             for pattern in builtins.filter(
                 lambda pattern: regularExpression.compile(
-                    '(?:%s)$' % pattern
-                ).match(file.name),
+                    pattern
+                ).fullmatch(file.name),
                 self.request.options['ignore_web_asset_pattern']
             ):
 # #
@@ -324,13 +324,13 @@ class Response(Class):
             for attribute_name in self.request.options[
                 'exportable_file_attributes'
             ]:
-# # python3.4
-# #                 attribute_name_camel_case = String(
+# # python2.7
+# #                 attribute_name_camel_case = convert_to_unicode(String(
 # #                     attribute_name
-# #                 ).delimited_to_camel_case.content
-                attribute_name_camel_case = convert_to_unicode(String(
+# #                 ).delimited_to_camel_case.content)
+                attribute_name_camel_case = String(
                     attribute_name
-                ).delimited_to_camel_case.content)
+                ).delimited_to_camel_case.content
 # #
                 if attribute_name_camel_case not in data or builtins.getattr(
                     file, attribute_name
@@ -447,7 +447,7 @@ class Response(Class):
                     result = method(
                         get=self.request.data['get'],
                         data=self.request.data['data'])
-            except (SQLAlchemyError, builtins.ValueError) as exception:
+            except(SQLAlchemyError, builtins.ValueError) as exception:
                 self._handle_database_exception(exception)
                 result = {}
         elif self.request.data['request_type'] == 'get':
@@ -468,7 +468,7 @@ class Response(Class):
             result = {}
         try:
             self.session.commit()
-        except (SQLAlchemyError, builtins.ValueError) as exception:
+        except(SQLAlchemyError, builtins.ValueError) as exception:
             self._handle_database_exception(exception)
         self.session.close()
         return result
@@ -479,18 +479,18 @@ class Response(Class):
             this exception because frontend need it as validation message.
         '''
         self.session.rollback()
-# # python3.4
+# # python2.7
 # #         self.request.data['handler'].send_response(
 # #             400 if builtins.isinstance(
 # #                 exception, builtins.ValueError
 # #             ) else 409, '%s: "%s"' % (
-# #                 exception.__class__.__name__, builtins.str(exception)))
+# #                 exception.__class__.__name__,
+# #                 convert_to_unicode(exception)))
         self.request.data['handler'].send_response(
             400 if builtins.isinstance(
                 exception, builtins.ValueError
             ) else 409, '%s: "%s"' % (
-                exception.__class__.__name__,
-                convert_to_unicode(exception)))
+                exception.__class__.__name__, builtins.str(exception)))
 # #
         return self
 
@@ -506,16 +506,16 @@ class Response(Class):
             if builtins.issubclass(model, self.request.model.Model):
                 self.model = model
         if self.model is None:
-# # python3.4
+# # python2.7
 # #             method_name = '%s_%s_model' % (
-# #                 self.request.data['request_type'], String(
-# #                     self.request.data['get']['__model__']
-# #                 ).camel_case_to_delimited.content)
+# #                 self.request.data['request_type'], convert_to_unicode(
+# #                     String(
+# #                         self.request.data['get']['__model__']
+# #                     ).camel_case_to_delimited.content))
             method_name = '%s_%s_model' % (
-                self.request.data['request_type'], convert_to_unicode(
-                    String(
-                        self.request.data['get']['__model__']
-                    ).camel_case_to_delimited.content))
+                self.request.data['request_type'], String(
+                    self.request.data['get']['__model__']
+                ).camel_case_to_delimited.content)
 # #
             if builtins.hasattr(self, method_name):
                 self.model = builtins.getattr(self, method_name)
