@@ -135,8 +135,12 @@
         "maximumCookieAgeInSeconds": 31536000,
         "model": {
             "generic": {
-                "latitude": {"minimum": 0, "maximum": 90},
-                "longitude": {"minimum": 0, "maximum": 180},
+                "latitude": {
+                    "minimum": 0, "maximum": 90, "pattern": "[0-9]+\\.[0-9]+"
+                },
+                "longitude": {
+                    "minimum": 0, "maximum": 180, "pattern": "[0-9]+\\.[0-9]+"
+                },
                 "filePath": {
                     "minimumLength": 1, "maximumLength": 32000,
                     "pattern": ".+",
