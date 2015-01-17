@@ -1145,8 +1145,9 @@ class Main(Class, Runnable):
         '''
 # # python3.4
 # #         pass
-        force_stopping, keywords = Dictionary(content=keywords).pop(
-            name='force_stopping', default_value=False)
+        force_stopping, keywords = Dictionary(
+            content=keywords
+        ).pop_from_keywords(name='force_stopping', default_value=False)
 # #
         if self.web_server:
             '''
