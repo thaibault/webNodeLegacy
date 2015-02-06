@@ -38,7 +38,7 @@ from sqlalchemy.orm import sessionmaker as create_database_session
 # # python3.4 pass
 from boostNode import convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
-from boostNode.extension.native import Dictionary, Module, \
+from boostNode.extension.native import Object, Dictionary, Module, \
     InstancePropertyInitializer
 from boostNode.extension.native import String as StringExtension
 from boostNode.paradigm.objectOrientation import Class
@@ -110,7 +110,47 @@ class Response(Class):
 
         # endregion
 
-        # region getter
+    # # region helper
+
+    def finalize_database_session(self, session, set_timestamp='Data'):
+        '''
+            Commits all changes on given database session, sets last database \
+            change timestamp, handles errors and closes connection.
+        '''
+        try:
+            session.commit()
+        except(SQLAlchemyError, builtins.ValueError) as exception:
+            self.handle_database_exception(exception, session)
+        session.close()
+        if set_timestamp:
+            self.request.rest_data_timestamp_reference.set_timestamp(
+                model_name=set_timestamp)
+        return self
+
+    def handle_database_exception(self, exception, session):
+        '''
+            Deals with unexpected database behavior. NOTE: We can't raise \
+            this exception because frontend need it as validation message.
+        '''
+        session.rollback()
+# # python3.4
+# #         self.request.data['handler'].send_response(
+# #             400 if builtins.isinstance(
+# #                 exception, builtins.ValueError
+# #             ) else 409, '%s: "%s"' % (
+# #                 exception.__class__.__name__, builtins.str(exception)))
+        self.request.data['handler'].send_response(
+            400 if builtins.isinstance(
+                exception, builtins.ValueError
+            ) else 409, '%s: "%s"' % (
+                exception.__class__.__name__,
+                convert_to_unicode(exception)))
+# #
+        return self
+
+    # # endregion
+
+    # # region getter
 
     @Class.pseudo_property
     def get_output(self):
@@ -124,22 +164,26 @@ class Response(Class):
             else:
                 result = self._handle_data_exchange()
         self.request.data['handler'].send_response(200)
+        for model_name, timestamp in \
+        self.request.rest_data_timestamp_reference.timestamp.items():
 # # python3.4
-# #         self.request.data['handler'].send_header(
-# #             String(self.request.options[
-# #                 'last_data_write_date_time_header_name'
-# #             ]).get_camel_case_to_delimited(delimiter='-').substitute(
-# #                 '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-# #             ).camel_case_capitalize.content, builtins.str(
-# #                 self.request.rest_data_timestamp_reference_file.timestamp))
-        self.request.data['handler'].send_header(
-            convert_to_unicode(String(self.request.options[
-                'last_data_write_date_time_header_name'
-            ]).get_camel_case_to_delimited(delimiter='-').substitute(
-                '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-            ).camel_case_capitalize.content),
-            convert_to_unicode(
-                self.request.rest_data_timestamp_reference_file.timestamp))
+# #             self.request.data['handler'].send_header(
+# #                 String(self.request.options[
+# #                     'last_data_write_date_time_header_name'
+# #                 ]).get_camel_case_to_delimited(delimiter='-').substitute(
+# #                     '-([a-z])',
+# #                     lambda match: '-%s' % match.group(1).upper()
+# #                 ).camel_case_capitalize.content.replace(
+# #                     'Data', model_name
+# #                 ), builtins.str(timestamp))
+            self.request.data['handler'].send_header(
+                convert_to_unicode(String(self.request.options[
+                    'last_data_write_date_time_header_name'
+                ]).get_camel_case_to_delimited(delimiter='-').substitute(
+                    '-([a-z])', lambda match: '-%s' % match.group(1).upper()
+                ).camel_case_capitalize.content.replace(
+                    'Data', model_name
+                )), convert_to_unicode(timestamp))
 # #
         if result is not None:
             if self.json_padding:
@@ -148,30 +192,34 @@ class Response(Class):
                 result)
         return ''
 
-        # endregion
+    # # endregion
 
-        # region request type
+    # # region request type
 
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
+        session = create_database_session(bind=self.request.engine)()
 # # python3.4
-# #         self.session.query(self.model).filter_by(
-# #             **get
-# #         ).update(self.model(**data).get_dictionary(prefix_filter=''))
-        self.session.query(self.model).filter_by(
-            **get
-        ).update(self.model(**data).get_dictionary(prefix_filter=''))
+# #         session.query(self.model).filter_by(**get).update(self.model(
+# #             **data
+# #         ).get_dictionary(prefix_filter=()))
+        session.query(self.model).filter_by(**get).update(self.model(
+            **data
+        ).get_dictionary(prefix_filter=()))
 # #
-        self.request.rest_data_timestamp_reference_file.set_timestamp()
+        self.finalize_database_session(
+            session, set_timestamp=self.model.__name__)
         return{}
 
     def process_post(self, get, data):
         '''Computes the post response object.'''
         if self.request.model.User is self.model:
+            result = None
             if 'has_password' in data:
                 value = data['has_password']
                 del data['has_password']
-                users = self.session.query(self.model).filter_by(**data)
+                session = create_database_session(bind=self.request.engine)()
+                users = session.query(self.model).filter_by(**data)
                 user = users.one() if users.count() else None
                 if user is not None and user.enabled and user.has_password(
                     value
@@ -196,18 +244,24 @@ class Response(Class):
                         NOTE: Model data has to be rendered before session is \
                         committed, to avoid temporary lose data.
                     '''
-                    result = user.get_dictionary(**self.data_wrapper)
-                    return result
+                    result = user.get_dictionary(
+                        prefix_filter=('password',), **self.data_wrapper)
+                    self.finalize_database_session(session, set_timestamp=None)
             elif(self.request.authorized_user_id is not None and data.get(
                 'id'
             ) == self.request.authorized_user_id):
-                users = self.session.query(self.model).filter_by(
+                session = create_database_session(bind=self.request.engine)()
+                users = session.query(self.model).filter_by(
                     id=self.request.authorized_user_id)
                 if users.count():
-                    return users.one().get_dictionary(**self.data_wrapper)
+                    result = users.one().get_dictionary(
+                        prefix_filter=('password',), **self.data_wrapper)
+                session.close()
+            return result
 
     def process_put(self, get, data):
         '''Computes the put response object.'''
+        session = create_database_session(bind=self.request.engine)()
         if builtins.isinstance(data, builtins.list):
             for item in data:
                 '''
@@ -219,27 +273,30 @@ class Response(Class):
                     self.model.__mapper__.primary_key
                 ):
                     new_get[primary_key.name] = item[primary_key.name]
-                if new_get and self.session.query(self.model).filter_by(
+                if new_get and session.query(self.model).filter_by(
                     **new_get
                 ).count():
-                    self.session.query(self.model).filter_by(**new_get).update(
-                        self.model(**item).get_dictionary(prefix_filter=''))
+                    session.query(self.model).filter_by(**new_get).update(
+                        self.model(**item).get_dictionary(prefix_filter=()))
                 else:
                     new_get.update(item)
-                    self.session.add(self.model(**new_get))
+                    session.add(self.model(**new_get))
         else:
-            result = self.session.query(self.model).filter_by(**get)
+            result = session.query(self.model).filter_by(**get)
             if get and result.count():
                 result.update(self.model(**data).get_dictionary(
-                    prefix_filter=''))
+                    prefix_filter=()))
             else:
                 get.update(data)
-                self.session.add(self.model(**get))
-        self.request.rest_data_timestamp_reference_file.set_timestamp()
+                session.add(self.model(**get))
+        self.finalize_database_session(
+            session, set_timestamp=self.model.__name__)
         return{}
 
     def process_delete(self, get, data):
         '''Computes the delete response object.'''
+        session = create_database_session(bind=self.request.engine)()
+        modified = False
         if builtins.isinstance(data, builtins.list):
             for item in data:
                 '''
@@ -251,37 +308,45 @@ class Response(Class):
                     self.model.__mapper__.primary_key
                 ):
                     new_get[primary_key.name] = item[primary_key.name]
-                if new_get and self.session.query(
-                    self.model
-                ).filter_by(**new_get).count():
-                    self.session.query(self.model).filter_by(
-                        **new_get
-                    ).delete()
-                    self.request\
-                        .rest_data_timestamp_reference_file.set_timestamp()
-        elif get and self.session.query(self.model).filter_by(
+                if new_get and session.query(self.model).filter_by(
+                    **new_get
+                ).count():
+                    session.query(self.model).filter_by(**new_get).delete()
+                    modified = True
+        elif get and session.query(self.model).filter_by(
             **get
         ).count():
-            self.session.query(self.model).filter_by(
-                **get
-            ).delete()
-            self.request.rest_data_timestamp_reference_file.set_timestamp()
+            session.query(self.model).filter_by(**get).delete()
+            modified = True
+        if modified:
+            self.finalize_database_session(
+                session, set_timestamp=self.model.__name__)
+        else:
+            session.close()
         return{}
 
     def process_get(self, data):
         '''Computes the get response object.'''
+        authenticated, prefix_filter =\
+        self._determine_authentication_parameter()
+        if not authenticated:
+            return
+        session = create_database_session(bind=self.request.engine)()
         if data:
-            return[model.get_dictionary(
-                **self.data_wrapper
-            ) for model in self.session.query(self.model).filter_by(
-                **data)]
-        return[model.get_dictionary(
-            **self.data_wrapper
-        ) for model in self.session.query(self.model)]
+            result = builtins.list([model.get_dictionary(
+                prefix_filter=prefix_filter, **self.data_wrapper
+            ) for model in session.query(self.model).filter_by(
+                **data)])
+        else:
+            result = builtins.list([model.get_dictionary(
+                prefix_filter=prefix_filter, **self.data_wrapper
+            ) for model in session.query(self.model)])
+        session.close()
+        return result
 
-        # endregion
+    # # endregion
 
-        # region special request types
+    # # region special request types
 
     def get_system_model(self, data):
         '''Returns all defined models.'''
@@ -321,22 +386,20 @@ class Response(Class):
                 continue
             file_attributes = {}
             skip = False
-            for attribute_name in self.request.options[
-                'exportable_file_attributes'
-            ]:
+            for name in Object.EXPORTABLE_FILE_ATTRIBUTES:
 # # python3.4
-# #                 attribute_name_camel_case = String(
-# #                     attribute_name
+# #                 name_camel_case = String(
+# #                     name
 # #                 ).delimited_to_camel_case.content
-                attribute_name_camel_case = convert_to_unicode(String(
-                    attribute_name
+                name_camel_case = convert_to_unicode(String(
+                    name
                 ).delimited_to_camel_case.content)
 # #
-                if attribute_name_camel_case not in data or builtins.getattr(
-                    file, attribute_name
-                ) == data[attribute_name_camel_case]:
-                    file_attributes[attribute_name_camel_case] =\
-                        builtins.getattr(file, attribute_name)
+                if name_camel_case not in data or builtins.getattr(
+                    file, name
+                ) == data[name_camel_case]:
+                    file_attributes[name_camel_case] = builtins.getattr(
+                        file, name)
                 else:
                     skip = True
                     break
@@ -350,13 +413,15 @@ class Response(Class):
         file = FileHandler(location=get['path'])
         if file.is_file():
             if file.remove_file():
-                self.request.rest_data_timestamp_reference_file.set_timestamp()
+                self.request.rest_data_timestamp_reference.set_timestamp(
+                    model_name='File')
             else:
                 return None
         return{}
 
     def put_file_model(self, get, data):
         '''Saves given files.'''
+        modified = False
         for items in data.values():
             for item in items:
                 if builtins.hasattr(
@@ -366,8 +431,10 @@ class Response(Class):
                         self.request.options['location']['medium'] +
                         convert_to_unicode(item.filename)
                     )._path, 'wb'))
-                    self.request\
-                        .rest_data_timestamp_reference_file.set_timestamp()
+                    modified = True
+        if modified:
+            self.request.rest_data_timestamp_reference.set_timestamp(
+                model_name='File')
         return{}
 
     def put_copy_model(self, get, data):
@@ -386,6 +453,10 @@ class Response(Class):
             key_wrapper=lambda key, value: '%s_%s' % (get['source'].lower(
             ), key)
         ).content
+        session = create_database_session(
+            bind=self.request.engine, expire_on_commit=False
+        )()
+        modified = False
         for model_name, model in builtins.filter(
             lambda model: builtins.isinstance(
                 model[1], builtins.type
@@ -395,7 +466,7 @@ class Response(Class):
             column_names = builtins.list(builtins.map(
                 lambda property: property.name, model.__table__.columns))
             is_referenced = True
-            for key_name in builtis.filter(
+            for key_name in builtins.filter(
                 lambda key_name: key_name not in column_names, keys
             ):
                 is_referenced = False
@@ -414,13 +485,17 @@ class Response(Class):
                 ):
                     '''Remove unique identifiers for record copies.'''
                     property_names.append(column.name)
-                self.session.commit()
+                session.commit()
                 for record in self.session.query(model).filter_by(**keys):
-                    self.session.add(model(**record.get_dictionary(
+                    session.add(model(**record.get_dictionary(
                         value_wrapper=lambda key, value:
                             data[key] if key in data else value,
                             property_names=property_names)))
-                self.request.rest_data_timestamp_reference_file.set_timestamp()
+                    modified = True
+        if modified:
+            self.finalize_database_session(session)
+        else:
+            session.close()
         return{}
 
         # endregion
@@ -429,76 +504,63 @@ class Response(Class):
 
     # region protected methods
 
+    def _determine_authentication_parameter(self):
+        '''
+            Determines which data can be retrieved with given authentication \
+            level. Returns a tuple. First element tells if request should be \
+            rejected and second argument gives a needed data prefix filter.
+        '''
+        if self.request.authorized_user_id is None:
+            if(
+                self.request.data['request_type'] != 'post' and
+                builtins.isinstance(self.model, self.request.model.Model) and
+                builtins.issubclass(
+                    self.model, self.request.model.AuthenticationModel)
+            ):
+                return False, ('password', 'session')
+            return True, ('password', 'session')
+        return True, ('password',)
+
     def _handle_data_exchange(self):
         '''
             Handles each get and data requests and performs needed actions on \
             database.
         '''
-        self.session = create_database_session(
-            bind=self.request.engine, expire_on_commit=False, autoflush=False
-        )()
-        if builtins.hasattr(self.model, '__table__'):
-            method = builtins.getattr(
-                self, 'process_%s' % self.request.data['request_type'])
-            try:
+        result = None
+        if self._determine_authentication_parameter()[0]:
+            if builtins.hasattr(self.model, '__table__'):
+                method = builtins.getattr(
+                    self, 'process_%s' % self.request.data['request_type'])
                 if self.request.data['request_type'] == 'get':
                     result = method(data=self.request.data['get'])
                 else:
                     result = method(
                         get=self.request.data['get'],
                         data=self.request.data['data'])
-            except(SQLAlchemyError, builtins.ValueError) as exception:
-                self._handle_database_exception(exception)
-                result = {}
-        elif self.request.data['request_type'] == 'get':
-            if self.method_in_rest_controller:
-                result = self.model(data=self.request.data['get'])
+            elif self.request.data['request_type'] == 'get':
+                if self.method_in_rest_controller:
+                    result = self.model(data=self.request.data['get'])
+                else:
+                    result = self.model(
+                        data=self.request.data['get'], rest_controller=self)
+            elif self.method_in_rest_controller:
+                result = self.model(
+                    get=self.request.data['get'],
+                    data=self.request.data['data'])
             else:
                 result = self.model(
-                    data=self.request.data['get'], rest_controller=self)
-        elif self.method_in_rest_controller:
-            result = self.model(
-                get=self.request.data['get'], data=self.request.data['data'])
-        else:
-            result = self.model(
-                get=self.request.data['get'], data=self.request.data['data'],
-                rest_controller=self)
+                    get=self.request.data['get'],
+                    data=self.request.data['data'], rest_controller=self)
         if result is None:
             self.request.data['handler'].send_response(401)
             result = {}
-        try:
-            self.session.commit()
-        except(SQLAlchemyError, builtins.ValueError) as exception:
-            self._handle_database_exception(exception)
-        self.session.close()
         return result
-
-    def _handle_database_exception(self, exception):
-        '''
-            Deals with unexpected database behavior. NOTE: We can't raise \
-            this exception because frontend need it as validation message.
-        '''
-        self.session.rollback()
-# # python3.4
-# #         self.request.data['handler'].send_response(
-# #             400 if builtins.isinstance(
-# #                 exception, builtins.ValueError
-# #             ) else 409, '%s: "%s"' % (
-# #                 exception.__class__.__name__, builtins.str(exception)))
-        self.request.data['handler'].send_response(
-            400 if builtins.isinstance(
-                exception, builtins.ValueError
-            ) else 409, '%s: "%s"' % (
-                exception.__class__.__name__,
-                convert_to_unicode(exception)))
-# #
-        return self
 
     def _determine_model(self):
         '''Determines requested model from client.'''
-        if self.request.data['get'][
-            '__model__'
-        ] != self.request.model.Model.__name__ and builtins.hasattr(
+        if self.request.data['get']['__model__'] not in (
+            self.request.model.Model.__name__, 'Model'
+        ) and builtins.hasattr(
             self.request.model, self.request.data['get']['__model__']
         ):
             model = builtins.getattr(

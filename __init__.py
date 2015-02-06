@@ -39,7 +39,9 @@ import os
 import re as regularExpression
 from socket import error as SocketError
 import sys
-import time
+from time import clock, sleep, time
+# # python3.4 pass
+from time import mktime as make_time
 
 from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.exc import OperationalError
@@ -65,7 +67,6 @@ from boostNode.runnable.server import Web as WebServer
 from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
 from boostNode import highPerformanceModification
-
 
 # # python3.4
 # # # NOTE: Should be removed if we drop python2.X support.
@@ -108,7 +109,7 @@ class Main(Class, Runnable):
     '''Saves a path pointing to the applications global configuration file.'''
     SUPPORTED_PROXY_SERVER_NAME_PATTERN = 'nginx/.+',
     '''Saves all supported proxy server name patterns.'''
-    rest_data_timestamp_reference_file = None
+    rest_data_timestamp_reference = None
     '''Saves a database timestamp reference file.'''
     web_server = None
     '''Saves the web server instance.'''
@@ -264,10 +265,19 @@ class Main(Class, Runnable):
             be returned "None" otherwise.
         '''
         result = None
-        while user_id and session_token:
+        maximum_number_of_tries = 10
+        number_of_tries = 1
+        while(
+            user_id and session_token and
+            number_of_tries < maximum_number_of_tries
+        ):
             try:
                 user_id = builtins.int(user_id)
                 session = create_database_session(bind=cls.engine)()
+                '''
+                    NOTE: Do not refactor "== True" to "is True" since the \
+                    equal operator is overwritten by the orm.
+                '''
                 users = session.query(cls.model.User).filter(
                     cls.model.User.enabled == True,
                     cls.model.User.id == user_id,
@@ -283,8 +293,10 @@ class Main(Class, Runnable):
                             cls.options['session'][
                                 'expiration_time_delta'
                             ].total_seconds() / 60) / 60)
-                    if location is not None:
+                    if location is not None and user.location != location:
                         user.location = location
+                        cls.rest_data_timestamp_reference.set_timestamp(
+                            model_name=cls.model.User.__name__)
                     result = user.id
                     session.commit()
             except OperationalError as exception:
@@ -293,16 +305,22 @@ class Main(Class, Runnable):
 # #                 if 'database is locked' in builtins.str(exception):
 # #                     __logger__.warning(
 # #                         'Database seems to be locked. Retrying to connect'
-# #                         '. %s: %s', exception.__class__.__name__,
+# #                         ' (%d. try of %d). %s: %s', number_of_tries,
+# #                         maximum_number_of_tries,
+# #                         exception.__class__.__name__,
 # #                         builtins.str(exception))
                 if 'database is locked' in builtins.str(exception):
                     __logger__.warning(
                         'Database seems to be locked. Retrying to connect'
-                        '. %s: %s',
+                        ' (%d. try of %d). %s: %s', number_of_tries,
+                        maximum_number_of_tries,
                         exception.__class__.__name__,
                         builtins.str(exception))
 # #
-                    time.sleep(1)
+                    if number_of_tries >= maximum_number_of_tries:
+                        raise
+                    number_of_tries += 1
+                    sleep(1)
                     continue
                 raise
             else:
@@ -374,8 +392,8 @@ class Main(Class, Runnable):
         )) and regularExpression.compile('[a-z]{2}_[a-z]{2}$').match(value):
             return '%s%s' % (convert_to_unicode(String(
                 value
-            ).delimited_to_camel_case.content[:-1]),
-            convert_to_unicode(value[-1].upper()))
+            ).delimited_to_camel_case.content[:-1]), convert_to_unicode(
+                value[-1].upper()))
 # #
         return Object(content=value).compatible_type
 
@@ -400,9 +418,11 @@ class Main(Class, Runnable):
 # #             ).camel_case_to_delimited.content
         if builtins.isinstance(key, (
             builtins.unicode, builtins.str
-        )) and (key == 'language' or key.endswith('_language') or
-            key.endswith('Language')
-        ) and regularExpression.compile('[a-z]{2}[A-Z]{2}$').match(value):
+        )) and (key == 'language' or key.endswith(
+            '_language'
+        ) or key.endswith('Language')) and regularExpression.compile(
+            '[a-z]{2}[A-Z]{2}$'
+        ).match(value):
             return convert_to_unicode(String(
                 value
             ).camel_case_to_delimited.content)
@@ -467,7 +487,7 @@ class Main(Class, Runnable):
         if(proxy_restart and
            cls.options['system_commands']['proxy_server']['start'] and
            cls.options['system_commands']['proxy_server']['stop']
-        ):
+           ):
             for command in ('stop', 'start'):
                 __logger__.debug(
                     'Run "%s".', cls.options['system_commands'][
@@ -489,7 +509,7 @@ class Main(Class, Runnable):
                             command])
                 else:
                     if command == 'stop':
-                        time.sleep(0.1)
+                        sleep(0.1)
         elif cls.options['system_commands']['proxy_server']['reload']:
             __logger__.debug(
                 'Run "%s".', cls.options['system_commands'][
@@ -522,13 +542,13 @@ class Main(Class, Runnable):
             return None
 # # python3.4
 # #         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION and
-# #         FileHandler(
-# #             location='%s%s' % (file.directory.path, file.basename)
-# #         ).extension and file != cls.html_template_file):
+# #            FileHandler(location='%s%s' % (
+# #                file.directory.path, file.basename
+# #            )).extension and file != cls.html_template_file):
         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION and
-        FileHandler(
-            location='%s%s' % (file.directory.path, file.basename)
-        ).extension and not (file == cls.html_template_file)):
+           FileHandler(location='%s%s' % (
+               file.directory.path, file.basename
+           )).extension and not (file == cls.html_template_file)):
 # #
             FileHandler(location='%s%s' % (
                 file.directory.path, file.name[:-builtins.len('%s%s' % (
@@ -571,8 +591,8 @@ class Main(Class, Runnable):
             if parent_folder == FileHandler.get_root() or is_backend:
                 break
             parent_folder = parent_folder.directory
-        mapping['options']['frontend']['admin'] = ((is_backend) and
-            'admin' in cls.options['frontend'])
+        mapping['options']['frontend']['admin'] = (
+            (is_backend) and 'admin' in cls.options['frontend'])
         mapping = cls.controller.get_template_scope(deepcopy(mapping))
         if mapping['options']['frontend']['admin']:
             mapping['options']['frontend'] = Dictionary(
@@ -595,14 +615,13 @@ class Main(Class, Runnable):
         )()
         for model_name, model in builtins.filter(
             lambda model: builtins.isinstance(
-                model, builtins.type
-            ) and builtins.issubclass(model, cls.model.Model),
+                model[1], builtins.type
+            ) and builtins.issubclass(model[1], cls.model.Model),
             Module.get_defined_objects(cls.model)
         ):
             for property in builtins.filter(
-                lambda property: property.info and 'file_reference' in \
-                    property.info,
-                model.__table__.columns
+                lambda property: property.info and 'file_reference' in
+                property.info, model.__table__.columns
             ):
                 for model_instance in builtins.filter(
                     lambda model_instance: builtins.getattr(
@@ -613,7 +632,7 @@ class Main(Class, Runnable):
                         location=property.info['file_reference'] %
                         builtins.getattr(model_instance, property.name))
                     __logger__.debug(
-                        'Check file reference "%s" for model "%s".', file_path,
+                        'Check file reference "%s" for model "%s".', file.path,
                         model_name)
                     if not file and CommandLine.boolean_input(
                         'Model %s has a dead file reference via attribute "%s"'
@@ -632,7 +651,8 @@ class Main(Class, Runnable):
     @classmethod
     def _check_database_schema_version(cls, database_backup_file):
         '''Checke if the database schema has changed.'''
-        if cls.model is None: return cls
+        if cls.model is None:
+            return cls
         old_schemas = {}
         serialized_schema = ''
         database_schema_file = FileHandler(
@@ -668,19 +688,24 @@ class Main(Class, Runnable):
                    new_schemas[model.__tablename__]):
 # #
                     __logger__.info('Model "%s" has changed.', model_name)
-                    migration_successful = cls._migrate_table(
-                        model, models, migration_successful, session)
+                    migration_successful = cls._migrate_model(
+                        model_name, model, models, migration_successful,
+                        session, old_schemas)
             elif model.__tablename__ not in old_schemas:
                 __logger__.info('New model "%s" detected.', model_name)
                 '''NOTE: sqlalchemy will create this table automatically.'''
         cls._save_database_schema(database_schema_file, session, new_schemas)
         session.close()
-        if not migration_successful: sys.exit(1)
+        if not migration_successful:
+            sys.exit(1)
         return cls._save_database_backup(
             database_schema_file, serialized_schema, database_backup_file)
 
     @classmethod
-    def _migrate_model(cls, model, models, migration_successful, session):
+    def _migrate_model(
+        cls, model_name, model, models, migration_successful, session,
+        old_schemas
+    ):
         '''
             Migrates given model. Creates new schema and copies old data to \
             them.
@@ -775,13 +800,13 @@ class Main(Class, Runnable):
            database_backup_file):
             now = DateTime.now()
 # # python3.4
-# #             time_stamp = now.timestamp() + now.microsecond / 1000 ** 2
-            time_stamp = time.mktime(now.timetuple()) + \
+# #             timestamp = now.timestamp() + now.microsecond / 1000 ** 2
+            timestamp = make_time(now.timetuple()) + \
                 now.microsecond / 1000 ** 2
 # #
             long_term_database_file = FileHandler(location='%s%s%d%s' % (
                 database_backup_file.directory.path,
-                database_backup_file.basename, time_stamp,
+                database_backup_file.basename, timestamp,
                 database_backup_file.extension_suffix))
             __logger__.info(
                 'Save long term database file "%s".',
@@ -840,7 +865,7 @@ class Main(Class, Runnable):
 
     @classmethod
     def _determine_property_information(cls, property):
-        result = property.info if property.info else {}
+        result = copy(property.info) if property.info else {}
         result['maximum_length'] = property.type.length if builtins.hasattr(
             property.type, 'length'
         ) and builtins.isinstance(
@@ -857,8 +882,9 @@ class Main(Class, Runnable):
             if builtins.callable(result['default_value']):
                 if builtins.hasattr(
                     cls.model, 'determine_language_specific_default_value'
-                ) and result['default_value'] == cls.model\
-                .determine_language_specific_default_value:
+                ) and result[
+                    'default_value'
+                ] == cls.model.determine_language_specific_default_value:
 # # python3.4
 # #                     result['default_value'] = Dictionary(
 # #                         content=cls.options['model']['generic'][
@@ -883,7 +909,7 @@ class Main(Class, Runnable):
                 else:
                     result['default_value'] = cls.convert_for_client(
                         key=property.name, value=property.default.arg(
-                        DefaultExecutionContext()))
+                            DefaultExecutionContext()))
             else:
                 result['default_value'] = cls.convert_for_client(
                     key=property.name, value=result['default_value'])
@@ -960,8 +986,9 @@ class Main(Class, Runnable):
         cls.engine = create_database_engine('%s%s%s' % (
             cls.options['database']['engine_prefix'], cls.ROOT_PATH,
             cls.options['location']['database']['url']
-        ), echo=__logger__.isEnabledFor(logging.DEBUG),
-        connect_args=cls.options['database']['connection_arguments'])
+        ), echo=__logger__.isEnabledFor(
+            logging.DEBUG
+        ), connect_args=cls.options['database']['connection_arguments'])
         if cls.model is not None:
             cls.model.Model.metadata.create_all(cls.engine)
         '''Create a persistent inter thread database session.'''
@@ -1204,6 +1231,16 @@ class Main(Class, Runnable):
     def _initialize(self):
         '''Starts the web controller if server is already running.'''
 
+        # # Profiling area
+        start = clock()
+        # try:
+        #     import cProfile as profile
+        # except ImportError:
+        #     import profile
+        # profiler = profile.Profile()
+        # profiler.enable()
+        # #
+
         # # region properties
 
         self.data = __request_arguments__
@@ -1213,15 +1250,15 @@ class Main(Class, Runnable):
 # #         self.data['get'] = Dictionary(content=self.data['get']).convert(
 # #             key_wrapper=lambda key, value: self.convert_for_backend(String(
 # #                 key
-# #             ).camel_case_to_delimited.content if isinstance(
-# #                 key, str
+# #             ).camel_case_to_delimited.content if builtins.isinstance(
+# #                 key, builtins.str
 # #             ) else key), value_wrapper=self.convert_for_backend
 # #         ).content
         self.data['get'] = Dictionary(content=self.data['get']).convert(
             key_wrapper=lambda key, value: self.convert_for_backend(String(
                 key
-            ).camel_case_to_delimited.content if isinstance(
-                key, (unicode, str)
+            ).camel_case_to_delimited.content if builtins.isinstance(
+                key, (builtins.unicode, builtins.str)
             ) else key), value_wrapper=self.convert_for_backend
         ).content
 # #
@@ -1230,25 +1267,23 @@ class Main(Class, Runnable):
 # # python3.4
 # #                 self.data['data'][index] = Dictionary(
 # #                     content=item
-# #                 ).convert(
-# #                     key_wrapper=lambda key, value:
-# #                         self.convert_for_backend(
-# #                             String(
-# #                                 key
-# #                             ).camel_case_to_delimited.content if \
-# #                                 isinstance(key, str) else key
-# #                         ), value_wrapper=self.convert_for_backend
+# #                 ).convert(key_wrapper=lambda key, value:
+# #                     self.convert_for_backend(String(
+# #                         key
+# #                     ).camel_case_to_delimited.content if
+# #                         builtins.isinstance(key, builtins.str) else key
+# #                     ), value_wrapper=self.convert_for_backend
 # #                 ).content
                 self.data['data'][index] = Dictionary(
                     content=item
-                ).convert(
-                    key_wrapper=lambda key, value:
-                        self.convert_for_backend(
-                            String(
-                                key
-                            ).camel_case_to_delimited.content if \
-                                isinstance(key, (unicode, str)) else key
-                        ), value_wrapper=self.convert_for_backend
+                ).convert(key_wrapper=lambda key, value:
+                    self.convert_for_backend(String(
+                        key
+                    ).camel_case_to_delimited.content if
+                        builtins.isinstance(key, (
+                            builtins.unicode, builtins.str
+                        )) else key
+                    ), value_wrapper=self.convert_for_backend
                 ).content
 # #
         else:
@@ -1266,8 +1301,9 @@ class Main(Class, Runnable):
 # #                 key_wrapper=lambda key, value: self.convert_for_backend(
 # #                     String(
 # #                         key
-# #                     ).camel_case_to_delimited.content if isinstance(
-# #                         key, str
+# #                     ).camel_case_to_delimited.content if \
+# #                     builtins.isinstance(
+# #                         key, builtins.str
 # #                     ) else key
 # #                 ), value_wrapper=self.convert_for_backend
 # #             ).content
@@ -1277,15 +1313,24 @@ class Main(Class, Runnable):
                 key_wrapper=lambda key, value: self.convert_for_backend(
                     String(
                         key
-                    ).camel_case_to_delimited.content if isinstance(
-                        key, (unicode, str)
+                    ).camel_case_to_delimited.content if \
+                    builtins.isinstance(
+                        key, (builtins.unicode, builtins.str)
                     ) else key
                 ), value_wrapper=self.convert_for_backend
             ).content
 # #
-        self.authorized_user_id = self.authenticate()
+        '''
+            NOTE: Head requests should be fast and multi process save. So \
+            database connection shouldn't be used for non multi process save \
+            database systems.
+        '''
+        if self.data['request_type'] != 'head':
+            self.authorized_user_id = self.authenticate()
 
         # # endregion
+
+        # # region handle web controller
 
         '''
             Export options to global scope to make them accessible for other \
@@ -1305,19 +1350,32 @@ class Main(Class, Runnable):
             else:
                 '''NOTE: The web server will handle this.'''
                 raise
+
+        # endregion
+
+        # # Profiling area
+        # profiler.disable()
+        __logger__.info(
+            'Elapsed time for answering request "%s": %.2f seconds',
+            self.data['request_uri'], clock() - start)
+        # profiler.print_stats(sort=0) # Call count
+        # profiler.print_stats(sort=1) # Internal function time
+        # profiler.print_stats(sort=2) # Cumulative time
+        # #
+
         return self
 
     def _run(self):
         '''Initializes the web server.'''
 
         # # Profiling area
-        start = time.clock()
-        #try:
-        #    import cProfile as profile
-        #except ImportError:
-        #    import profile
-        #profiler = profile.Profile()
-        #profiler.enable()
+        start = clock()
+        # try:
+        #     import cProfile as profile
+        # except ImportError:
+        #     import profile
+        # profiler = profile.Profile()
+        # profiler.enable()
         # #
 
         self.__class__.package_name = Module.get_package_name(
@@ -1359,13 +1417,12 @@ class Main(Class, Runnable):
         self._initialize_data_structure()
 
         # # Profiling area
-        #profiler.disable()
+        # profiler.disable()
         __logger__.info(
-            'Elapsed time for starting webApp: %.2f seconds',
-            time.clock() - start)
-        #profiler.print_stats(sort=0) # Call count
-        #profiler.print_stats(sort=1) # Internal function time
-        #profiler.print_stats(sort=2) # Cumulative time
+            'Elapsed time for starting webApp: %.2f seconds', clock() - start)
+        # profiler.print_stats(sort=0) # Call count
+        # profiler.print_stats(sort=1) # Internal function time
+        # profiler.print_stats(sort=2) # Cumulative time
         # #
 
         if not self.given_command_line_arguments.render_template:
@@ -1399,29 +1456,62 @@ class Main(Class, Runnable):
 # #             builtins.str
 # #         ):
 # #             self.options['web_server']['authentication_handler'] = \
-# #             builtins.eval(
-# #                 self.options['web_server']['authentication_handler'],
-# #                 {'controller': self.controller})
+# #                 builtins.eval(
+# #                     self.options['web_server']['authentication_handler'],
+# #                     {'controller': self.controller})
         if self.controller is not None and builtins.isinstance(
             self.options['web_server'].get('authentication_handler'),
             (builtins.unicode, builtins.str)
         ):
             self.options['web_server']['authentication_handler'] = \
-            builtins.eval(
-                self.options['web_server']['authentication_handler'],
-                {'controller': self.controller})
+                builtins.eval(
+                    self.options['web_server']['authentication_handler'],
+                    {'controller': self.controller})
 # #
         return self
 
     def _initialize_data_structure(self):
         '''Initializes database and file based caching layer.'''
-        self.__class__.rest_data_timestamp_reference_file = FileHandler(
-            location=self.options['location']['database'][
-                'rest_data_timestamp_reference_file_path'])
+        if self.options['location']['database'][
+            'rest_data_timestamp_reference'
+        ] == '__memory__':
+            class Timestamp:
+                timestamp = {'Data': time()}
+
+                @classmethod
+                def set_timestamp(cls, model_name='Data'):
+                    now = DateTime.now()
+# # python3.4
+# #                     timestamp = now.timestamp(
+# #                     ) + builtins.float(now.microsecond) / 1000 ** 2
+                    timestamp = make_time(
+                        now.timetuple()
+                    ) + now.microsecond / 1000 ** 2
+# #
+                    if model_name == 'Data':
+                        for model_name in cls.timestamp:
+                            cls.timestamp[model_name] = timestamp
+                    else:
+                        cls.timestamp[model_name] = timestamp
+            self.__class__.rest_data_timestamp_reference = Timestamp
+        else:
+            # TODO support full timstamp interface.
+            self.__class__.rest_data_timestamp_reference = FileHandler(
+                location=self.options['location']['database'][
+                    'rest_data_timestamp_reference'])
+            if not self.rest_data_timestamp_reference:
+                self.__class__.rest_data_timestamp_reference.content = ''
+        '''Initialize cache timestamps for all models.'''
+        for model_name, model in builtins.filter(
+            lambda model: builtins.isinstance(
+                model[1], builtins.type
+            ) and builtins.issubclass(model[1], self.model.Model),
+            Module.get_defined_objects(self.model)
+        ):
+            self.rest_data_timestamp_reference.set_timestamp(model_name)
+        self.rest_data_timestamp_reference.set_timestamp(model_name='File')
         if self.debug:
             self.clear_web_cache()
-        if not self.rest_data_timestamp_reference_file:
-            self.__class__.rest_data_timestamp_reference_file.content = ''
         if self.controller is not None:
             self.controller.launch()
         self._check_database_file_references()
@@ -1458,8 +1548,8 @@ class Main(Class, Runnable):
                         'incoming requests which matches pattern "%s" on port '
                         '%d.', server_name,
                         self.given_command_line_arguments.host_name,
-                        self.given_command_line_arguments.\
-                            proxy_host_name_pattern,
+                        self.given_command_line_arguments.
+                        proxy_host_name_pattern,
                         self.proxy_port)
                     break
         return self

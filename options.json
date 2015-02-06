@@ -6,7 +6,8 @@
         "startTimeStamp": "<% __time_stamp__ %>",
         "requestRetries": {
             "409": {"number": 3, "statusPattern": "^.*locked.*$"},
-            "504": {"number": 3, "statusPattern": "^.*$"}
+            "504": {"number": 3, "statusPattern": "^.*$"},
+            "502": {"number": 3, "statusPattern": "^.*$"}
         }
     },
     "both": {
@@ -237,7 +238,7 @@
             "database": {
                 "folder": "/database/",
                 "url": "<% location['database']['folder'] %>data",
-                "restDataTimestampReferenceFilePath": "<% location['database']['folder'] %>dataTimestamp",
+                "restDataTimestampReference": "__memory__",
                 "schemaFile": "<% location['database']['folder'] %>schema.json",
                 "backup": "<% location['backup'] %>database/"
             },
@@ -248,14 +249,6 @@
         },
 
         "ignoreWebAssetPattern": [".*\\.swp", "\\..*"],
-
-        "exportableFileAttributes": {
-            "__no_wrapping__": [
-                "path", "name", "basename", "encoding", "extension",
-                "extension_suffix", "timestamp", "size", "human_readable_size",
-                "type", "mime_type"
-            ]
-        },
 
         "commandLineArguments": {
             "__no_wrapping__": [{

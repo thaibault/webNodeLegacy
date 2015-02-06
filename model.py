@@ -156,7 +156,7 @@ class AuthenticationModel(BaseAuthenticationModel, UpdateTriggerModel):
         String(
             2 * OPTIONS['model']['authentication']['session_token']['length']),
         unique=True, default=None)
-    application_session_token = Column(
+    session_token_application = Column(
         String(
             2 * OPTIONS['model']['authentication']['session_token']['length']),
         unique=True, default=None)
