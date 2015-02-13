@@ -166,25 +166,17 @@ class Response(Class):
         self.request.data['handler'].send_response(200)
         for model_name, timestamp in \
         self.request.rest_data_timestamp_reference.timestamp.items():
-# # python3.4
-# #             self.request.data['handler'].send_header(
-# #                 String(self.request.options[
-# #                     'last_data_write_date_time_header_name'
-# #                 ]).get_camel_case_to_delimited(delimiter='-').substitute(
-# #                     '-([a-z])',
-# #                     lambda match: '-%s' % match.group(1).upper()
-# #                 ).camel_case_capitalize.content.replace(
-# #                     'Data', model_name
-# #                 ), builtins.str(timestamp))
-            self.request.data['handler'].send_header(
-                convert_to_unicode(String(self.request.options[
-                    'last_data_write_date_time_header_name'
-                ]).get_camel_case_to_delimited(delimiter='-').substitute(
-                    '-([a-z])', lambda match: '-%s' % match.group(1).upper()
-                ).camel_case_capitalize.content.replace(
-                    'Data', model_name
-                )), convert_to_unicode(timestamp))
-# #
+            key = String(self.request.options[
+                'last_data_write_date_time_header_name'
+            ]).get_camel_case_to_delimited(delimiter='-').substitute(
+                '-([a-z])',
+                lambda match: '-%s' % match.group(1).upper()
+            ).camel_case_capitalize.content.replace('Data', model_name)
+            old_key = key.replace(model_name, 'Old-%s' % model_name)
+            self.request.data['handler'].send_header(key, builtins.str(
+                timestamp))
+            self.request.data['handler'].send_header(old_key, builtins.str(
+                self.request.old_last_data_write_timestamps[model_name]))
         if result is not None:
             if self.json_padding:
                 return '%s(%s);' % (self.json_padding, result)
@@ -199,17 +191,12 @@ class Response(Class):
     def process_patch(self, get, data):
         '''Computes the patch response object.'''
         session = create_database_session(bind=self.request.engine)()
-# # python3.4
-# #         session.query(self.model).filter_by(**get).update(self.model(
-# #             **data
-# #         ).get_dictionary(prefix_filter=()))
-        session.query(self.model).filter_by(**get).update(self.model(
-            **data
-        ).get_dictionary(prefix_filter=()))
-# #
+        updated_models = session.query(self.model).filter_by(**get)
+        updated_models.update(self.model(**data).get_dictionary(
+            prefix_filter=()))
         self.finalize_database_session(
             session, set_timestamp=self.model.__name__)
-        return{}
+        return self._determine_primary_keys(models=updated_models)
 
     def process_post(self, get, data):
         '''Computes the post response object.'''
@@ -261,8 +248,11 @@ class Response(Class):
 
     def process_put(self, get, data):
         '''Computes the put response object.'''
-        session = create_database_session(bind=self.request.engine)()
+        session = create_database_session(
+            bind=self.request.engine, expire_on_commit=False
+        )()
         if builtins.isinstance(data, builtins.list):
+            result = []
             for item in data:
                 '''
                     Determine additional primary key parts of the data object.
@@ -273,30 +263,52 @@ class Response(Class):
                     self.model.__mapper__.primary_key
                 ):
                     new_get[primary_key.name] = item[primary_key.name]
-                if new_get and session.query(self.model).filter_by(
-                    **new_get
-                ).count():
-                    session.query(self.model).filter_by(**new_get).update(
-                        self.model(**item).get_dictionary(prefix_filter=()))
+                updated_models = session.query(self.model).filter_by(**new_get)
+                if new_get and updated_models.count():
+                    updated_models.update(self.model(**item).get_dictionary(
+                        prefix_filter=()))
                 else:
                     new_get.update(item)
-                    session.add(self.model(**new_get))
+                    new_model = self.model(**new_get)
+                    session.add(new_model)
+                    '''
+                        NOTE: We have to commit immediately to get a unique \
+                        primary key.
+                    '''
+                    try:
+                        session.commit()
+                    except(SQLAlchemyError, builtins.ValueError) as exception:
+                        self.handle_database_exception(exception, session)
+                    updated_models = [new_model]
+                result += self._determine_primary_keys(models=updated_models)
         else:
-            result = session.query(self.model).filter_by(**get)
-            if get and result.count():
-                result.update(self.model(**data).get_dictionary(
+            updated_models = session.query(self.model).filter_by(**get)
+            if get and updated_models.count():
+                updated_models.update(self.model(**data).get_dictionary(
                     prefix_filter=()))
             else:
                 get.update(data)
-                session.add(self.model(**get))
+                new_model = self.model(**get)
+                session.add(new_model)
+                '''
+                    NOTE: We have to commit immediately to get a unique \
+                    primary key.
+                '''
+                try:
+                    session.commit()
+                except(SQLAlchemyError, builtins.ValueError) as exception:
+                    self.handle_database_exception(exception, session)
+                updated_models = [new_model]
+            result = self._determine_primary_keys(models=updated_models)
         self.finalize_database_session(
             session, set_timestamp=self.model.__name__)
-        return{}
+        return result
 
     def process_delete(self, get, data):
         '''Computes the delete response object.'''
         session = create_database_session(bind=self.request.engine)()
         modified = False
+        result = []
         if builtins.isinstance(data, builtins.list):
             for item in data:
                 '''
@@ -308,22 +320,26 @@ class Response(Class):
                     self.model.__mapper__.primary_key
                 ):
                     new_get[primary_key.name] = item[primary_key.name]
-                if new_get and session.query(self.model).filter_by(
-                    **new_get
-                ).count():
-                    session.query(self.model).filter_by(**new_get).delete()
+                updated_models = session.query(self.model).filter_by(**new_get)
+                if new_get and updated_models.count():
+                    result += self._determine_primary_keys(
+                        models=updated_models)
+                    updated_models.delete()
                     modified = True
         elif get and session.query(self.model).filter_by(
             **get
         ).count():
-            session.query(self.model).filter_by(**get).delete()
-            modified = True
+            updated_models = session.query(self.model).filter_by(**get)
+            if get and updated_models.count():
+                result += self._determine_primary_keys(models=updated_models)
+                updated_models.delete()
+                modified = True
         if modified:
             self.finalize_database_session(
                 session, set_timestamp=self.model.__name__)
         else:
             session.close()
-        return{}
+        return result
 
     def process_get(self, data):
         '''Computes the get response object.'''
@@ -415,27 +431,30 @@ class Response(Class):
             if file.remove_file():
                 self.request.rest_data_timestamp_reference.set_timestamp(
                     model_name='File')
-            else:
-                return None
-        return{}
+                return[file.path]
+            return None
+        return[]
 
     def put_file_model(self, get, data):
         '''Saves given files.'''
         modified = False
+        result = []
         for items in data.values():
             for item in items:
                 if builtins.hasattr(
                     item, 'file'
                 ) and item.filename and item.done != -1:
-                    shutil.copyfileobj(item.file, builtins.open(FileHandler(
+                    new_file = FileHandler(
                         self.request.options['location']['medium'] +
-                        convert_to_unicode(item.filename)
-                    )._path, 'wb'))
+                        convert_to_unicode(item.filename))
+                    result.append(new_file.path)
+                    shutil.copyfileobj(item.file, builtins.open(
+                        new_file._path, 'wb'))
                     modified = True
         if modified:
             self.request.rest_data_timestamp_reference.set_timestamp(
                 model_name='File')
-        return{}
+        return result
 
     def put_copy_model(self, get, data):
         '''Copies give model references.'''
@@ -480,8 +499,7 @@ class Response(Class):
                 '''
                 property_names = []
                 for column in builtins.filter(
-                    lambda column: column.name != 'id',
-                    model.__table__.columns
+                    lambda column: column.name != 'id', model.__table__.columns
                 ):
                     '''Remove unique identifiers for record copies.'''
                     property_names.append(column.name)
@@ -503,6 +521,22 @@ class Response(Class):
     # endregion
 
     # region protected methods
+
+    def _determine_primary_keys(self, models):
+        '''
+            Determines a list of dictionaries which only contains primary \
+            keys.
+        '''
+        result = []
+        for model in models:
+            keys = {}
+            for primary_key in self.model.__mapper__.primary_key:
+                keys[String(
+                    primary_key.name
+                ).delimited_to_camel_case.content] = builtins.getattr(
+                    model, primary_key.name)
+            result.append(keys)
+        return result
 
     def _determine_authentication_parameter(self):
         '''

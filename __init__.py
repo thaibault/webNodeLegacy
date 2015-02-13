@@ -968,15 +968,15 @@ class Main(Class, Runnable):
     @classmethod
     def _initialize_model(cls):
         '''Initializes the model.'''
+        database_backup_file = FileHandler(location='%sDataBackup.sql' % (
+            cls.options['location']['database']['backup']))
         if cls.options['database']['engine_prefix'].startswith('sqlite:'):
             database_file = FileHandler(
                 location=cls.options['location']['database']['url'])
-            database_backup_file = FileHandler(
-                location='%s%sBackup%s' % (
-                    cls.options['location']['database']['backup'],
-                    database_file.basename,
-                    database_file.extension_suffix))
-            database_backup_file.directory.make_directories()
+            database_backup_file = FileHandler(location='%s%sBackup%s' % (
+                cls.options['location']['database']['backup'],
+                database_file.basename, database_file.extension_suffix))
+            database_file.directory.make_directories()
             if database_file:
                 __logger__.info(
                     'Backup database "%s" to "%s".', database_file.path,
@@ -991,7 +991,6 @@ class Main(Class, Runnable):
         ), connect_args=cls.options['database']['connection_arguments'])
         if cls.model is not None:
             cls.model.Model.metadata.create_all(cls.engine)
-        '''Create a persistent inter thread database session.'''
         cls._check_database_schema_version(database_backup_file)
         if cls.controller is not None:
             cls.controller.initialize_model()
@@ -1243,6 +1242,10 @@ class Main(Class, Runnable):
 
         # # region properties
 
+        self.old_last_data_write_timestamps = {}
+        for model_name, timestamp in \
+        self.rest_data_timestamp_reference.timestamp.items():
+            self.old_last_data_write_timestamps[model_name] = timestamp
         self.data = __request_arguments__
         self.new_cookie = {}
         '''Normalize get and payload data.'''
@@ -1527,31 +1530,35 @@ class Main(Class, Runnable):
         except SocketError:
             pass
         else:
-            server_name = builtins.dict(
-                connection.getresponse().getheaders()
-            ).get('server')
-            for pattern in self.SUPPORTED_PROXY_SERVER_NAME_PATTERN:
+            try:
+                server_name = builtins.dict(
+                    connection.getresponse().getheaders()
+                ).get('server')
+            except SocketError:
+                pass
+            else:
+                for pattern in self.SUPPORTED_PROXY_SERVER_NAME_PATTERN:
 # # python3.4
-# #                 if regularExpression.compile(pattern).fullmatch(
-# #                     server_name
-# #                 ):
-                if regularExpression.compile('(?:%s)$' % pattern).match(
-                    server_name
-                ):
+# #                     if regularExpression.compile(pattern).fullmatch(
+# #                         server_name
+# #                     ):
+                    if regularExpression.compile('(?:%s)$' % pattern).match(
+                        server_name
+                    ):
 # #
-                    self.__class__.port = self.__class__.proxy_port = \
-                        self.given_command_line_arguments.proxy_ports[0]
-                    self.__class__.options['frontend']['proxy']['port'] = \
-                        self.proxy_port
-                    __logger__.info(
-                        'Detected proxy server "%s" at "%s" listing on '
-                        'incoming requests which matches pattern "%s" on port '
-                        '%d.', server_name,
-                        self.given_command_line_arguments.host_name,
-                        self.given_command_line_arguments.
-                        proxy_host_name_pattern,
-                        self.proxy_port)
-                    break
+                        self.__class__.port = self.__class__.proxy_port = \
+                            self.given_command_line_arguments.proxy_ports[0]
+                        self.__class__.options['frontend']['proxy']['port'] = \
+                            self.proxy_port
+                        __logger__.info(
+                            'Detected proxy server "%s" at "%s" listing on '
+                            'incoming requests which matches pattern "%s" on '
+                            'port %d.', server_name,
+                            self.given_command_line_arguments.host_name,
+                            self.given_command_line_arguments.
+                            proxy_host_name_pattern,
+                            self.proxy_port)
+                        break
         return self
 
     # # endregion
