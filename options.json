@@ -301,6 +301,17 @@
                     "metavar": "STRING"
                 }
             }, {
+                "arguments": ["-g", "--global-http-basic-authentication"],
+                "specification": {
+                    "action": "store",
+                    "default": "",
+                    "type": {"execute": "str"},
+                    "required": false,
+                    "help": "Defines a basic http authentication in the format \"login:password\" for every domain, no matter would http authentication a specific domain has.",
+                    "dest": "global_http_basic_authentication",
+                    "metavar": "STRING"
+                }
+            }, {
                 "arguments": ["-p", "--port"],
                 "specification": {
                     "action": "store",
