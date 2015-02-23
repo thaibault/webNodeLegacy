@@ -208,11 +208,10 @@
                 "GET:(/|(<% location['webAsset'] %>.+))",
                 "PUT:<% location['medium'] %>?"
             ],
-            "publicKeyFilePath": "",
             "requestParameterDelimiter": "<% delimiterPattern %>",
             "authentication": false, "moduleLoading": "<% moduleName %>",
-            "authenticationFileName": "", "stopOrder": "",
-            "directoryListing": false, "maximumNumberOfProcesses": 0
+            "stopOrder": "", "directoryListing": false,
+            "maximumNumberOfProcesses": 0
         },
         "location": {
             "htmlFile": {
