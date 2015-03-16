@@ -109,6 +109,8 @@
         }
     },
     "backend": {
+        "errorReportAnswerHTMLContent": "<html><head><meta charset=\"utf-8\" /><title>errorReport</title><meta name=\"robots\" content=\"noindex, nofollow\" /></head><body>%s</body></html>",
+        "unicodeNormalisationForm": "NFC",
         "dataKeysToIgnore": [],
         "finalOptionConsolidation": true,
         "systemCommands": {
@@ -222,6 +224,8 @@
                 "folder": "/backendNginxConfiguration/",
                 "login": "<% location['nginxConfiguration']['folder'] %>login.txt.tpl"
             },
+            "proxyServerLog": "/proxyServerLog.txt",
+            "reportedClientErrors": "/reportedClientErrors/",
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
             "cache": "/cache/",
             "webCache": "<% location['cache'] %>web/",

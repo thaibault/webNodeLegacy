@@ -42,6 +42,7 @@ import sys
 from time import clock, sleep, time
 # # python3.4 pass
 from time import mktime as make_time
+from unicodedata import normalize as normalize_unicode
 
 from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.exc import OperationalError
@@ -210,13 +211,11 @@ class Main(Class, Runnable):
 # #                 value, builtins.str
 # #             ) and mockup_template.left_code_delimiter in value:
             while builtins.isinstance(
-                value, (builtins.unicode, builtins.str)
+                value, builtins.unicode
             ) and mockup_template.left_code_delimiter in value:
 # #
                 value = TemplateParser(
-                    convert_to_unicode(value).replace(
-                        '\\', 2 * '\\'
-                    ).replace('%s%s' % (
+                    value.replace('\\', 2 * '\\').replace('%s%s' % (
                         mockup_template.left_code_delimiter,
                         mockup_template.right_escaped
                     ), '%s%s%s' % (
@@ -332,9 +331,9 @@ class Main(Class, Runnable):
     def render_templates(cls, all=False, proxy_restart=False):
         '''Renders the main index html file.'''
         mapping = {
-            'options': deepcopy(cls.options),
-            'debug': cls.debug, 'given_command_line_arguments':
-            cls.given_command_line_arguments, 'root': FileHandler.get_root()}
+            'options': deepcopy(cls.options), 'debug': cls.debug,
+            'given_command_line_arguments': cls.given_command_line_arguments,
+            'root': FileHandler.get_root(), 'proxy_port': cls.proxy_port}
         if 'admin' in mapping['options']['frontend']:
             del mapping['options']['frontend']['admin']
         if all:
@@ -553,7 +552,9 @@ class Main(Class, Runnable):
             FileHandler(location='%s%s' % (
                 file.directory.path, file.name[:-builtins.len('%s%s' % (
                     os.extsep, TemplateParser.DEFAULT_FILE_EXTENSION))]
-            )).content = cls._render_template_helper(file, mapping)
+            )).content = normalize_unicode(
+                cls.options['unicode_normalisation_form'],
+                cls._render_template_helper(file, mapping))
         return cls
 
     @classmethod
@@ -568,9 +569,11 @@ class Main(Class, Runnable):
                 if site == 'frontend' or 'admin' in cls.options['frontend']:
                     builtins.getattr(
                         cls, '%s_html_file' % site
-                    ).content = cls._render_template_helper(
-                        cls.html_template_file, mapping,
-                        force_backend=site == 'backend')
+                    ).content = normalize_unicode(
+                        cls.options['unicode_normalisation_form'],
+                        cls._render_template_helper(
+                            cls.html_template_file, mapping,
+                            force_backend=site == 'backend'))
         return cls
 
     @classmethod
@@ -934,10 +937,13 @@ class Main(Class, Runnable):
             location='/%s%s' % (cls.package_name, configuration_file.path)
         ).content)).content
         if configuration_file.is_file():
+            options = json.loads(configuration_file.content)
             return cls.extend_options(
-                options=json.loads(configuration_file.content),
-                remove_no_wrap_indicator=cls.options['backend'][
-                    'finalOptionConsolidation'])
+                options=options, remove_no_wrap_indicator=options.get(
+                    'backend', {}
+                ).get(
+                    'finalOptionConsolidation',
+                    cls.options['backend']['finalOptionConsolidation']))
         return cls.consolidate_options(
             remove_no_wrap_indicator=cls.options['final_option_consolidation'])
 
@@ -1047,7 +1053,9 @@ class Main(Class, Runnable):
             self.data['handler'].send_cookie(
                 self.new_cookie, maximum_age_in_seconds=self.options[
                     'maximum_cookie_age_in_seconds'])
-        Print(output, end='')
+        Print(normalize_unicode(
+            self.options['unicode_normalisation_form'], output
+        ), end='')
         return self
 
     def _manifest_controller(self):
@@ -1145,17 +1153,16 @@ class Main(Class, Runnable):
             template_context_default_indent=self.options[
                 'default_indent_level']
         ).render(
-            asset_files=asset_files, html_file=self.frontend_html_file,
-            asset_version=self.get_timestamps(
+            assetFiles=asset_files, htmlFile=self.frontend_html_file,
+            assetVersion=self.get_timestamps(
                 self.options['location']['web_asset']),
             version='%s - %d' % (__version__, FileHandler(
                 location=Module.get_name(
-                    path=True, extension=True, frame=inspect.currentframe()
-                )
-            ).timestamp), account_state=account_state,
-            request_file_name=__name__, host=self.data['handler'].host,
-            account_data=account_data,
-            offline_manifest_template_file=offline_manifest_template_file,
+                    path=True, extension=True, frame=inspect.currentframe())
+            ).timestamp), accountState=account_state,
+            requestFileName=__name__, host=self.data['handler'].host,
+            accountData=account_data,
+            offlineManifestTemplateFile=offline_manifest_template_file,
             mapping=self.controller.get_manifest_scope(request=self, user=user)
         ).output
 
@@ -1239,6 +1246,38 @@ class Main(Class, Runnable):
         # profiler = profile.Profile()
         # profiler.enable()
         # #
+
+        # # region handle error reports
+
+        if __request_arguments__[
+            'external_request_uri'
+        ] == '/__error_report__':
+            if not self.proxy_port:
+# # python3.4
+# #                 error_report_file = FileHandler(location='%s%s' % (
+# #                     self.options['location']['reported_client_errors'],
+# #                     builtins.str(DateTime.now())))
+                error_report_file= FileHandler(location='%s%s' % (
+                    self.options['location']['reported_client_errors'],
+                    convert_to_unicode(DateTime.now())))
+# #
+                while error_report_file:
+                    error_report_file = FileHandler(
+                        location=error_report_file.path + '-')
+# # python3.4
+# #                 error_report_file.content = builtins.str(
+# #                     __request_arguments__['data'])
+                error_report_file.content = convert_to_unicode(
+                    __request_arguments__['data'])
+# #
+            Print(normalize_unicode(
+                self.options['unicode_normalisation_form'],
+                self.options['error_report_answer_html_content'] %
+                'Client error reported successfully.'
+            ), end='')
+            return self
+
+        # # endregion
 
         # # region properties
 
@@ -1392,10 +1431,13 @@ class Main(Class, Runnable):
         if not (__test_mode__ or module_import_error is None):
             raise module_import_error
         self._set_options()
+        command_line_arguments = self.options['command_line_arguments']
+        if not builtins.isinstance(command_line_arguments, builtins.list):
+            command_line_arguments = self.options['command_line_arguments'][
+                '__no_wrapping__']
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
-                arguments=self.options['command_line_arguments'],
-                module_name=__name__)
+                arguments=command_line_arguments, module_name=__name__)
         self.__class__.debug = \
             sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
         if Controller is not None:

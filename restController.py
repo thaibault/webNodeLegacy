@@ -270,12 +270,12 @@ class Response(Class):
                 else:
                     new_get.update(item)
                     new_model = self.model(**new_get)
-                    session.add(new_model)
                     '''
                         NOTE: We have to commit immediately to get a unique \
                         primary key.
                     '''
                     try:
+                        session.add(new_model)
                         session.commit()
                     except(SQLAlchemyError, builtins.ValueError) as exception:
                         self.handle_database_exception(exception, session)
@@ -284,17 +284,20 @@ class Response(Class):
         else:
             updated_models = session.query(self.model).filter_by(**get)
             if get and updated_models.count():
-                updated_models.update(self.model(**data).get_dictionary(
-                    prefix_filter=()))
+                try:
+                    updated_models.update(self.model(**data).get_dictionary(
+                        prefix_filter=()))
+                except(SQLAlchemyError, builtins.ValueError) as exception:
+                    self.handle_database_exception(exception, session)
             else:
                 get.update(data)
                 new_model = self.model(**get)
-                session.add(new_model)
                 '''
                     NOTE: We have to commit immediately to get a unique \
                     primary key.
                 '''
                 try:
+                    session.add(new_model)
                     session.commit()
                 except(SQLAlchemyError, builtins.ValueError) as exception:
                     self.handle_database_exception(exception, session)
@@ -503,13 +506,13 @@ class Response(Class):
                 ):
                     '''Remove unique identifiers for record copies.'''
                     property_names.append(column.name)
-                session.commit()
-                for record in self.session.query(model).filter_by(**keys):
+                for record in session.query(model).filter_by(**keys):
                     session.add(model(**record.get_dictionary(
                         value_wrapper=lambda key, value:
                             data[key] if key in data else value,
                             property_names=property_names)))
                     modified = True
+                    session.commit()
         if modified:
             self.finalize_database_session(session)
         else:
