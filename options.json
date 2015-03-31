@@ -337,6 +337,34 @@
                     "dest": "proxy_ports",
                     "metavar": "PORTS"
                 }
+            }, {
+                "arguments": ["-d", "--dead-file-reference-check"],
+                "specification": {
+                    "action": "store_true",
+                    "default": false,
+                    "help": "Checks for dead file referenced database entities.",
+                    "dest": "dead_file_reference_check"
+                }
+            }, {
+                "arguments": ["-s", "--dead-soft-reference-check-properties"],
+                "specification": {
+                    "action": "store",
+                    "nargs": "*",
+                    "default": ["template_name"],
+                    "help": "Checks for dead soft referenced database entities with given property names.",
+                    "dest": "dead_soft_reference_check_properties",
+                    "metavar": "PROPERTY_NAMES"
+                }
+            }, {
+                "arguments": ["-e", "--dead-soft-reference-check-exceptions"],
+                "specification": {
+                    "action": "store",
+                    "nargs": "*",
+                    "default": ["Site"],
+                    "help": "Ignores given list of models during dead soft reference checks.",
+                    "dest": "dead_soft_reference_check_exceptions",
+                    "metavar": "MODEL_NAMES"
+                }
             }]
         }
     }

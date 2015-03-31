@@ -34,6 +34,7 @@ import time
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as create_database_session
+from sqlalchemy.orm import load_only as select_database_records
 
 # # python3.4 pass
 from boostNode import convert_to_string, convert_to_unicode
@@ -350,18 +351,7 @@ class Response(Class):
         self._determine_authentication_parameter()
         if not authenticated:
             return
-        session = create_database_session(bind=self.request.engine)()
-        if data:
-            result = builtins.list([model.get_dictionary(
-                prefix_filter=prefix_filter, **self.data_wrapper
-            ) for model in session.query(self.model).filter_by(
-                **data)])
-        else:
-            result = builtins.list([model.get_dictionary(
-                prefix_filter=prefix_filter, **self.data_wrapper
-            ) for model in session.query(self.model)])
-        session.close()
-        return result
+        return self._evaluate_get(data, prefix_filter)
 
     # # endregion
 
@@ -434,7 +424,7 @@ class Response(Class):
             if file.remove_file():
                 self.request.rest_data_timestamp_reference.set_timestamp(
                     model_name='File')
-                return[file.path]
+                return[{'path': file.path}]
             return None
         return[]
 
@@ -450,7 +440,7 @@ class Response(Class):
                     new_file = FileHandler(
                         self.request.options['location']['medium'] +
                         convert_to_unicode(item.filename))
-                    result.append(new_file.path)
+                    result.append({'path': new_file.path})
                     shutil.copyfileobj(item.file, builtins.open(
                         new_file._path, 'wb'))
                     modified = True
@@ -524,6 +514,43 @@ class Response(Class):
     # endregion
 
     # region protected methods
+
+    def _evaluate_get(self, data, prefix_filter=()):
+        '''Evaluates a get from database request.'''
+        session = create_database_session(bind=self.request.engine)()
+        if data:
+            if '__select__' in data:
+                select = [self.model.__mapper__.primary_key[0].name]
+                for property_name in builtins.filter(
+                    lambda name: name, data.pop('__select__').split(',')
+                ):
+                    property_name = String(
+                        property_name
+                    ).camel_case_to_delimited.content
+                    filtered = False
+                    for prefix in prefix_filter:
+                        if property_name.startswith(prefix):
+                            filtered = True
+                            break
+                    if not filtered:
+                        select.append(property_name)
+                result = builtins.list([model.get_dictionary(
+                    prefix_filter=prefix_filter,
+                    filter=lambda key, value: value is not None,
+                    **self.data_wrapper
+                ) for model in session.query(self.model).options(
+                    select_database_records(*select))])
+            else:
+                result = builtins.list([model.get_dictionary(
+                    prefix_filter=prefix_filter, **self.data_wrapper
+                ) for model in session.query(self.model).filter_by(
+                    **data)])
+        else:
+            result = builtins.list([model.get_dictionary(
+                prefix_filter=prefix_filter, **self.data_wrapper
+            ) for model in session.query(self.model)])
+        session.close()
+        return result
 
     def _determine_primary_keys(self, models):
         '''

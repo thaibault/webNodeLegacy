@@ -210,6 +210,7 @@ class Main(Class, Runnable):
 # #             while builtins.isinstance(
 # #                 value, builtins.str
 # #             ) and mockup_template.left_code_delimiter in value:
+            #print(cls.options['web_server']['internal_redirects'][-1])
             while builtins.isinstance(
                 value, builtins.unicode
             ) and mockup_template.left_code_delimiter in value:
@@ -607,12 +608,100 @@ class Main(Class, Runnable):
         ).render(mapping=mapping).output
 
     @classmethod
+    def _check_dead_soft_references(cls):
+        '''Searches for unneeded database entities.'''
+        everything_accepted = False
+        session = create_database_session(
+            bind=cls.engine, expire_on_commit=False
+        )()
+        property_names = cls.given_command_line_arguments.\
+            dead_soft_reference_check_properties
+        for model_name, model in builtins.filter(
+            lambda model: builtins.isinstance(
+                model[1], builtins.type
+            ) and builtins.issubclass(model[1], cls.model.Model),
+            Module.get_defined_objects(cls.model)
+        ):
+            if model_name not in cls.given_command_line_arguments.\
+            dead_soft_reference_check_exceptions and all(
+                lambda property_name: hasattr(model, property_name),
+                property_names
+            ):
+                for property in builtins.filter(
+                    lambda property: property.name.endswith('_id'),
+                    model.__table__.columns
+                ):
+                    referencing_model = getattr(
+                        cls.model, String(
+                            property.name[:-len('_id')]
+                        ).delimited_to_camel_case.camel_case_capitalize.content,
+                        None)
+                    if referencing_model is not None and all(
+                        lambda property_name: hasattr(
+                            referencing_model, property_name
+                    ), property_names):
+                        for model_instance in session.query(model):
+                            referencing_model_instances = session.query(
+                                referencing_model
+                            ).filter_by(id=getattr(
+                                model_instance, property.name))
+                            if referencing_model_instances.count():
+                                referencing_model_instance = \
+                                    referencing_model_instances.one()
+                                broken_reference = False
+                                for property_name in property_names:
+                                    if getattr(
+                                        referencing_model, property_name
+                                    ) != getattr(
+                                        model_instance, property_name
+                                    ):
+                                        broken_reference = True
+                                        break
+                                if broken_reference:
+                                    if everything_accepted:
+                                        answer = True
+                                    else:
+                                        answer = CommandLine.boolean_input(
+                                            question='Model %s has a hard '
+                                                     'reference via attribute '
+                                                     '"%s" with value "%s" and'
+                                                     ' a dead soft reference '
+                                                     'via attribute "%s" with '
+                                                     'source value "%s" and '
+                                                     'target value "%s". Do '
+                                                     'you want to delete this '
+                                                     'record? '
+                                                     '{boolean_arguments}:'
+                                                     ' ' % (
+                                                builtins.repr(model_instance),
+                                                property.name, getattr(
+                                                    model_instance,
+                                                    property.name
+                                                ), property_name, getattr(
+                                                    model_instance,
+                                                    property_name
+                                                ), getattr(
+                                                    referencing_model_instance,
+                                                    property_name)
+                                            ), extra=('all',))
+                                    if answer == 'all':
+                                        answer = everything_accepted = True
+                                    if answer:
+                                        session.query(model).filter_by(
+                                            **model_instance.dictionary
+                                        ).delete()
+                                        session.commit()
+        session.close()
+        return cls
+
+    @classmethod
     def _check_database_file_references(cls):
         '''
             Checks if all file references saved in database records exists. \
             If a dead link was found the user will be asked for deleting \
             referenced database records.
         '''
+        everything_accepted = False
         session = create_database_session(
             bind=cls.engine, expire_on_commit=False
         )()
@@ -637,17 +726,25 @@ class Main(Class, Runnable):
                     __logger__.debug(
                         'Check file reference "%s" for model "%s".', file.path,
                         model_name)
-                    if not file and CommandLine.boolean_input(
-                        'Model %s has a dead file reference via attribute "%s"'
-                        ' to "%s". Do you want to delete this record? '
-                        '{boolean_arguments}: ' % (builtins.repr(
-                            model_instance
-                        ), property.name, file.path)
-                    ):
-                        session.query(model).filter_by(
-                            **model_instance.dictionary
-                        ).delete()
-                        session.commit()
+                    if not file:
+                        if everything_accepted:
+                            answer = True
+                        else:
+                            answer = CommandLine.boolean_input(
+                                question='Model %s has a dead file reference '
+                                         'via attribute "%s" to "%s". Do you '
+                                         'want to delete this record? '
+                                         '{boolean_arguments}: ' % (
+                                    builtins.repr(model_instance),
+                                    property.name, file.path),
+                                extra=('all',))
+                        if answer == 'all':
+                            answer = everything_accepted = True
+                        if answer:
+                            session.query(model).filter_by(
+                                **model_instance.dictionary
+                            ).delete()
+                            session.commit()
         session.close()
         return cls
 
@@ -693,7 +790,7 @@ class Main(Class, Runnable):
                     __logger__.info('Model "%s" has changed.', model_name)
                     migration_successful = cls._migrate_model(
                         model_name, model, models, migration_successful,
-                        session, old_schemas)
+                        session, old_schemas, new_schemas)
             elif model.__tablename__ not in old_schemas:
                 __logger__.info('New model "%s" detected.', model_name)
                 '''NOTE: sqlalchemy will create this table automatically.'''
@@ -707,7 +804,7 @@ class Main(Class, Runnable):
     @classmethod
     def _migrate_model(
         cls, model_name, model, models, migration_successful, session,
-        old_schemas
+        old_schemas, new_schemas
     ):
         '''
             Migrates given model. Creates new schema and copies old data to \
@@ -1538,14 +1635,42 @@ class Main(Class, Runnable):
                             cls.timestamp[model_name] = timestamp
                     else:
                         cls.timestamp[model_name] = timestamp
-            self.__class__.rest_data_timestamp_reference = Timestamp
         else:
-            # TODO support full timstamp interface.
-            self.__class__.rest_data_timestamp_reference = FileHandler(
+            timestamp_location = FileHandler(
                 location=self.options['location']['database'][
                     'rest_data_timestamp_reference'])
-            if not self.rest_data_timestamp_reference:
-                self.__class__.rest_data_timestamp_reference.content = ''
+            timestamp_location.make_directories()
+            data_timestamp_file = FileHandler(location='%s%s' % (
+                timestamp_location.path, 'Data'
+            )).content = ' '
+            class Timestamp:
+                indicator_files = {'Data': data_timestamp_file}
+
+                @classmethod
+                def set_timestamp(cls, model_name='Data'):
+                    now = DateTime.now()
+# # python3.4
+# #                     timestamp = now.timestamp(
+# #                     ) + builtins.float(now.microsecond) / 1000 ** 2
+                    timestamp = make_time(
+                        now.timetuple()
+                    ) + now.microsecond / 1000 ** 2
+# #
+                    if model_name == 'Data':
+                        for model_name in cls.indicator_files:
+                            cls.indicator_files[model_name].timestamp = \
+                                timestamp
+                    else:
+                        if model_name not in cls.indicator_files:
+                            cls.indicator_files[model_name] = FileHandler(
+                                location='%s%s' % (
+                                    timestamp_location, model_name))
+                            if not cls.indicator_files[model_name].is_file():
+                                cls.indicator_files[model_name].content = ' '
+                            cls.indicator_files[model_name].timestamp = \
+                                timestamp
+                        cls.indicator_files[model_name].timestamp = timestamp
+        self.__class__.rest_data_timestamp_reference = Timestamp
         '''Initialize cache timestamps for all models.'''
         for model_name, model in builtins.filter(
             lambda model: builtins.isinstance(
@@ -1559,7 +1684,11 @@ class Main(Class, Runnable):
             self.clear_web_cache()
         if self.controller is not None:
             self.controller.launch()
-        self._check_database_file_references()
+        if self.given_command_line_arguments.dead_file_reference_check:
+            self._check_database_file_references()
+        if self.given_command_line_arguments.\
+        dead_soft_reference_check_properties:
+            self._check_dead_soft_references()
         return self
 
     def _determine_suitable_proxy_server(self):
