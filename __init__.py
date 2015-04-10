@@ -623,10 +623,10 @@ class Main(Class, Runnable):
             Module.get_defined_objects(cls.model)
         ):
             if model_name not in cls.given_command_line_arguments.\
-            dead_soft_reference_check_exceptions and all(
+            dead_soft_reference_check_exceptions and all(map(
                 lambda property_name: hasattr(model, property_name),
                 property_names
-            ):
+            )):
                 for property in builtins.filter(
                     lambda property: property.name.endswith('_id'),
                     model.__table__.columns
