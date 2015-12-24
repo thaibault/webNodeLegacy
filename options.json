@@ -1,5 +1,11 @@
 {
     "frontend": {
+        "debug": "<% main.debug %>",
+        "offlineManifest": {
+            "integrateSites": true,
+            "pathPatternToIgnore": "^$",
+            "pathPatternToIntegrate": "(https?://)|(.*\\.(css|js|png|svg|jpg|jpeg|gif|ico|woff|woff2|html|json|xml)$)"
+        },
         "requestFileName": "<% moduleName %>",
         "freeSpaceInByte": "<% FileHandler(location='/').free_space %>",
         "usedSpaceInByte": "<% FileHandler(location='/').disk_used_space %>",
@@ -11,6 +17,7 @@
         }
     },
     "both": {
+        "fileHashAlgorithm": "md5",
         "lastDataWriteDateTimeHeaderName": "<% session['dataDescriptionPrefix'] %>LastDataWriteDateTime",
         "session": {
             "dataDescriptionPrefix": "application",
@@ -46,82 +53,166 @@
                 }
             }
         },
+        "allowedLinkProtocols": ["http", "https", "", "file", "ftp", "ftps"],
         "allowedTypes": {
-            "__no_wrapping__": {
-                "image": [
-                    "image/jpg", "image/jpeg", "image/pjpeg", "image/png",
-                    "image/svg+xml", "image/svg", "image/vnd.microsoft.icon",
-                    "image/x-icon", "image/gif", "image/tiff",
-                    "image/vnd.wap.wbmp", "image/x-icon", "image/x-jng",
-                    "image/x-ms-bmp", "image/svg+xml", "image/webp"
-                ],
-                "audio": [
-                    "audio/midi", "audio/mpeg", "audio/ogg", "audio/x-m4a",
-                    "audio/x-realaudio"
-                ],
-                "video": [
-                    "video/webm", "video/3gpp", "video/mp2t", "video/mp4",
-                    "video/mpeg", "video/quicktime", "video/x-flv",
-                    "video/x-m4v", "video/x-mng", "video/x-ms-asf",
-                    "video/x-ms-wmv", "video/x-msvideo",
-                    "application/x-shockwave-flash"
-                ],
-                "data": [
-                    "application/xml", "text/csv", "application/xml", "text/xml",
-                    "application/atom+xml", "application/rss+xml",
-                    "application/json", "application/vnd.google-earth.kml+xml",
-                    "application/vnd.google-earth.kmz", "application/xhtml+xml",
-                    "application/xspf+xml"
-                ],
-                "document": [
-                    "text/plain", "text/html", "text/css", "text/mathml",
-                    "text/vnd.wap.wml", "application/pdf",
-                    "application/postscript", "application/rtf",
-                    "application/vnd.apple.mpegurl", "application/vnd.ms-excel",
-                    "application/vnd.ms-powerpoint", "application/vnd.wap.wmlc",
-                    "application/msword",
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                ],
-                "script": [
-                    "application/javascript", "application/x-cocoa",
-                    "application/x-perl", "text/x-python"
-                ],
-                "font": [
-                    "application/vnd.ms-fontobject", "application/font-woff"
-                ],
-                "binary": [
-                    "application/java-archive", "application/x-7z-compressed",
-                    "application/zip", "application/octet-stream",
-                    "application/octet-stream", "application/x-rar-compressed"
-                ],
-                "knownOther": [
-                    "text/x-component", "text/vnd.sun.j2me.app-descriptor",
-                    "application/mac-binhex40", "application/x-java-archive-diff",
-                    "application/x-java-jnlp-file", "application/x-makeself",
-                    "application/x-pilot", "application/x-redhat-package-manager",
-                    "application/x-sea", "application/x-stuffit",
-                    "application/x-tcl", "application/x-x509-ca-cert",
-                    "application/x-xpinstall"
-                ]
+            "image": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "image/jpg", "image/jpeg", "image/pjpeg",
+                        "image/png", "image/svg+xml", "image/svg",
+                        "image/vnd.microsoft.icon", "image/x-icon",
+                        "image/gif", "image/tiff", "image/vnd.wap.wbmp",
+                        "image/x-icon", "image/x-jng", "image/x-ms-bmp",
+                        "image/svg+xml", "image/webp"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": [
+                        "jpg", "jpeg", "png", "svg", "ico", "gif", "tiff",
+                        "bmp", "webp"
+                    ]
+                }
+            },
+            "audio": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "audio/midi", "audio/mpeg", "audio/ogg", "audio/x-m4a",
+                        "audio/x-realaudio"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": ["midi", "mpeg", "ogg", "m4a"]
+                }
+            },
+            "video": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "video/webm", "video/3gpp", "video/mp2t", "video/mp4",
+                        "video/mpeg", "video/quicktime", "video/x-flv",
+                        "video/x-m4v", "video/x-mng", "video/x-ms-asf",
+                        "video/x-ms-wmv", "video/x-msvideo",
+                        "application/x-shockwave-flash"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": [
+                        "webm", "3gpp", "mp2t", "mp4", "mpeg", "mov", "qt",
+                        "flv", "m4v", "mng", "asf", "wmv"
+                    ]
+                }
+            },
+            "data": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "application/xml", "text/csv", "text/xml",
+                        "application/atom+xml", "application/rss+xml",
+                        "application/json",
+                        "application/vnd.google-earth.kml+xml",
+                        "application/vnd.google-earth.kmz",
+                        "application/xhtml+xml", "application/xspf+xml"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": ["xml", "csv", "json", "kml"]
+                }
+            },
+            "document": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "text/plain", "text/html", "text/jade", "text/css",
+                        "text/mathml", "text/vnd.wap.wml", "application/pdf",
+                        "application/postscript", "application/rtf",
+                        "application/vnd.apple.mpegurl",
+                        "application/vnd.ms-excel",
+                        "application/vnd.ms-powerpoint",
+                        "application/vnd.wap.wmlc", "application/msword",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": [
+                        "txt", "html", "css", "pdf", "rtf", "ps", "doc",
+                        "docx", "jade"
+                    ]
+                }
+            },
+            "script": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "application/javascript", "application/x-cocoa",
+                        "application/x-perl", "text/x-python"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": ["js", "pl", "py"]
+                }
+            },
+            "font": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "application/vnd.ms-fontobject",
+                        "application/font-woff"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": ["woff", "woff2", "eot", "ttf"]
+                }
+            },
+            "binary": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "application/java-archive",
+                        "application/x-7z-compressed",
+                        "application/zip", "application/octet-stream",
+                        "application/octet-stream",
+                        "application/x-rar-compressed"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": ["java", "zip", "rar", "7z"]
+                }
+            },
+            "knownOther": {
+                "mimeType": {
+                    "__no_wrapping__": [
+                        "text/x-component", "text/vnd.sun.j2me.app-descriptor",
+                        "application/mac-binhex40",
+                        "application/x-java-archive-diff",
+                        "application/x-java-jnlp-file",
+                        "application/x-makeself",
+                        "application/x-pilot",
+                        "application/x-redhat-package-manager",
+                        "application/x-sea", "application/x-stuffit",
+                        "application/x-tcl", "application/x-x509-ca-cert",
+                        "application/x-xpinstall"
+                    ]
+                },
+                "extension": {
+                    "__no_wrapping__": []
+                }
             }
         }
     },
     "backend": {
+        "productionExceptionEMailNotification": {
+            "mimeTypeSubType": "alternative",
+            "smtpServer": {"url": "example.domain.com", "port": 993},
+            "encryption": "ssl",
+            "login": "login",
+            "password": "password",
+            "sender": "example@domain.com",
+            "recipient": "example@domain.com",
+            "html": false,
+            "backend": false,
+            "frontend": false
+        },
         "errorReportAnswerHTMLContent": "<html><head><meta charset=\"utf-8\" /><title>errorReport</title><meta name=\"robots\" content=\"noindex, nofollow\" /></head><body>%s</body></html>",
         "unicodeNormalisationForm": "NFC",
-        "dataKeysToIgnore": [],
+        "dataKeysIgnore": [],
         "finalOptionConsolidation": true,
-        "systemCommands": {
-            "proxyServer": {
-                "__no_wrapping__": {
-                    "stop": "/usr/bin/env sudo nginx -s stop",
-                    "start": "/usr/bin/env sudo nginx",
-                    "reload": "/usr/bin/env sudo nginx -s reload"
-                }
-            }
-        },
+        "proxyServerSystemReloadCommand": "/usr/bin/env nginx -s reload &>/dev/null || /usr/bin/env sudo nginx -s reload",
         "jsonpGetParameterIndicator": ["jsonp", "callback"],
         "restResponseTemplate": ")]}',\n%s",
         "initialTemplateRendering": true,
@@ -167,15 +258,26 @@
                     "maximumLength": 2000,
                     "pattern": "(https?://)?(www\\.)?[a-zA-Z0-9.-]+\\.[a-z]{2,3}(/.*)?"
                 },
+                "urlProtocol": {
+                    "minimumLength": 0,
+                    "maximumLength": 100,
+                    "pattern": "<% '|'.join(allowedLinkProtocols) %>"
+                },
+                "urlParameter": {
+                    "default": "",
+                    "minimumLength": 0,
+                    "maximumLength": 2000,
+                    "pattern": ".*"
+                },
                 "loginEMailAddress": {
                     "minimumLength": 5,
                     "maximumLength": 100,
                     "pattern": "((admin)|(<% model['generic']['eMailAddress']['pattern'] %>))"
                 },
                 "eMailAddress": {
-                    "minimumLength": 5,
+                    "minimumLength": 6,
                     "maximumLength": 100,
-                    "pattern": "[_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})"
+                    "pattern": "[_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[A-Za-z]{2,})"
                 },
                 "phoneNumber": {
                     "minimumLength": 1,
@@ -206,9 +308,9 @@
         "webServer": {
             "root": "/", "default": "<% location['htmlFile']['frontend'] %>",
             "requestWhitelist": [
-                "GET|POST|DELETE|PUT|PATCH:/<% moduleName %><% delimiterPattern %>.+",
-                "GET:(/|(<% location['webAsset'] %>.+))",
-                "PUT:<% location['medium'] %>?"
+                "GET|POST|DELETE|PUT|PATCH:/<% StringExtension(moduleName).regex_validated.content %><% delimiterPattern %>.+",
+                "GET:(/|(<% StringExtension(location['webAsset']).regex_validated.content %>.+))",
+                "PUT:<% StringExtension(location['medium']).regex_validated.content %>?"
             ],
             "requestParameterDelimiter": "<% delimiterPattern %>",
             "authentication": false, "moduleLoading": "<% moduleName %>",
@@ -224,8 +326,8 @@
                 "folder": "/backendNginxConfiguration/",
                 "login": "<% location['nginxConfiguration']['folder'] %>login.txt.tpl"
             },
-            "proxyServerLog": "/proxyServerLog.txt",
-            "reportedClientErrors": "/reportedClientErrors/",
+            "proxyServerLog": "/log/proxyServer.txt",
+            "reportedClientError": "/log/reportedClientError/",
             "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
             "cache": "/cache/",
             "webCache": "<% location['cache'] %>web/",
@@ -245,14 +347,16 @@
                 "schemaFile": "<% location['database']['folder'] %>schema.json",
                 "backup": "<% location['backup'] %>database/"
             },
-            "templateIgnored": [
+            "templateIgnore": [
                 "<% location['nginxConfiguration']['login'] %>",
                 "<% location['backup'] %>", "<% location['webCache'] %>",
-                "/boostNode/", "/webNode/", "/database/", "/.git/"]
+                "/boostNode/", "/webNode/", "/database/"
+            ],
+            "templateOnce": []
         },
-
-        "ignoreWebAssetPattern": [".*\\.swp", "\\..*"],
-
+        "webAssetPatternIgnore": [
+            "(.*/)?[_.][^/]+(/.*)?", ".*\\.swp", ".*[/.]example(/.*|\\.[^/]*)?"
+        ],
         "commandLineArguments": {
             "__no_wrapping__": [{
                 "arguments": ["-w", "--web-cache"],
@@ -263,21 +367,21 @@
                     "dest": "web_cache"
                 }
             }, {
-                "arguments": ["-r", "--render-template"],
+                "arguments": ["-r", "--reload"],
                 "specification": {
                     "action": "store_true",
                     "default": false,
-                    "help": "Indicates weather the application should simply render the main html entry file and terminate.",
-                    "dest": "render_template"
+                    "help": "Indicates weather the application should simply render all templates and reload all configurations.",
+                    "dest": "reload"
                 }
             }, {
                 "arguments": ["-n", "--host-name"],
                 "specification": {
                     "action": "store",
-                    "default": "127.0.0.1",
+                    "default": "",
                     "type": {"execute": "str"},
                     "required": false,
-                    "help": "Defines application server host name. If you want to make your application server reachable from any incoming domain use the empty string. The default is only listing on requests which comes from the same operating system.",
+                    "help": "Defines application server host name. If you want to make your application only reachable from your local machine use \"127.0.0.1\". The default is listing on any incoming domain.",
                     "dest": "host_name",
                     "metavar": "STRING"
                 }
@@ -324,6 +428,18 @@
                     "help": "Defines the port number to access the web server. If zero given a free port will be determined.",
                     "dest": "port",
                     "metavar": "NUMBER"
+                }
+            }, {
+                "arguments": ["-f", "--flags"],
+                "specification": {
+                    "action": "store",
+                    "nargs": "*",
+                    "default": [],
+                    "type": {"execute": "str"},
+                    "required": false,
+                    "help": "Defines a various list of run time flags (e.g. to distinguish between staging and production environments).",
+                    "dest": "flags",
+                    "metavar": "FLAGS"
                 }
             }, {
                 "arguments": ["-i", "--proxy-ports"],

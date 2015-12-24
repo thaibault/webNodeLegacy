@@ -3,7 +3,7 @@
 webNode
 =========
 
-`Project Page <http://thaibault.github.com/webNode>`_
+`Project Page <http://torben.website/webNode>`_
 
 Contents
 --------

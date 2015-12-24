@@ -8,7 +8,7 @@
     and starts the web socket.
 '''
 
-# # python3.4
+# # python3.5
 # # pass
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
@@ -23,25 +23,34 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 import builtins
+# # python3.5 import builtins
 import __builtin__ as builtins
 from copy import copy, deepcopy
 from datetime import datetime as DateTime
 from datetime import time as Time
 from datetime import date as Date
 from datetime import timedelta as TimeDelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from httplib import HTTPConnection
 import inspect
 import json
 import logging
 import multiprocessing
 import os
+try:
+    from cProfile import Profile as Profiler
+except builtins.ImportError:
+    from profile import Profile as Profiler
 import re as regularExpression
-from socket import error as SocketError
+from smtplib import SMTP, SMTP_SSL
+import socket
+from sqlite3 import Connection as SQLite3Connection
 import sys
 from time import clock, sleep, time
-# # python3.4 pass
+# # python3.5 pass
 from time import mktime as make_time
+import traceback
 from unicodedata import normalize as normalize_unicode
 
 from sqlalchemy.engine.default import DefaultExecutionContext
@@ -51,29 +60,22 @@ from sqlalchemy.orm import sessionmaker as create_database_session
 from sqlalchemy.schema import CreateTable, DropTable, Table, MetaData
 from sqlalchemy import event as SqlalchemyEvent
 from sqlalchemy.engine import Engine as SqlalchemyEngine
-from sqlite3 import Connection as SQLite3Connection
 
-# # python3.4 pass
+# # python3.5 pass
 from boostNode import convert_to_string, convert_to_unicode
 from boostNode.extension.file import Handler as FileHandler
-from boostNode.extension.native import Dictionary, Module, Object
-from boostNode.extension.native import String as StringExtension
+from boostNode.extension.native import Object, Iterable, Dictionary, Module
+from boostNode.extension.native import String
 from boostNode.extension.native import __exception__ as NativeError
 from boostNode.extension.output import Print
 from boostNode.extension.system import CommandLine, Runnable, Platform
-from boostNode.extension.system import __exception__ as SystemError
+from boostNode.extension.system import __exception__ as BoostNodeSystemError
 from boostNode.extension.type import Null
 from boostNode.paradigm.objectOrientation import Class
 from boostNode.runnable.server import Web as WebServer
 from boostNode.runnable.template import Parser as TemplateParser
 from boostNode.runnable.template import __exception__ as TemplateError
 from boostNode import highPerformanceModification
-
-# # python3.4
-# # # NOTE: Should be removed if we drop python2.X support.
-# # String = StringExtension
-String = lambda content: StringExtension(convert_to_string(content))
-# #
 
 try:
     Controller = builtins.__import__('controller', {}, {}, ('Main',)).Main
@@ -151,22 +153,248 @@ class Main(Class, Runnable):
 
     # # region public
 
+    # # # region getter
+
+    @classmethod
+    def get_web_asset_file_paths(cls, path=None):
+        '''
+            Determine a list of relative file paths needed for the web \
+            application.
+        '''
+        paths = []
+        if path is None:
+            path = cls.options['location']['web_asset']
+            cls._root_asset_path_len = builtins.len(FileHandler(
+                location=path
+            ).path)
+        for file in builtins.filter(
+            lambda file: cls.is_valid_web_asset(file),
+            FileHandler(location=path)
+        ):
+            if file.is_directory():
+                paths += cls._determine_file_assets(file.path)
+            else:
+                paths.append(file.path[cls._root_asset_path_len:])
+        return paths
+
+    @classmethod
+    def get_timestamps(cls, path):
+        '''
+            Generates a string consisting of any file timestamp of web \
+            application needed file in the given location.
+        '''
+        version = 0
+        for file in FileHandler(location=path):
+            if cls.is_valid_web_asset(file):
+                if file.is_directory():
+                    version += cls.get_timestamps(file.path)
+                else:
+                    version += file.timestamp
+        return version
+
+    # # # endregion
+
     # # # region boolean
 
     @classmethod
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
-        for pattern in cls.options['ignore_web_asset_pattern']:
-# # python3.4
-# #             if regularExpression.compile(pattern).fullmatch(file.path):
-            if regularExpression.compile('(?:%s)$' % pattern).match(file.path):
+        return not ((
+            file.extension == TemplateParser.DEFAULT_FILE_EXTENSION and
+            FileHandler(location='%s%s' % (
+                file.directory.path, file.basename
+            )).extension
+        ) or Iterable(cls.options['web_asset_pattern_ignore']).is_in_pattern(
+            value=file.path))
+
+    # # # endregion
+
+    # # # region helper
+
+    @classmethod
+    def consolidate_field(cls, value, specification):
+        '''Checks if given data is valid against given specification.'''
+        if None not in (value, specification):
+            if(
+                specification.get('type') == 'string' or
+                'minimum_length' in specification or
+                'maximum_length' in specification
+            ):
+# # python3.5                 return builtins.str(value)
+                return convert_to_unicode(value)
+            elif(
+                specification.get('type') == 'number' or
+                'minimum' in specification or 'maximum' in specification
+            ):
+                converted_value = String(value).get_number(default=False)
+                if converted_value == False:
+# # python3.5
+# #                     raise builtins.ValueError(
+# #                         'Given value "%s" couldn\'t be interpreted as '
+# #                         'number.' % builtins.str(value))
+                    raise builtins.ValueError(
+                        'Given value "%s" couldn\'t be interpreted as '
+                        'number.' % convert_to_unicode(value))
 # #
+                return converted_value
+        return value
+
+    @classmethod
+    def validate_field(cls, value, specification):
+        '''Checks if given data is valid against given specification.'''
+        if specification is not None:
+            if 'required' in specification and value is None:
+                return specification['required']
+            if 'choices' in specification:
+                for item in specification['choices']:
+                    if 'key' in item:
+                        if item['key'] == value:
+                            return True
+                    elif item == value:
+                        return True
+                return False
+            if((
+                'minimum_length' in specification and
+                builtins.len(value) < specification['minimum_length']
+            ) or (
+                'maximum_length' in specification and
+                builtins.len(value) > specification['maximum_length']
+            ) or (
+                'minimum' in specification and
+                value < specification['minimum']
+            ) or (
+                'maximum' in specification and value > specification['maximum']
+            ) or ('pattern' in specification and regularExpression.compile(
+# # python3.5
+# #                 specification['pattern']
+# #             ).fullmatch(value) is None
+                '(?:%s)$' % specification['pattern']
+            ).match(value) is None
+# #
+            )):
                 return False
         return True
 
-        # # endregion
+    @classmethod
+    def send_e_mail(cls, content, configuration={}, **keywords):
+        '''Sends given message via mail.'''
+        # TODO use this method in eMail Plugin!!
+        configuration.update(keywords)
+        message = MIMEMultipart(configuration['mime_type_sub_type'])
+        message['Subject'] = configuration['subject']
+        message['From'] = configuration['sender']
+        message['To'] = configuration['recipient']
+        '''
+            We support html mails and text mails as fallback. Attach parts \
+            into message container. According to RFC 2046, the last part of a \
+            multipart message, in this case the HTML message, is best and \
+            preferred.
+        '''
+        if configuration['html']:
+# # python3.5
+# #             message.attach(MIMEText(
+# #                 message, 'html', cls.options['encoding']))
+# #         else:
+# #             message.attach(MIMEText(
+# #                 message, 'plain', cls.options['encoding']))
+            message.attach(MIMEText(convert_to_string(
+                content
+            ), 'html', cls.options['encoding']))
+        else:
+            message.attach(MIMEText(convert_to_string(
+                content
+            ), 'plain', cls.options['encoding']))
+# #
+        '''Send the message specified SMTP server.'''
+        connection_data = (
+            configuration['smtp_server']['url'],
+            configuration['smtp_server']['port'])
+        if configuration.get('encryption') == 'tls':
+            server = SMTP(*connection_data)
+            server.ehlo_or_helo_if_needed()
+            server.starttls()
+        elif configuration.get('encryption') == 'ssl':
+            server = SMTP_SSL(*connection_data)
+        else:
+            server = SMTP(*connection_data)
+        if 'login' in configuration and 'password' in configuration:
+            server.ehlo_or_helo_if_needed()
+            # TODO handle exceptions.
+            server.login(configuration['login'], configuration['password'])
+        server.ehlo_or_helo_if_needed()
+        # TODO handle exceptions.
+        server.sendmail(message['From'], message['To'] if isinstance(
+            message['To'], (tuple, list, set)
+        ) else (message['To'],), message.as_string())
+        server.ehlo_or_helo_if_needed()
+        server.quit()
+        return message
 
-        # # region helper
+    @classmethod
+    def determine_referenced_models(cls, model_name):
+        '''Determines all linked model names for given model name.'''
+        if builtins.hasattr(cls.model, model_name):
+            model_column_names = builtins.filter(lambda key: '%s_%s' % (
+                model_name.lower(), key
+            ), builtins.map(
+                lambda property: property.name, builtins.getattr(
+                    cls.model, model_name
+                ).__table__.columns))
+            for model_name, model in builtins.filter(
+                lambda model: builtins.isinstance(
+                    model[1], builtins.type
+                ) and builtins.issubclass(model[1], cls.model.Model),
+                Module.get_defined_objects(cls.model)
+            ):
+                other_model_column_names = builtins.list(builtins.map(
+                    lambda property: property.name, model.__table__.columns))
+                for name in builtins.filter(
+                    lambda name: name not in other_model_column_names,
+                    model_column_names
+                ):
+                    yield model_name
+                    break
+
+    @classmethod
+    def remove_model_cache(
+        cls, model_name, flat=False, properties=(), removed_models=None
+    ):
+        '''
+            Updates model cache timestamp indicator and removes corresponding \
+            static cache files.
+        '''
+        cls.rest_data_timestamp_reference.set_timestamp(model_name)
+        indicator = '?__model__=%s&' % model_name
+        select_indicator = '&__select__='
+        for file in builtins.filter(
+            lambda file: model_name == 'Data' or (file.basename.endswith(
+                indicator[:-1]
+            ) or indicator in file.basename) and not (
+                flat and properties and not (
+                    select_indicator not in file.basename or builtins.len(
+                        builtins.filter(
+                            lambda property: regularExpression.compile(
+                                '^.*\?%s.*%s(?:.+,)?%s(,.+)?$' % (
+                                    indicator[1:-1], select_indicator, String(
+                                        property
+                                    ).delimited_to_camel_case.content)
+                            ).match(file.basename), properties))
+            )), FileHandler(location=cls.options['location']['web_cache'])
+        ):
+            file.remove_file()
+        if not flat:
+            if removed_models is None:
+                removed_models = {model_name}
+            else:
+                removed_models.add(model_name)
+            for linked_model_name in builtins.filter(
+                lambda name: name not in removed_models,
+                cls.determine_referenced_models(model_name)
+            ):
+                cls.remove_model_cache(
+                    model_name=linked_model_name, flat=flat, properties=(),
+                    removed_models=removed_models)
+        return cls
 
     @classmethod
     def extend_options(
@@ -201,29 +429,30 @@ class Main(Class, Runnable):
         ).content
         cls.options['frontend'] = frontend_options
         mockup_template = TemplateParser('', string=True)
+        escape_pattern = regularExpression.compile(
+            '(^|[^\\\\])\\\\([^\\\\]|$)')
         '''
             NOTE: A check for left template code delimiter avoids parsing \
             plain strings as templates and lose many performance.
         '''
         def value_wrapper(key, value):
-# # python3.4
+# # python3.5
 # #             while builtins.isinstance(
 # #                 value, builtins.str
 # #             ) and mockup_template.left_code_delimiter in value:
-            #print(cls.options['web_server']['internal_redirects'][-1])
             while builtins.isinstance(
                 value, builtins.unicode
             ) and mockup_template.left_code_delimiter in value:
 # #
                 value = TemplateParser(
-                    value.replace('\\', 2 * '\\').replace('%s%s' % (
+                    escape_pattern.sub('\\1\\\\\\2', value).replace('%s%s' % (
                         mockup_template.left_code_delimiter,
                         mockup_template.right_escaped
                     ), '%s%s%s' % (
                         mockup_template.left_code_delimiter,
                         mockup_template.right_escaped,
                         mockup_template.right_escaped
-                    )), string=True,
+                    )), string=True
                 ).render(
                     mapping=cls.options, module_name=__name__, main=cls
                 ).output
@@ -237,111 +466,30 @@ class Main(Class, Runnable):
             After converting keys to backend compatible types we now convert \
             the values after rendering phase.
         '''
-# # python3.4
-# #         cls.options = Dictionary(content=cls.options).convert(
-# #             key_wrapper=lambda key, value: String(
-# #                 key
-# #             ).camel_case_to_delimited.content,
-# #             value_wrapper=cls.convert_for_backend,
-# #             remove_no_wrap_indicator=remove_no_wrap_indicator
-# #         ).content
         cls.options = Dictionary(content=cls.options).convert(
-            key_wrapper=lambda key, value: convert_to_unicode(String(
+            key_wrapper=lambda key, value: String(
                 key
-            ).camel_case_to_delimited.content),
+            ).camel_case_to_delimited.content,
             value_wrapper=cls.convert_for_backend,
             remove_no_wrap_indicator=remove_no_wrap_indicator
         ).content
-# #
         cls.options['frontend'] = frontend_options
         return cls
 
     @classmethod
-    def extend_user_authorization(
-        cls, user_id, session_token, location=None
-    ):
-        '''
-            Extends user authorization time. If successfully the user id will \
-            be returned "None" otherwise.
-        '''
-        result = None
-        maximum_number_of_tries = 10
-        number_of_tries = 1
-        while(
-            user_id and session_token and
-            number_of_tries < maximum_number_of_tries
-        ):
-            try:
-                user_id = builtins.int(user_id)
-                session = create_database_session(bind=cls.engine)()
-                '''
-                    NOTE: Do not refactor "== True" to "is True" since the \
-                    equal operator is overwritten by the orm.
-                '''
-                users = session.query(cls.model.User).filter(
-                    cls.model.User.enabled == True,
-                    cls.model.User.id == user_id,
-                    cls.model.User.session_token == session_token,
-                    cls.model.User.session_expiration_date_time > DateTime.now(
-                    ))
-                if users.count():
-                    user = users.one()
-                    user.session_expiration_date_time = DateTime.now(
-                    ) + cls.options['session']['expiration_time_delta']
-                    __logger__.info(
-                        'Authorize user with id %d for %.2f hours.', user.id, (
-                            cls.options['session'][
-                                'expiration_time_delta'
-                            ].total_seconds() / 60) / 60)
-                    if location is not None and user.location != location:
-                        user.location = location
-                        cls.rest_data_timestamp_reference.set_timestamp(
-                            model_name=cls.model.User.__name__)
-                    result = user.id
-                    session.commit()
-            except OperationalError as exception:
-                session.close()
-# # python3.4
-# #                 if 'database is locked' in builtins.str(exception):
-# #                     __logger__.warning(
-# #                         'Database seems to be locked. Retrying to connect'
-# #                         ' (%d. try of %d). %s: %s', number_of_tries,
-# #                         maximum_number_of_tries,
-# #                         exception.__class__.__name__,
-# #                         builtins.str(exception))
-                if 'database is locked' in builtins.str(exception):
-                    __logger__.warning(
-                        'Database seems to be locked. Retrying to connect'
-                        ' (%d. try of %d). %s: %s', number_of_tries,
-                        maximum_number_of_tries,
-                        exception.__class__.__name__,
-                        builtins.str(exception))
-# #
-                    if number_of_tries >= maximum_number_of_tries:
-                        raise
-                    number_of_tries += 1
-                    sleep(1)
-                    continue
-                raise
-            else:
-                session.close()
-                break
-        return result
-
-    @classmethod
-    def render_templates(cls, all=False, proxy_restart=False):
-        '''Renders the main index html file.'''
-        mapping = {
+    def render_templates(cls, all=False, initialize=False):
+        '''Renders all template files.'''
+        mapping = cls.controller.get_template_scope(scope=deepcopy({
             'options': deepcopy(cls.options), 'debug': cls.debug,
             'given_command_line_arguments': cls.given_command_line_arguments,
-            'root': FileHandler.get_root(), 'proxy_port': cls.proxy_port}
+            'root': FileHandler.get_root(), 'proxy_port': cls.proxy_port}))
         if 'admin' in mapping['options']['frontend']:
             del mapping['options']['frontend']['admin']
         if all:
             FileHandler(location='/').iterate_directory(
-                function=cls._render_template, recursive=True, mapping=mapping)
-            if cls.proxy_port is not None:
-                cls._reinitialize_proxy_server(proxy_restart)
+                function=cls._render_template, recursive=True, mapping=mapping,
+                initialize=initialize)
+            cls._reinitialize_proxy_server()
         cls._render_html_templates(mapping)
         return cls
 
@@ -351,10 +499,7 @@ class Main(Class, Runnable):
         web_cache = FileHandler(location=cls.options['location']['web_cache'])
         if web_cache.is_directory():
             __logger__.info('Clear web cache in "%s".', web_cache.path)
-            for file in builtins.filter(lambda file: cls.is_valid_web_asset(
-                file
-            ), web_cache):
-                file.remove_deep()
+            web_cache.remove_deep()
         template_cache = FileHandler(
             location=cls.options['location']['template_cache'])
         if template_cache.is_directory():
@@ -376,7 +521,7 @@ class Main(Class, Runnable):
         '''Returns the serialized version of given value.'''
         if value is Null:
             value = key
-# # python3.4
+# # python3.5
 # #         if(builtins.isinstance(key, builtins.str) and (
 # #             key == 'language' or key.endswith('_language') or
 # #             key.endswith('Language')
@@ -390,10 +535,9 @@ class Main(Class, Runnable):
             key == 'language' or key.endswith('_language') or
             key.endswith('Language')
         )) and regularExpression.compile('[a-z]{2}_[a-z]{2}$').match(value):
-            return '%s%s' % (convert_to_unicode(String(
-                value
-            ).delimited_to_camel_case.content[:-1]), convert_to_unicode(
-                value[-1].upper()))
+            return '%s%s' % (
+                String(value).delimited_to_camel_case.content[:-1],
+                convert_to_unicode(value[-1].upper()))
 # #
         return Object(content=value).compatible_type
 
@@ -402,20 +546,17 @@ class Main(Class, Runnable):
         '''Converts data from client to python specific data objects.'''
         if value is Null:
             value = key
-        if 'data_keys_to_ignore' in cls.options and key in cls.options[
-            'data_keys_to_ignore'
+        if 'data_keys_ignore' in cls.options and key in cls.options[
+            'data_keys_ignore'
         ]:
             return value
-# # python3.4
+# # python3.5
 # #         if builtins.isinstance(
 # #             key, builtins.str
 # #         ) and (key == 'language' or key.endswith('_language') or
 # #         key.endswith('Language')) and regularExpression.compile(
 # #             '[a-z]{2}[A-Z]{2}'
 # #         ).fullmatch(value):
-# #             return String(
-# #                 value
-# #             ).camel_case_to_delimited.content
         if builtins.isinstance(key, (
             builtins.unicode, builtins.str
         )) and (key == 'language' or key.endswith(
@@ -423,54 +564,85 @@ class Main(Class, Runnable):
         ) or key.endswith('Language')) and regularExpression.compile(
             '[a-z]{2}[A-Z]{2}$'
         ).match(value):
-            return convert_to_unicode(String(
-                value
-            ).camel_case_to_delimited.content)
 # #
+            return String(value).camel_case_to_delimited.content
         try:
             return Object(content=value).get_known_type(
                 description=None if key == value else key)
         except NativeError:
             return value
 
-        # # endregion
-
-    # # # region getter
-
     @classmethod
-    def get_web_asset_file_paths(cls, path=None):
+    def extend_user_authorization(cls, user_id, session_token, location=None):
         '''
-            Determine a list of relative file paths needed for the web \
-            application.
+            Extends user authorization time. If successfully the user id will \
+            be returned and "None" otherwise.
         '''
-        paths = []
-        if path is None:
-            path = cls.options['location']['web_asset']
-            cls._root_asset_path_len = builtins.len(FileHandler(
-                location=path
-            ).path)
-        for file in FileHandler(location=path):
-            if cls.is_valid_web_asset(file):
-                if file.is_directory():
-                    paths += cls._determine_file_assets(file.path)
-                else:
-                    paths.append(file.path[cls._root_asset_path_len:])
-        return paths
-
-    @classmethod
-    def get_timestamps(cls, path):
-        '''
-            Generates a string consisting of any file timestamp of web \
-            application needed file in the given location.
-        '''
-        version = 0
-        for file in FileHandler(location=path):
-            if cls.is_valid_web_asset(file):
-                if file.is_directory():
-                    version += cls.get_timestamps(file.path)
-                else:
-                    version += file.timestamp
-        return version
+        result = None
+        maximum_number_of_tries = 10
+        number_of_tries = 1
+        while(
+            user_id and session_token and
+            number_of_tries < maximum_number_of_tries
+        ):
+            user_id = builtins.int(user_id)
+            try:
+                session = create_database_session(bind=cls.engine)()
+                '''
+                    NOTE: Do not refactor "== True" to "is True" since the \
+                    equal operator is overwritten by the orm.
+                '''
+                users = session.query(cls.model.User).filter(
+                    cls.model.User.enabled == True,
+                    cls.model.User.id == user_id,
+                    cls.model.User.session_token == session_token,
+                    cls.model.User.session_expiration_date_time >
+                    DateTime.now())
+                if users.count():
+                    user = users.one()
+                    user.session_expiration_date_time = DateTime.now(
+                    ) + cls.options['session']['expiration_time_delta']
+                    __logger__.info(
+                        'Authorize user with id %d for %.2f hours.', user.id, (
+                            cls.options['session'][
+                                'expiration_time_delta'
+                            ].total_seconds() / 60) / 60)
+                    if location is not None and user.location != location:
+                        user.location = location
+                        cls.rest_data_timestamp_reference.set_timestamp(
+                            model_name=cls.model.User.__name__)
+                    result = user.id
+                    session.commit()
+            except OperationalError as exception:
+                session.close()
+# # python3.5
+# #                 if 'database is locked' in builtins.str(exception):
+# #                     if number_of_tries >= maximum_number_of_tries:
+# #                         raise
+# #                     __logger__.warning(
+# #                         'Database seems to be locked. Retrying to connect'
+# #                         ' (%d. try of %d). %s: %s', number_of_tries,
+# #                         maximum_number_of_tries,
+# #                         exception.__class__.__name__,
+# #                         builtins.str(exception))
+                if 'database is locked' in builtins.str(exception):
+                    if number_of_tries >= maximum_number_of_tries:
+                        raise
+                    __logger__.warning(
+                        'Database seems to be locked. Retrying to connect'
+                        ' (%d. try of %d). %s: %s', number_of_tries,
+                        maximum_number_of_tries,
+                        exception.__class__.__name__,
+                        builtins.str(exception))
+# #
+                    number_of_tries += 1
+                    sleep(1)
+                    continue
+                raise
+            else:
+                session.close()
+                break
+        return result
 
     # # # endregion
 
@@ -479,68 +651,44 @@ class Main(Class, Runnable):
     # # region protected
 
     @classmethod
-    def _reinitialize_proxy_server(cls, proxy_restart):
+    def _reinitialize_proxy_server(cls):
         '''
             Restarts of reloads an existing proxy server. This is needed \
             after configuration file updates for example.
         '''
-        if(proxy_restart and
-           cls.options['system_commands']['proxy_server']['start'] and
-           cls.options['system_commands']['proxy_server']['stop']
-           ):
-            for command in ('stop', 'start'):
-                __logger__.debug(
-                    'Run "%s".', cls.options['system_commands'][
-                        'proxy_server'][command])
-                try:
-                    Platform.run(
-                        command=cls.options['system_commands'][
-                            'proxy_server'
-                        ][command], native_shell=True)
-                except SystemError as exception:
-                    __logger__.warning(
-                        '%s: %s You may have a miss configured proxy '
-                        'server at port %d or we have not enough '
-                        'permissions to control the proxy server. '
-                        'Command was "%s".',
-                        exception.__class__.__name__,
-                        builtins.str(exception), cls.proxy_port,
-                        cls.options['system_commands']['proxy_server'][
-                            command])
-                else:
-                    if command == 'stop':
-                        sleep(0.1)
-        elif cls.options['system_commands']['proxy_server']['reload']:
+        if(
+            cls.options['proxy_server_system_reload_command'] and
+            cls.proxy_port is not None
+        ):
             __logger__.debug(
-                'Run "%s".', cls.options['system_commands'][
-                    'proxy_server']['reload'])
+                'Run "%s".', cls.options['proxy_server_system_reload_command'])
             try:
                 Platform.run(
-                    command=cls.options['system_commands'][
-                        'proxy_server'
-                    ]['reload'])
-            except SystemError as exception:
+                    command=cls.options['proxy_server_system_reload_command'],
+                    shell=True)
+            except BoostNodeSystemError as exception:
                 __logger__.warning(
-                    '%s: %s You may have a miss configured proxy '
-                    'server at port %d or we have not enough '
-                    'permissions to control the proxy server. '
-                    'Command was "%s".', exception.__class__.__name__,
-                    builtins.str(exception), cls.proxy_port,
-                    cls.options['system_commands']['proxy_server'][
-                        'reload'])
+                    '%s: %s You may have a miss configured proxy server at '
+                    'port %d or we have not enough permissions to control the '
+                    'proxy server. Command was "%s".',
+                    exception.__class__.__name__, builtins.str(exception),
+                    cls.proxy_port,
+                    cls.options['proxy_server_system_reload_command'])
         return cls
 
     @classmethod
-    def _render_template(cls, file, mapping):
+    def _render_template(cls, file, mapping, initialize):
         '''
             Renders each template and distinguishes between backend and \
             frontend templates.
         '''
-        if(file.name.startswith('.') or file.is_symbolic_link() or
-           file.path in cls.options['location']['template_ignored']):
+        if(file.name.startswith(('.', '_')) or file.is_symbolic_link() or
+           file.path in cls.options['location']['template_ignore'] or
+           not initialize and
+           file.path in cls.options['location']['template_once']):
             '''Don't enter ignored locations or parse ignored files.'''
             return None
-# # python3.4
+# # python3.5
 # #         if(file.extension == TemplateParser.DEFAULT_FILE_EXTENSION and
 # #            FileHandler(location='%s%s' % (
 # #                file.directory.path, file.basename
@@ -550,12 +698,14 @@ class Main(Class, Runnable):
                file.directory.path, file.basename
            )).extension and not (file == cls.html_template_file)):
 # #
-            FileHandler(location='%s%s' % (
+            result, mapping = cls._render_template_helper(file, mapping)
+            output_file = FileHandler(location='%s%s' % (
                 file.directory.path, file.name[:-builtins.len('%s%s' % (
-                    os.extsep, TemplateParser.DEFAULT_FILE_EXTENSION))]
-            )).content = normalize_unicode(
-                cls.options['unicode_normalisation_form'],
-                cls._render_template_helper(file, mapping))
+                    os.extsep, TemplateParser.DEFAULT_FILE_EXTENSION))]))
+            output_file.content = normalize_unicode(
+                cls.options['unicode_normalisation_form'], result)
+            cls.controller.post_template_file_rendering(
+                output_file, file, scope=mapping)
         return cls
 
     @classmethod
@@ -568,25 +718,26 @@ class Main(Class, Runnable):
                     section in frontend options.
                 '''
                 if site == 'frontend' or 'admin' in cls.options['frontend']:
-                    builtins.getattr(
-                        cls, '%s_html_file' % site
-                    ).content = normalize_unicode(
-                        cls.options['unicode_normalisation_form'],
-                        cls._render_template_helper(
-                            cls.html_template_file, mapping,
-                            force_backend=site == 'backend'))
+                    result, mapping = cls._render_template_helper(
+                        cls.html_template_file, mapping,
+                        force_backend=site == 'backend')
+                    output_file = builtins.getattr(cls, '%s_html_file' % site)
+                    output_file.content = normalize_unicode(
+                        cls.options['unicode_normalisation_form'], result)
+                    cls.controller.post_template_file_rendering(
+                        output_file, file=cls.html_template_file,
+                        scope=mapping)
         return cls
 
     @classmethod
     def _render_template_helper(cls, file, mapping, force_backend=False):
         '''Renders a concrete template file.'''
-        __logger__.debug('Render "%s".', file.path)
         is_backend = force_backend
         '''
             Check if any parent folder has the "backend" prefix to indicate \
             frontend or template scope for current template.
         '''
-        if file.name.startswith('backend'):
+        if file.name.startswith('backend') or file.directory.path == '/':
             is_backend = True
         parent_folder = file.directory
         while True:
@@ -595,17 +746,25 @@ class Main(Class, Runnable):
             if parent_folder == FileHandler.get_root() or is_backend:
                 break
             parent_folder = parent_folder.directory
+        __logger__.debug(
+            'Render "%s" for %s.', file.path,
+            'backend' if is_backend else 'frontend')
+        '''
+            NOTE: This is necessary to avoid having any modifications in \
+            another template.
+        '''
+        mapping = deepcopy(mapping)
         mapping['options']['frontend']['admin'] = (
-            (is_backend) and 'admin' in cls.options['frontend'])
-        mapping = cls.controller.get_template_scope(deepcopy(mapping))
+            is_backend and 'admin' in cls.options['frontend'])
         if mapping['options']['frontend']['admin']:
             mapping['options']['frontend'] = Dictionary(
                 content=mapping['options']['frontend']
             ).update(cls.options['frontend']['admin']).content
+        mapping = cls.controller.get_template_file_scope(file, scope=mapping)
         return TemplateParser(
             file, template_context_default_indent=cls.options[
                 'default_indent_level']
-        ).render(mapping=mapping).output
+        ).render(mapping=mapping).output, mapping
 
     @classmethod
     def _check_dead_soft_references(cls):
@@ -627,72 +786,97 @@ class Main(Class, Runnable):
                 lambda property_name: hasattr(model, property_name),
                 property_names
             )):
-                for property in builtins.filter(
-                    lambda property: property.name.endswith('_id'),
-                    model.__table__.columns
-                ):
-                    referencing_model = getattr(
-                        cls.model, String(
-                            property.name[:-len('_id')]
-                        ).delimited_to_camel_case.camel_case_capitalize.content,
-                        None)
-                    if referencing_model is not None and all(
-                        lambda property_name: hasattr(
-                            referencing_model, property_name
-                    ), property_names):
-                        for model_instance in session.query(model):
-                            referencing_model_instances = session.query(
-                                referencing_model
-                            ).filter_by(id=getattr(
-                                model_instance, property.name))
-                            if referencing_model_instances.count():
-                                referencing_model_instance = \
-                                    referencing_model_instances.one()
-                                broken_reference = False
-                                for property_name in property_names:
-                                    if getattr(
-                                        referencing_model, property_name
-                                    ) != getattr(
-                                        model_instance, property_name
-                                    ):
-                                        broken_reference = True
-                                        break
-                                if broken_reference:
-                                    if everything_accepted:
-                                        answer = True
-                                    else:
-                                        answer = CommandLine.boolean_input(
-                                            question='Model %s has a hard '
-                                                     'reference via attribute '
-                                                     '"%s" with value "%s" and'
-                                                     ' a dead soft reference '
-                                                     'via attribute "%s" with '
-                                                     'source value "%s" and '
-                                                     'target value "%s". Do '
-                                                     'you want to delete this '
-                                                     'record? '
-                                                     '{boolean_arguments}:'
-                                                     ' ' % (
-                                                builtins.repr(model_instance),
-                                                property.name, getattr(
-                                                    model_instance,
-                                                    property.name
-                                                ), property_name, getattr(
-                                                    model_instance,
-                                                    property_name
-                                                ), getattr(
-                                                    referencing_model_instance,
-                                                    property_name)
-                                            ), extra=('all',))
-                                    if answer == 'all':
-                                        answer = everything_accepted = True
-                                    if answer:
-                                        session.query(model).filter_by(
-                                            **model_instance.dictionary
-                                        ).delete()
-                                        session.commit()
+                everything_accepted = cls._check_dead_soft_references_in_model(
+                    session, model_name, model, property_names,
+                    everything_accepted)
+                if everything_accepted is None:
+                    session.close()
+                    return cls
         session.close()
         return cls
+
+    @classmethod
+    def _check_dead_soft_references_in_model(
+        cls, session, model_name, model, property_names, everything_accepted
+    ):
+        '''Searches for unneeded database entities in given model.'''
+        for property in builtins.filter(
+            lambda property: property.name.endswith('_id'),
+            model.__table__.columns
+        ):
+            referencing_model = getattr(cls.model, String(property.name[:-len(
+                '_id'
+            )]).delimited_to_camel_case.camel_case_capitalize.content, None)
+            if referencing_model is not None and all(map(
+                lambda property_name: hasattr(
+                    referencing_model, property_name
+                ), property_names
+            )):
+                for model_instance, reference_value in session.query(
+                    model, property
+                ):
+                    everything_accepted = \
+                    cls._check_dead_soft_references_in_model_instance(
+                        session, model, model_instance, reference_value,
+                        property, property_names, referencing_model,
+                        everything_accepted)
+                    if everything_accepted is None:
+                        return everything_accepted
+        return everything_accepted
+
+    @classmethod
+    def _check_dead_soft_references_in_model_instance(
+        cls, session, model, model_instance, reference_value, property,
+        property_names, referencing_model, everything_accepted
+    ):
+        '''
+            Searches for unneeded database entities in given model instance \
+            for given property.
+        '''
+        referencing_model_instances = session.query(
+            referencing_model
+        ).filter_by(id=reference_value)
+        if referencing_model_instances.count():
+            referencing_model_instance = referencing_model_instances.one()
+            broken_reference = False
+            for property_name in filter(lambda property_name: getattr(
+                referencing_model_instance, property_name
+            ) != getattr(model_instance, property_name), property_names):
+                broken_reference = True
+                break
+            if broken_reference:
+                if everything_accepted:
+                    answer = True
+                else:
+                    try:
+                        answer = CommandLine.boolean_input(
+                            question='Model (%s) has a hard reference via '
+                                     'attribute "%s" with value "%s" and a '
+                                     'dead soft reference via attribute "%s" '
+                                     'with source value "%s" and target value '
+                                     '"%s". Do you want to delete this record?'
+                                     ' {boolean_arguments}: ' % (
+                                builtins.repr(model_instance), property.name,
+                                reference_value, property_name,
+                                reference_value, getattr(
+                                    referencing_model_instance, property_name)
+                            ), extra=('a', 'all', 'none', 'nothing'))
+                    except(builtins.IOError, builtins.EOFError):
+                        __logger__.info(
+                            'We have lost standard input. Receiving an stop '
+                            'order via standard input is impossible from now '
+                            'on. Setting answer to "none".')
+                        answer = 'none'
+                if answer in ('none', 'nothing'):
+                    return None
+                if answer in ('a', 'all'):
+                    answer = everything_accepted = True
+                if answer:
+                    session.query(model).filter_by(
+                        **model_instance.dictionary
+                    ).delete()
+                    session.commit()
+        return everything_accepted
 
     @classmethod
     def _check_database_file_references(cls):
@@ -727,26 +911,47 @@ class Main(Class, Runnable):
                         'Check file reference "%s" for model "%s".', file.path,
                         model_name)
                     if not file:
-                        if everything_accepted:
-                            answer = True
-                        else:
-                            answer = CommandLine.boolean_input(
-                                question='Model %s has a dead file reference '
-                                         'via attribute "%s" to "%s". Do you '
-                                         'want to delete this record? '
-                                         '{boolean_arguments}: ' % (
-                                    builtins.repr(model_instance),
-                                    property.name, file.path),
-                                extra=('all',))
-                        if answer == 'all':
-                            answer = everything_accepted = True
-                        if answer:
-                            session.query(model).filter_by(
-                                **model_instance.dictionary
-                            ).delete()
-                            session.commit()
+                        everything_accepted = cls._handle_dead_file_reference(
+                            session, model, model_instance, property, file,
+                                everything_accepted)
+                        if everything_accepted is None:
+                            session.close()
+                            return cls
         session.close()
         return cls
+
+    @classmethod
+    def _handle_dead_file_reference(
+        cls, session, model, model_instance, property, file,
+        everything_accepted
+    ):
+        '''Asks for deletion for given dead file reference.'''
+        if everything_accepted:
+            answer = True
+        else:
+            try:
+                answer = CommandLine.boolean_input(
+                    question='Model %s has a dead file reference via '
+                             'attribute "%s" to "%s". Do you want to delete '
+                             'this record? {boolean_arguments}: ' % (
+                        builtins.repr(model_instance), property.name,
+                        file.path
+                    ), extra=('a', 'all', 'none', 'nothing'))
+            except(builtins.IOError, builtins.EOFError):
+                __logger__.info(
+                    'We have lost standard input. Receiving an stop order via '
+                    'standard input is impossible from now on. Setting answer '
+                    'to "none".')
+                answer = 'none'
+        if answer in ('none', 'nothing'):
+            return None
+        if answer in ('a', 'all'):
+            answer = everything_accepted = True
+        if answer:
+            session.query(model).filter_by(**model_instance.dictionary).delete(
+            )
+            session.commit()
+        return everything_accepted
 
     @classmethod
     def _check_database_schema_version(cls, database_backup_file):
@@ -772,16 +977,17 @@ class Main(Class, Runnable):
             bind=cls.engine, expire_on_commit=False
         )()
         for model_name, model in models:
-# # python3.4
+# # python3.5
 # #             new_schemas[model.__tablename__] = builtins.str(CreateTable(
 # #                 model.__table__))
             new_schemas[model.__tablename__] = convert_to_unicode(
                 CreateTable(model.__table__))
 # #
             if model.__tablename__ in old_schemas:
-                # TODO Schemas can have equivalent different string
-                # representations (in python3.4 at the latest!)
-# # python3.4
+                # TODO Schemas can have equivalent different string caused be
+                # different property ordering.
+                # USE: cursor.execute('PRAGMA table_info(content)'):
+# # python3.5
 # #                 if(old_schemas[model.__tablename__] !=
 # #                    new_schemas[model.__tablename__] and False):
                 if(old_schemas[model.__tablename__] !=
@@ -841,7 +1047,7 @@ class Main(Class, Runnable):
             some properties may not exist in old database reflection.
         '''
         for values in session.query(*old_columns.values()):
-# # python3.4
+# # python3.5
 # #             __logger__.debug(
 # #                 'Transferring record "%s".', '", "'.join(builtins.map(
 # #                     lambda value: builtins.str(value), values)))
@@ -853,7 +1059,7 @@ class Main(Class, Runnable):
                 session.execute(temporary_table.insert(builtins.dict(
                     builtins.zip(old_columns.keys(), values))))
             except builtins.Exception as exception:
-# # python3.4
+# # python3.5
 # #                 __logger__.critical(
 # #                     '%s: %s', exception.__class__.__name__,
 # #                     builtins.str(exception))
@@ -899,7 +1105,7 @@ class Main(Class, Runnable):
         if(database_schema_file.content != serialized_schema and
            database_backup_file):
             now = DateTime.now()
-# # python3.4
+# # python3.5
 # #             timestamp = now.timestamp() + now.microsecond / 1000 ** 2
             timestamp = make_time(now.timetuple()) + \
                 now.microsecond / 1000 ** 2
@@ -927,7 +1133,7 @@ class Main(Class, Runnable):
                     bind=cls.engine))))
                 session.commit()
                 __logger__.info('Table "%s" has been removed.', table_name)
-# # python3.4
+# # python3.5
 # #         database_schema_file.content = json.dumps(
 # #             new_schemas, sort_keys=True,
 # #             indent=cls.options['default_indent_level'])
@@ -985,27 +1191,15 @@ class Main(Class, Runnable):
                 ) and result[
                     'default_value'
                 ] == cls.model.determine_language_specific_default_value:
-# # python3.4
-# #                     result['default_value'] = Dictionary(
-# #                         content=cls.options['model']['generic'][
-# #                             'language_specific'
-# #                         ]['default'][property.name]).convert(
-# #                             key_wrapper=lambda key, value: cls
-# #                             .convert_for_client(String(
-# #                                 key
-# #                             ).delimited_to_camel_case.content)
-# #                         ).content
                     result['default_value'] = Dictionary(
                         content=cls.options['model']['generic'][
                             'language_specific'
                         ]['default'][property.name]).convert(
                             key_wrapper=lambda key, value: cls
-                            .convert_for_client(convert_to_unicode(
-                                String(
-                                    key
-                                ).delimited_to_camel_case.content))
+                            .convert_for_client(String(
+                                key
+                            ).delimited_to_camel_case.content)
                         ).content
-# #
                 else:
                     result['default_value'] = cls.convert_for_client(
                         key=property.name, value=property.default.arg(
@@ -1019,10 +1213,10 @@ class Main(Class, Runnable):
     def _merge_options(cls):
         '''Merge frontend and backend options.'''
         cls.options = Dictionary(content=cls.options).update(
-            cls.options['both']
+            deepcopy(cls.options['both'])
         ).update(cls.options['backend']).content
         cls.options['frontend'] = Dictionary(
-            content=cls.options['both']
+            content=deepcopy(cls.options['both'])
         ).update(cls.options['frontend']).content
         return cls
 
@@ -1030,9 +1224,9 @@ class Main(Class, Runnable):
     def _set_options(cls):
         '''Renders backend and frontend options.'''
         configuration_file = FileHandler(location=cls.CONFIGURATION_FILE_PATH)
-        cls.options = Dictionary(content=json.loads(FileHandler(
+        cls.options = json.loads(FileHandler(
             location='/%s%s' % (cls.package_name, configuration_file.path)
-        ).content)).content
+        ).content)
         if configuration_file.is_file():
             options = json.loads(configuration_file.content)
             return cls.extend_options(
@@ -1071,31 +1265,39 @@ class Main(Class, Runnable):
     @classmethod
     def _initialize_model(cls):
         '''Initializes the model.'''
-        database_backup_file = FileHandler(location='%sDataBackup.sql' % (
-            cls.options['location']['database']['backup']))
-        if cls.options['database']['engine_prefix'].startswith('sqlite:'):
-            database_file = FileHandler(
-                location=cls.options['location']['database']['url'])
-            database_backup_file = FileHandler(location='%s%sBackup%s' % (
-                cls.options['location']['database']['backup'],
-                database_file.basename, database_file.extension_suffix))
-            database_file.directory.make_directories()
-            if database_file:
-                __logger__.info(
-                    'Backup database "%s" to "%s".', database_file.path,
-                    database_backup_file.path)
-                database_backup_file.directory.make_directories()
-                database_file.copy(target=database_backup_file)
+        if 'coreBackendNoAutomaticModelMigration' not in \
+        cls.given_command_line_arguments.flags:
+            database_backup_file = FileHandler(location='%sDataBackup.sql' % (
+                cls.options['location']['database']['backup']))
+            if cls.options['database']['engine_prefix'].startswith('sqlite:'):
+                database_file = FileHandler(
+                    location=cls.options['location']['database']['url'])
+                database_backup_file = FileHandler(location='%s%sBackup%s' % (
+                    cls.options['location']['database']['backup'],
+                    database_file.basename, database_file.extension_suffix))
+                database_file.directory.make_directories()
+                if database_file:
+                    __logger__.info(
+                        'Backup database "%s" to "%s".', database_file.path,
+                        database_backup_file.path)
+                    database_backup_file.directory.make_directories()
+                    database_file.copy(target=database_backup_file)
+        # TODO handle db logging better.
         cls.engine = create_database_engine('%s%s%s' % (
             cls.options['database']['engine_prefix'], cls.ROOT_PATH,
             cls.options['location']['database']['url']
         ), echo=__logger__.isEnabledFor(
             logging.DEBUG
-        ), connect_args=cls.options['database']['connection_arguments'])
-        if cls.model is not None:
-            cls.model.Model.metadata.create_all(cls.engine)
-        cls._check_database_schema_version(database_backup_file)
-        if cls.controller is not None:
+        ) and False, connect_args=cls.options['database']['connection_arguments'])
+        if 'coreBackendNoAutomaticModelMigration' not in \
+        cls.given_command_line_arguments.flags:
+            if cls.model is not None:
+                cls.model.Model.metadata.create_all(cls.engine)
+            cls._check_database_schema_version(database_backup_file)
+        if not (
+            'coreBackendNoModelMockupCreation' in \
+            cls.given_command_line_arguments.flags or cls.controller is None
+        ):
             cls.controller.initialize_model()
             if cls.debug:
                 cls.controller.initialize_model_mockup()
@@ -1110,7 +1312,7 @@ class Main(Class, Runnable):
             host_name=self.given_command_line_arguments.host_name,
             **self.options['web_server'])
         if builtins.callable(builtins.getattr(
-            self.controller, 'initialize_frontend', None
+            self.controller, 'initialize_frontend', False
         )):
             self.controller.initialize_frontend()
         return self.wait_for_order()
@@ -1121,33 +1323,39 @@ class Main(Class, Runnable):
         output = ''
         mime_type = 'text/html'
         cache_control_header = 'public, max-age=0'
-        if '__manifest__' in self.data['get']:
+        if '__manifest__' in self.request['get']:
             mime_type, cache_control_header, cache_file = \
                 self._manifest_controller()
-        elif '__model__' in self.data['get']:
+        elif '__model__' in self.request['get']:
             mime_type = 'application/json'
-            output = RestResponse(request=self).output
-        elif '__offline__' in self.data['get']:
+            output, mime_type, cache_control_header, cache_file = RestResponse(
+                web_node=self, mime_type=mime_type,
+                cache_control_header=cache_control_header
+            ).output
+            if not output:
+                mime_type = 'text/plain'
+        elif '__offline__' in self.request['get']:
             __logger__.critical(
                 'Ressource "%s" couldn\'t be determined by client.',
-                self.data['get']['__offline__'])
+                self.request['get']['__offline__'])
         else:
             output, mime_type, cache_control_header, cache_file = \
                 self.controller.response(
-                    request=self, output=output, mime_type=mime_type,
-                    cache_control_header=cache_control_header,
-                    cache_file=cache_file)
+                    web_node=self, mime_type=mime_type,
+                    cache_control_header=cache_control_header)
         if cache_file:
+            # TODO could throw an exception if cache file is deleted within the
+            # next two code lines.
             self._produce_cache_file_headers(
                 cache_file, mime_type, cache_control_header)
             output = cache_file.content
         else:
-            self.data['handler'].send_content_type_header(
+            self.request['handler'].send_content_type_header(
                 mime_type=mime_type
             ).send_static_file_cache_header(
                 cache_control_header=cache_control_header)
         if self.new_cookie:
-            self.data['handler'].send_cookie(
+            self.request['handler'].send_cookie(
                 self.new_cookie, maximum_age_in_seconds=self.options[
                     'maximum_cookie_age_in_seconds'])
         Print(normalize_unicode(
@@ -1162,24 +1370,34 @@ class Main(Class, Runnable):
         '''Dynamic request should be handled by frontend cache.'''
         user = None
         manifest_name = 'generic'
-        if(self.options['session']['key']['user_id'] in
-           self.data['cookie'] and
-           self.options['session']['key']['token'] in self.data['cookie']):
+        if 'id' in self.request['get']:
             session = create_database_session(bind=self.engine)()
             users = session.query(self.model.User).filter(
-                self.model.User.id == self.data['cookie'][
+                self.model.User.id == self.request['get']['id'])
+            if users.count():
+                user = users.one()
+                manifest_name = user.id
+        elif(self.options['session']['key']['user_id'] in
+           self.request['cookie'] and
+           self.options['session']['key']['token'] in self.request['cookie']):
+            session = create_database_session(bind=self.engine)()
+            users = session.query(self.model.User).filter(
+                self.model.User.id == self.request['cookie'][
                     self.options['session']['key']['user_id']])
             if users.count():
                 user = users.one()
                 manifest_name = user.id
             session.close()
-        cache_file = FileHandler(
-            location='%s%s.appcache' %
-            (self.options['location']['web_cache'], manifest_name))
+        cache_file = FileHandler(location='%s%s/%s.appcache' % (
+            self.options['location']['web_cache'], self.request['host'],
+            manifest_name))
+        # TODO only use web_cache in nginx conf if cli option is set.
         if(self.given_command_line_arguments.web_cache and
            cache_file.is_file()):
-            __logger__.info('Response cache from "%s".', cache_file.path)
+            __logger__.info(
+                'Response manifest cache from "%s".', cache_file.path)
         else:
+            cache_file.directory.make_directories()
             cache_file.content = self.get_manifest(user)
         return mime_type, cache_control_header, cache_file
 
@@ -1189,18 +1407,18 @@ class Main(Class, Runnable):
         '''Produces http headers for given server sided cache file.'''
         cache_timestamp = cache_file.timestamp
         if(mime_type != 'text/cache-manifest' and
-           self.data['handler'].headers.get(
+           self.request['handler'].headers.get(
                'if-modified-since'
-           ) == self.data['handler'].date_time_string(cache_timestamp)):
+           ) == self.request['handler'].date_time_string(cache_timestamp)):
             __logger__.info(
                 'Sent not modified header (304) for "%s".',
                 cache_file.path)
-            return self.data['handler'].send_content_type_header(
+            return self.request['handler'].send_content_type_header(
                 response_code=304, mime_type=mime_type
             ).send_static_file_cache_header(
                 timestamp=cache_timestamp,
                 cache_control_header=cache_control_header)
-        self.data['handler'].send_content_type_header(
+        self.request['handler'].send_content_type_header(
             mime_type=mime_type
         ).send_static_file_cache_header(
             timestamp=cache_timestamp,
@@ -1225,47 +1443,39 @@ class Main(Class, Runnable):
             web depended file timestamps to make sure that the web \
             application recognizes a newer version.
         '''
-        asset_files = []
+        asset_files = builtins.set()
 
         def add_asset_file(file):
             '''Append each valid asset to the asset file list.'''
             if self.is_valid_web_asset(file):
                 if file.is_file():
-                    asset_files.append(file)
+                    asset_files.add(file)
                 return True
         FileHandler(
             location=self.options['location']['web_asset']
         ).iterate_directory(add_asset_file, recursive=True)
-        offline_manifest_template_file = FileHandler(
-            location=self.options['location'][
-                'offline_manifest_template_file'])
-        account_state = 1
-        account_data = {}
-        if user is not None:
-            account_data = user.dictionary
-            account_state = builtins.hash(
-                Dictionary(content=account_data).get_immutable())
-        return TemplateParser(
-            offline_manifest_template_file,
-            template_context_default_indent=self.options[
-                'default_indent_level']
-        ).render(
-            assetFiles=asset_files, htmlFile=self.frontend_html_file,
-            assetVersion=self.get_timestamps(
-                self.options['location']['web_asset']),
-            version='%s - %d' % (__version__, FileHandler(
+        scope = {
+            'options': self.options['frontend'], 'assetFileHashs': {},
+            'assetFiles': asset_files, 'htmlFile': self.frontend_html_file,
+            'assetVersion': self.get_timestamps(
+                self.options['location']['web_asset']
+            ), 'version': '%s - %s' % (__version__, FileHandler(
                 location=Module.get_name(
                     path=True, extension=True, frame=inspect.currentframe())
-            ).timestamp), accountState=account_state,
-            requestFileName=__name__, host=self.data['handler'].host,
-            accountData=account_data,
-            offlineManifestTemplateFile=offline_manifest_template_file,
-            mapping=self.controller.get_manifest_scope(request=self, user=user)
-        ).output
+            ).hash), 'user': user, 'host': self.request['handler'].host,
+            'offlineManifestTemplateFile': self.offline_manifest_template_file
+        }
+        return TemplateParser(
+            self.offline_manifest_template_file,
+            template_context_default_indent=self.options[
+                'default_indent_level']
+        ).render(mapping=self.controller.get_manifest_scope(
+            scope, web_node=self, user=user
+        )).output
 
     # # # endregion
 
-# # python3.4
+# # python3.5
 # #     def stop(self, *arguments, force_stopping=False, **keywords):
     def stop(self, *arguments, **keywords):
 # #
@@ -1273,7 +1483,7 @@ class Main(Class, Runnable):
             This method is triggered if the application should die. The web \
             server will be closed.
         '''
-# # python3.4
+# # python3.5
 # #         pass
         force_stopping, keywords = Dictionary(
             content=keywords
@@ -1302,28 +1512,29 @@ class Main(Class, Runnable):
         '''
             Authenticates a user by potential sent header identification data.
         '''
+        if self.debug and '__authentication_skip__' in self.request['get']:
+            return 1
         user_id = session_token = location = None
         if self.options['authentication_method'] == 'header':
-            user_id = self.data['handler'].headers.get(String(
+            user_id = self.request['handler'].headers.get(String(
                 self.options['session']['key']['user_id']
             ).get_camel_case_to_delimited(delimiter='-').content)
-            session_token = self.data['handler'].headers.get(String(
+            session_token = self.request['handler'].headers.get(String(
                 self.options['session']['key']['token']
             ).get_camel_case_to_delimited(delimiter='-').content)
-            if self.data['request_type'] != 'head':
-                location = self.data['handler'].headers.get(String(
+            if self.request['type'] != 'head':
+                location = self.request['handler'].headers.get(String(
                     self.options['session']['key']['location']
                 ).get_camel_case_to_delimited(delimiter='-').content)
         elif self.options['authentication_method'] == 'cookie':
-            user_id = self.data['cookie'].get(
+            user_id = self.request['cookie'].get(
                 self.options['session']['key']['user_id'])
-            session_token = self.data['cookie'].get(
+            session_token = self.request['cookie'].get(
                 self.options['session']['key']['token'])
-            if self.data['request_type'] != 'head':
-                location = self.data['cookie'].get(
+            if self.request['type'] != 'head':
+                location = self.request['cookie'].get(
                     self.options['session']['key']['location'])
-        return self.extend_user_authorization(
-            user_id, session_token, location)
+        return self.extend_user_authorization(user_id, session_token, location)
 
     # # endregion
 
@@ -1334,189 +1545,183 @@ class Main(Class, Runnable):
     def _initialize(self):
         '''Starts the web controller if server is already running.'''
 
-        # # Profiling area
-        start = clock()
-        # try:
-        #     import cProfile as profile
-        # except ImportError:
-        #     import profile
-        # profiler = profile.Profile()
-        # profiler.enable()
-        # #
+        try:
 
-        # # region handle error reports
+            # region handle error reports
 
-        if __request_arguments__[
-            'external_request_uri'
-        ] == '/__error_report__':
-            if not self.proxy_port:
-# # python3.4
-# #                 error_report_file = FileHandler(location='%s%s' % (
-# #                     self.options['location']['reported_client_errors'],
-# #                     builtins.str(DateTime.now())))
-                error_report_file= FileHandler(location='%s%s' % (
-                    self.options['location']['reported_client_errors'],
-                    convert_to_unicode(DateTime.now())))
-# #
-                while error_report_file:
+            if __request_arguments__['external_uri'] == '/__error_report__':
+                error_report_message = json.dumps(
+                    __request_arguments__, skipkeys=True, ensure_ascii=False,
+                    check_circular=True, allow_nan=True, indent=4,
+                    separators=(',', ': '), sort_keys=True,
+                    default=lambda object: '__not_serializable__')
+                if not self.proxy_port:
+# # python3.5
+# #                     error_report_file = FileHandler(
+# #                         location='%s%s.json' % (
+# #                             self.options['location'][
+# #                                 'reported_client_error'],
+# #                             builtins.str(DateTime.now())))
                     error_report_file = FileHandler(
-                        location=error_report_file.path + '-')
-# # python3.4
-# #                 error_report_file.content = builtins.str(
-# #                     __request_arguments__['data'])
-                error_report_file.content = convert_to_unicode(
-                    __request_arguments__['data'])
+                        location='%s%s.json' % (
+                            self.options['location'][
+                                'reported_client_error'],
+                            convert_to_unicode(DateTime.now())))
 # #
-            Print(normalize_unicode(
-                self.options['unicode_normalisation_form'],
-                self.options['error_report_answer_html_content'] %
-                'Client error reported successfully.'
-            ), end='')
-            return self
+                    while error_report_file:
+                        error_report_file = FileHandler(
+                            location=error_report_file.path + '-')
+                    error_report_file.content = error_report_message
+                if self.options['production_exception_e_mail_notification'][
+                    'frontend'
+                ] and not self.debug:
+                    self.send_e_mail(
+                        content=error_report_message,
+                        configuration=self.options[
+                            'production_exception_e_mail_notification'],
+                        subject='Frontend-Error')
+                Print(normalize_unicode(
+                    self.options['unicode_normalisation_form'],
+                    self.options['error_report_answer_html_content'] %
+                    'Client error reported successfully.'
+                ), end='')
+                return self
 
-        # # endregion
+            # endregion
 
-        # # region properties
+            # region properties
 
-        self.old_last_data_write_timestamps = {}
-        for model_name, timestamp in \
-        self.rest_data_timestamp_reference.timestamp.items():
-            self.old_last_data_write_timestamps[model_name] = timestamp
-        self.data = __request_arguments__
-        self.new_cookie = {}
-        '''Normalize get and payload data.'''
-# # python3.4
-# #         self.data['get'] = Dictionary(content=self.data['get']).convert(
-# #             key_wrapper=lambda key, value: self.convert_for_backend(String(
-# #                 key
-# #             ).camel_case_to_delimited.content if builtins.isinstance(
-# #                 key, builtins.str
-# #             ) else key), value_wrapper=self.convert_for_backend
-# #         ).content
-        self.data['get'] = Dictionary(content=self.data['get']).convert(
-            key_wrapper=lambda key, value: self.convert_for_backend(String(
-                key
-            ).camel_case_to_delimited.content if builtins.isinstance(
-                key, (builtins.unicode, builtins.str)
-            ) else key), value_wrapper=self.convert_for_backend
-        ).content
-# #
-        if builtins.isinstance(self.data['data'], builtins.list):
-            for index, item in builtins.enumerate(self.data['data']):
-# # python3.4
-# #                 self.data['data'][index] = Dictionary(
-# #                     content=item
-# #                 ).convert(key_wrapper=lambda key, value:
-# #                     self.convert_for_backend(String(
-# #                         key
-# #                     ).camel_case_to_delimited.content if
-# #                         builtins.isinstance(key, builtins.str) else key
-# #                     ), value_wrapper=self.convert_for_backend
-# #                 ).content
-                self.data['data'][index] = Dictionary(
-                    content=item
-                ).convert(key_wrapper=lambda key, value:
-                    self.convert_for_backend(String(
-                        key
-                    ).camel_case_to_delimited.content if
-                        builtins.isinstance(key, (
-                            builtins.unicode, builtins.str
-                        )) else key
-                    ), value_wrapper=self.convert_for_backend
-                ).content
-# #
-        else:
-            if self.options['remove_duplicated_request_key']:
-                for key, value in self.data['data'].items():
-                    if builtins.isinstance(value, builtins.list):
-                        if builtins.len(value) > 0:
-                            self.data['data'][key] = value[0]
-                        else:
-                            self.data['data'][key] = None
-# # pythoin3.4
-# #             self.data['data'] = Dictionary(
-# #                 content=self.data['data']
+            self.request = __request_arguments__
+            self.new_cookie = {}
+            '''Normalize get and payload data.'''
+# # python3.5
+# #             self.request['get'] = Dictionary(
+# #                 content=self.request['get']
 # #             ).convert(
 # #                 key_wrapper=lambda key, value: self.convert_for_backend(
 # #                     String(
 # #                         key
 # #                     ).camel_case_to_delimited.content if \
-# #                     builtins.isinstance(
-# #                         key, builtins.str
-# #                     ) else key
+# #                         builtins.isinstance(key, builtins.str) else key
 # #                 ), value_wrapper=self.convert_for_backend
 # #             ).content
-            self.data['data'] = Dictionary(
-                content=self.data['data']
+            self.request['get'] = Dictionary(
+                content=self.request['get']
             ).convert(
                 key_wrapper=lambda key, value: self.convert_for_backend(
                     String(
                         key
                     ).camel_case_to_delimited.content if \
-                    builtins.isinstance(
-                        key, (builtins.unicode, builtins.str)
-                    ) else key
+                        builtins.isinstance(key, (
+                            builtins.unicode, builtins.str
+                        )) else key
                 ), value_wrapper=self.convert_for_backend
             ).content
 # #
-        '''
-            NOTE: Head requests should be fast and multi process save. So \
-            database connection shouldn't be used for non multi process save \
-            database systems.
-        '''
-        if self.data['request_type'] != 'head':
-            self.authorized_user_id = self.authenticate()
+            self._handle_request_data()
+            '''
+                NOTE: Head requests should be fast and multi process save. So \
+                database connection shouldn't be used for non multi process save \
+                database systems.
+            '''
+            if self.request['type'] != 'head':
+                self.authorized_user_id = self.authenticate()
 
-        # # endregion
+            # endregion
 
-        # # region handle web controller
+            # region handle web controller
 
-        '''
-            Export options to global scope to make them accessible for other \
-            modules like model or controller.
-        '''
-        try:
-            self._web_controller()
-        except TemplateError as exception:
-            if self.debug:
-# # python3.4
-# #                 self.data['handler'].send_error(500, '%s: "%s"' % (
+            '''
+                Export options to global scope to make them accessible for other \
+                modules like model or controller.
+            '''
+            try:
+                self._web_controller()
+            except TemplateError as exception:
+                if self.debug:
+# # python3.5
+# #                 self.request['handler'].send_error(500, '%s: "%s"' % (
 # #                     exception.__class__.__name__, builtins.str(exception)))
-                self.data['handler'].send_error(500, '%s: "%s"' % (
-                    exception.__class__.__name__, convert_to_unicode(
-                        exception)))
+                    self.request['handler'].send_error(500, '%s: "%s"' % (
+                        exception.__class__.__name__, convert_to_unicode(
+                            exception)))
 # #
-            else:
-                '''NOTE: The web server will handle this.'''
-                raise
+                else:
+                    '''NOTE: The web server will handle this.'''
+                    raise
 
-        # endregion
+            # endregion
 
-        # # Profiling area
-        # profiler.disable()
-        __logger__.info(
-            'Elapsed time for answering request "%s": %.2f seconds',
-            self.data['request_uri'], clock() - start)
-        # profiler.print_stats(sort=0) # Call count
-        # profiler.print_stats(sort=1) # Internal function time
-        # profiler.print_stats(sort=2) # Cumulative time
-        # #
+        except (socket.herror, socket.gaierror, socket.timeout, socket.error):
+            pass
+        except builtins.Exception as exception:
+            if self.options['production_exception_e_mail_notification'][
+                'backend'
+            ] and not self.debug:
+# # python3.5
+# #                 self.send_e_mail(
+# #                     content='%s:\n\n%s\n\nRequest:\n\n%s\n\nStack:\n\n%s' %
+# #                     (
+# #                         exception.__class__.__name__,
+# #                         convert_to_unicode(exception), json.dumps(
+# #                             __request_arguments__, skipkeys=True,
+# #                             ensure_ascii=False, check_circular=True,
+# #                             allow_nan=True, indent=4,
+# #                             separators=(',', ': '), sort_keys=True,
+# #                             default=lambda object: '__not_serializable__'
+# #                         ), traceback.format_exc()
+# #                     ), content=convert_to_unicode(exception),
+# #                     configuration=self.options[
+# #                         'production_exception_e_mail_notification'],
+# #                     subject='Backend-Error (%s: %s)' % (
+# #                         exception.__class__.__name__,
+# #                         builtins.str(exception)))
+                self.send_e_mail(
+                    content='%s:\n\n%s\n\nRequest:\n\n%s\n\nStack:\n\n%s' %
+                    (
+                        exception.__class__.__name__,
+                        convert_to_unicode(exception), json.dumps(
+                            __request_arguments__, skipkeys=True,
+                            ensure_ascii=False, check_circular=True,
+                            allow_nan=True, indent=4,
+                            separators=(',', ': '), sort_keys=True,
+                            default=lambda object: '__not_serializable__'
+                        ), convert_to_unicode(traceback.format_exc())
+                    ), configuration=self.options[
+                        'production_exception_e_mail_notification'],
+                    subject='Backend-Error (%s)' % (
+                        exception.__class__.__name__))
+# #
+            '''NOTE: The web server will handle this.'''
+            raise
 
         return self
 
     def _run(self):
         '''Initializes the web server.'''
-
-        # # Profiling area
-        start = clock()
-        # try:
-        #     import cProfile as profile
-        # except ImportError:
-        #     import profile
-        # profiler = profile.Profile()
-        # profiler.enable()
-        # #
-
+        RestResponse.web_node = Controller.web_node = self.__class__
+        normalized_argument_string = ' '.join(sys.argv)
+        self.__class__.debug = sys.flags.debug
+        if not self.debug:
+            match = True
+            while match:
+                for name in ('-l', '--log-level'):
+                    for delimiter in (' ', '='):
+                        '''
+                            NOTE: ".*" have to be greedy to find last \
+                            occurrence which should take effect.
+                        '''
+                        match = regularExpression.compile('.*%s%s([a-z-]+)' % (
+                            name, delimiter
+                        )).match(normalized_argument_string)
+                        if match:
+                            self.__class__.debug = match.group(1) == 'debug'
+                            '''
+                                NOTE: We remove last found match to ensure \
+                                that last given parameter takes effect.
+                            '''
+                            normalized_argument_string = \
+                                normalized_argument_string[match.span()[1]:]
         self.__class__.package_name = Module.get_package_name(
             frame=inspect.currentframe())
         FileHandler.set_root(location=FileHandler(location=Module.get_name(
@@ -1535,10 +1740,58 @@ class Main(Class, Runnable):
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
                 arguments=command_line_arguments, module_name=__name__)
-        self.__class__.debug = \
-            sys.flags.debug or __logger__.isEnabledFor(logging.DEBUG)
+        '''
+            Register and wrapp method to profile if corresponding flags are \
+            given.
+        '''
+        if(
+            'coreBackendProfile' in self.given_command_line_arguments.flags or
+            'coreBackendPrintProfile' in
+            self.given_command_line_arguments.flags
+        ):
+            def profile_wrapper(function, description):
+                def wrapped_function(*arguments, **keywords):
+                    start = clock()
+                    profiler = Profiler()
+                    profiler.enable()
+                    result = function(*arguments, **keywords)
+                    profiler.disable()
+                    if 'coreBackendPrintProfile' in \
+                    self.given_command_line_arguments.flags:
+                        __logger__.info(
+                            'Elapsed time for running "%s": %.2f seconds',
+                            function.__name__, clock() - start)
+                        '''Sort by call count'''
+                        profiler.print_stats(sort=0)
+                        '''Sort by internal function time'''
+                        profiler.print_stats(sort=1)
+                        '''Sort by cumulative time'''
+                        profiler.print_stats(sort=2)
+                    if 'coreBackendProfile' in \
+                    self.given_command_line_arguments.flags:
+                        profiler.dump_stats('%s.profile' % description)
+                    return result
+                return wrapped_function
+            for method_name, description in {
+                '_prepare_application_startup': 'startUp',
+                '_initialize': 'request'
+            }.items():
+                builtins.setattr(self.__class__, method_name, profile_wrapper(
+                    builtins.getattr(self.__class__, method_name), description)
+                )
+        self._prepare_application_startup()
+        if not self.given_command_line_arguments.reload:
+            return self._start_web_server()
+
+    # # # endregion
+
+    def _prepare_application_startup(self):
+        '''
+            Prepares the application server after command line arguments are \
+            parsed.
+        '''
         if Controller is not None:
-            self.__class__.controller = Controller(main=self.__class__)
+            self.__class__.controller = Controller()
         self._initialize_model_module()
         self.__class__.options['frontend']['proxy'] = {'port': None}
         self.__class__.port = self.given_command_line_arguments.port
@@ -1555,22 +1808,79 @@ class Main(Class, Runnable):
         self._initialize_model()
         if self.controller is not None:
             self.__class__.options = self.controller.initialize()
+        if not self.given_command_line_arguments.reload:
+            self._register_authentication_handler()
+        FileHandler(
+            location=self.options['location']['reported_client_error']
+        ).directory.make_directories()
+        FileHandler(
+            location=self.options['location']['proxy_server_log']
+        ).directory.make_directories()
         self._initialize_templates()
         self._initialize_data_structure()
+        return self
 
-        # # Profiling area
-        # profiler.disable()
-        __logger__.info(
-            'Elapsed time for starting webApp: %.2f seconds', clock() - start)
-        # profiler.print_stats(sort=0) # Call count
-        # profiler.print_stats(sort=1) # Internal function time
-        # profiler.print_stats(sort=2) # Cumulative time
-        # #
-
-        if not self.given_command_line_arguments.render_template:
-            return self._start_web_server()
-
-    # # # endregion
+    def _handle_request_data(self):
+        '''Consolidates posted data given by client.'''
+        if builtins.isinstance(self.request['data'], builtins.list):
+            for index, item in builtins.enumerate(self.request['data']):
+# # python3.5
+# #                 self.request['data'][index] = Dictionary(
+# #                     content=item
+# #                 ).convert(key_wrapper=lambda key, value:
+# #                     self.convert_for_backend(String(
+# #                         key
+# #                     ).camel_case_to_delimited.content if
+# #                         builtins.isinstance(key, builtins.str) else key
+# #                     ), value_wrapper=self.convert_for_backend
+# #                 ).content
+                self.request['data'][index] = Dictionary(
+                    content=item
+                ).convert(key_wrapper=lambda key, value:
+                    self.convert_for_backend(String(
+                        key
+                    ).camel_case_to_delimited.content if
+                        builtins.isinstance(key, (
+                            builtins.unicode, builtins.str
+                        )) else key
+                    ), value_wrapper=self.convert_for_backend
+                ).content
+# #
+        else:
+            if self.options['remove_duplicated_request_key']:
+                for key, value in self.request['data'].items():
+                    if builtins.isinstance(value, builtins.list):
+                        if builtins.len(value) > 0:
+                            self.request['data'][key] = value[0]
+                        else:
+                            self.request['data'][key] = None
+# # pythoin3.4
+# #             self.request['data'] = Dictionary(
+# #                 content=self.request['data']
+# #             ).convert(
+# #                 key_wrapper=lambda key, value: self.convert_for_backend(
+# #                     String(
+# #                         key
+# #                     ).camel_case_to_delimited.content if \
+# #                     builtins.isinstance(
+# #                         key, builtins.str
+# #                     ) else key
+# #                 ), value_wrapper=self.convert_for_backend
+# #             ).content
+            self.request['data'] = Dictionary(
+                content=self.request['data']
+            ).convert(
+                key_wrapper=lambda key, value: self.convert_for_backend(
+                    String(
+                        key
+                    ).camel_case_to_delimited.content if \
+                    builtins.isinstance(
+                        key, (builtins.unicode, builtins.str)
+                    ) else key
+                ), value_wrapper=self.convert_for_backend
+            ).content
+# #
+        return self
 
     def _initialize_templates(self):
         '''Determines templates files and renders them.'''
@@ -1580,35 +1890,45 @@ class Main(Class, Runnable):
             location=self.options['location']['html_file']['backend'])
         self.__class__.html_template_file = FileHandler(
             location=self.options['location']['html_file']['template'])
-        self._register_authentication_handler()
+        self.__class__.offline_manifest_template_file = FileHandler(
+            location=self.options['location']['offline_manifest_template_file']
+        )
         self.__class__.options['frontend'] = Dictionary(
             content=self.options['frontend']
         ).compatible_types.content
-        if(self.options['initial_template_rendering'] or
-           self.given_command_line_arguments.render_template):
+        if(
+            'coreBackendNoTemplateRendering' not in \
+            self.given_command_line_arguments.flags and
+            self.options['initial_template_rendering'] or
+            self.given_command_line_arguments.reload
+        ):
             __logger__.info('Render template files.')
-            self.render_templates(all=True, proxy_restart=True)
+            self.render_templates(all=True, initialize=True)
         return self
 
     def _register_authentication_handler(self):
         '''Registers a basic http authentication handler to webserver.'''
-# # python3.4
+# # python3.5
 # #         if self.controller is not None and builtins.isinstance(
 # #             self.options['web_server'].get('authentication_handler'),
 # #             builtins.str
 # #         ):
 # #             self.options['web_server']['authentication_handler'] = \
 # #                 builtins.eval(
-# #                     self.options['web_server']['authentication_handler'],
-# #                     {'controller': self.controller})
+# #                     self.options['web_server']['authentication_handler'], {
+# #                         'controller': self.controller,
+# #                         'Controller': Controller,
+# #                         'RestController': RestResponse})
         if self.controller is not None and builtins.isinstance(
             self.options['web_server'].get('authentication_handler'),
             (builtins.unicode, builtins.str)
         ):
             self.options['web_server']['authentication_handler'] = \
                 builtins.eval(
-                    self.options['web_server']['authentication_handler'],
-                    {'controller': self.controller})
+                    self.options['web_server']['authentication_handler'], {
+                        'controller': self.controller,
+                        'Controller': Controller,
+                        'RestController': RestResponse})
 # #
         return self
 
@@ -1623,7 +1943,7 @@ class Main(Class, Runnable):
                 @classmethod
                 def set_timestamp(cls, model_name='Data'):
                     now = DateTime.now()
-# # python3.4
+# # python3.5
 # #                     timestamp = now.timestamp(
 # #                     ) + builtins.float(now.microsecond) / 1000 ** 2
                     timestamp = make_time(
@@ -1635,21 +1955,22 @@ class Main(Class, Runnable):
                             cls.timestamp[model_name] = timestamp
                     else:
                         cls.timestamp[model_name] = timestamp
+                        cls.timestamp['Data'] = timestamp
         else:
             timestamp_location = FileHandler(
                 location=self.options['location']['database'][
                     'rest_data_timestamp_reference'])
             timestamp_location.make_directories()
             data_timestamp_file = FileHandler(location='%s%s' % (
-                timestamp_location.path, 'Data'
-            )).content = ' '
+                timestamp_location.path, 'Data'))
+            data_timestamp_file.content = ' '
             class Timestamp:
                 indicator_files = {'Data': data_timestamp_file}
 
                 @classmethod
                 def set_timestamp(cls, model_name='Data'):
                     now = DateTime.now()
-# # python3.4
+# # python3.5
 # #                     timestamp = now.timestamp(
 # #                     ) + builtins.float(now.microsecond) / 1000 ** 2
                     timestamp = make_time(
@@ -1670,6 +1991,7 @@ class Main(Class, Runnable):
                             cls.indicator_files[model_name].timestamp = \
                                 timestamp
                         cls.indicator_files[model_name].timestamp = timestamp
+                        data_timestamp_file.timestamp = timestamp
         self.__class__.rest_data_timestamp_reference = Timestamp
         '''Initialize cache timestamps for all models.'''
         for model_name, model in builtins.filter(
@@ -1686,6 +2008,8 @@ class Main(Class, Runnable):
             self.controller.launch()
         if self.given_command_line_arguments.dead_file_reference_check:
             self._check_database_file_references()
+        # TODO default is empty here (which is right) but it should be
+        # "template_name" as specified in options.json
         if self.given_command_line_arguments.\
         dead_soft_reference_check_properties:
             self._check_dead_soft_references()
@@ -1698,18 +2022,20 @@ class Main(Class, Runnable):
             self.given_command_line_arguments.proxy_ports[0])
         try:
             connection.request('HEAD', '')
-        except SocketError:
+        except (socket.herror, socket.gaierror, socket.timeout, socket.error):
             pass
         else:
             try:
                 server_name = builtins.dict(
                     connection.getresponse().getheaders()
                 ).get('server')
-            except SocketError:
+            except (
+                socket.herror, socket.gaierror, socket.timeout, socket.error
+            ):
                 pass
             else:
                 for pattern in self.SUPPORTED_PROXY_SERVER_NAME_PATTERN:
-# # python3.4
+# # python3.5
 # #                     if regularExpression.compile(pattern).fullmatch(
 # #                         server_name
 # #                     ):

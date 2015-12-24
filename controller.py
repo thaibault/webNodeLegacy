@@ -5,7 +5,7 @@
 
 '''Provides a simple web controller.'''
 
-# # python3.4
+# # python3.5
 # # pass
 from __future__ import absolute_import, division, print_function, \
     unicode_literals
@@ -20,12 +20,12 @@ __maintainer_email__ = 't.sickert["~at~"]gmail.com'
 __status__ = 'stable'
 __version__ = '1.0'
 
-# # python3.4 import builtins
+# # python3.5 import builtins
 import __builtin__ as builtins
 import inspect
 
 from boostNode.extension.native import Module
-# # python3.4 pass
+# # python3.5 pass
 from boostNode.extension.native import Dictionary
 
 # endregion
@@ -41,12 +41,25 @@ class Main(object):
 
     # # region static
 
-    # # # region special
+    # # # region getter
 
     @classmethod
-    def __init__(cls, main):
-        '''Initializes the main application controller properties.'''
-        cls.main = main
+    def get_template_scope(cls, scope):
+        '''Returns manipulated template scope variables.'''
+        return scope
+
+    @classmethod
+    def get_template_file_scope(cls, file, scope):
+        '''
+            Returns template file specific manipulated template scope \
+            variables.
+        '''
+        return scope
+
+    @classmethod
+    def get_manifest_scope(cls, scope, web_node, user):
+        '''Returns additional manifest template scope variables.'''
+        return scope
 
     # # # endregion
 
@@ -54,6 +67,11 @@ class Main(object):
     def stop(cls, *arguments, **keywords):
         '''Is called if application is shutting down.'''
         return cls
+
+    @classmethod
+    def post_template_file_rendering(cls, output_file, file, scope):
+        '''Triggers after a template file was rendered.'''
+        return output_file
 
     @classmethod
     def initialize(cls):
@@ -81,22 +99,11 @@ class Main(object):
         '''
         return cls
 
-    @classmethod
-    def get_template_scope(cls, current_scope):
-        '''Returns manipulated main index html template scope variables.'''
-        return current_scope
+    # # # endregion
 
-        # endregion
-
-    def response(
-        self, request, output, mime_type, cache_control_header, cache_file
-    ):
+    def response(self, web_node, mime_type, cache_control_header):
         '''Handles a non rest or static web request.'''
-        return output, mime_type, cache_control_header, cache_file
-
-    def get_manifest_scope(self, request, user):
-        '''Returns additional manifest template scope variables.'''
-        return{}
+        return '', mime_type, cache_control_header, None
 
     # endregion
 
