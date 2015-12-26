@@ -12,4 +12,6 @@ Contents
     :maxdepth: 10
 
 init
+init
     boostNode
+    boostNode.highPerformanceModification
