@@ -11,7 +11,6 @@ Contents
 .. toctree::
     :maxdepth: 10
 
-init
-init
+    init
     boostNode
     boostNode.highPerformanceModification
