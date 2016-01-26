@@ -112,8 +112,8 @@ class Main(Class, Runnable):
     '''Saves a path pointing to the applications global configuration file.'''
     SUPPORTED_PROXY_SERVER_NAME_PATTERN = 'nginx/.+',
     '''Saves all supported proxy server name patterns.'''
-    rest_data_timestamp_reference = None
-    '''Saves a database timestamp reference file.'''
+    state = None
+    '''Saves a timestamp and user id for each database instance.'''
     web_server = None
     '''Saves the web server instance.'''
     debug = False
@@ -357,13 +357,15 @@ class Main(Class, Runnable):
 
     @classmethod
     def remove_model_cache(
-        cls, model_name, flat=False, properties=(), removed_models=None
+        cls, model_name, flat=False, properties=(), preserve_timestamp=False,
+        removed_models=None, user_id=1
     ):
         '''
             Updates model cache timestamp indicator and removes corresponding \
             static cache files.
         '''
-        cls.rest_data_timestamp_reference.set_timestamp(model_name)
+        if not preserve_timestamp:
+            cls.state.update(model_name)
         indicator = '?__model__=%s&' % model_name
         select_indicator = '&__select__='
         for file in builtins.filter(
@@ -393,7 +395,8 @@ class Main(Class, Runnable):
             ):
                 cls.remove_model_cache(
                     model_name=linked_model_name, flat=flat, properties=(),
-                    removed_models=removed_models)
+                    preserve_timestamp=preserve_timestamp,
+                    removed_models=removed_models, user_id=user_id)
         return cls
 
     @classmethod
@@ -609,8 +612,10 @@ class Main(Class, Runnable):
                             ].total_seconds() / 60) / 60)
                     if location is not None and user.location != location:
                         user.location = location
-                        cls.rest_data_timestamp_reference.set_timestamp(
-                            model_name=cls.model.User.__name__)
+                        cls.remove_model_cache(
+                            model_name=cls.model.User.__name__, flat=True,
+                            preserve_timestamp=not cls.options['session'][
+                                'clear_cache_on_users_location_change'])
                     result = user.id
                     session.commit()
             except OperationalError as exception:
@@ -1935,64 +1940,62 @@ class Main(Class, Runnable):
     def _initialize_data_structure(self):
         '''Initializes database and file based caching layer.'''
         if self.options['location']['database'][
-            'rest_data_timestamp_reference'
+            'state_type_reference'
         ] == '__memory__':
-            class Timestamp:
-                timestamp = {'Data': time()}
-
-                @classmethod
-                def set_timestamp(cls, model_name='Data'):
-                    now = DateTime.now()
-# # python3.5
-# #                     timestamp = now.timestamp(
-# #                     ) + builtins.float(now.microsecond) / 1000 ** 2
-                    timestamp = make_time(
-                        now.timetuple()
-                    ) + now.microsecond / 1000 ** 2
-# #
-                    if model_name == 'Data':
-                        for model_name in cls.timestamp:
-                            cls.timestamp[model_name] = timestamp
-                    else:
-                        cls.timestamp[model_name] = timestamp
-                        cls.timestamp['Data'] = timestamp
+            class DateState:
+                def __init__(self, name, timestamp, user_id):
+                    self.timestamp = timestamp
+                    self.user_id = user_id
         else:
-            timestamp_location = FileHandler(
+            state_location = FileHandler(
                 location=self.options['location']['database'][
-                    'rest_data_timestamp_reference'])
-            timestamp_location.make_directories()
-            data_timestamp_file = FileHandler(location='%s%s' % (
-                timestamp_location.path, 'Data'))
-            data_timestamp_file.content = ' '
-            class Timestamp:
-                indicator_files = {'Data': data_timestamp_file}
+                    'state_type_reference'])
+            state_location.make_directories()
+            class DateState(Class):
+                file = None
 
-                @classmethod
-                def set_timestamp(cls, model_name='Data'):
-                    now = DateTime.now()
+                def __init__(self, name, timestamp, user_id):
+                    self.file = FileHandler(location='%s%s' % (
+                        state_location.path, name))
+                    self.file.content = user_id
+                    self.file.timestamp = timestamp
+
+                def get_timestamp(self):
+                    return self.file.timestamp
+
+                def get_user_id(self):
+                    return builtins.int(self.file.content)
+        class DataState:
+            def __init__(self, timestamp=0, user_id=1):
+                self.states = {'Data': DateState(
+                    name='Data', timestamp=timestamp, user_id=user_id)}
+
+            def __iter__(self):
 # # python3.5
-# #                     timestamp = now.timestamp(
-# #                     ) + builtins.float(now.microsecond) / 1000 ** 2
-                    timestamp = make_time(
-                        now.timetuple()
-                    ) + now.microsecond / 1000 ** 2
+# #                 yield from self.states.items()
+                for key, value in self.states.items():
+                    yield key, value
 # #
-                    if model_name == 'Data':
-                        for model_name in cls.indicator_files:
-                            cls.indicator_files[model_name].timestamp = \
-                                timestamp
-                    else:
-                        if model_name not in cls.indicator_files:
-                            cls.indicator_files[model_name] = FileHandler(
-                                location='%s%s' % (
-                                    timestamp_location, model_name))
-                            if not cls.indicator_files[model_name].is_file():
-                                cls.indicator_files[model_name].content = ' '
-                            cls.indicator_files[model_name].timestamp = \
-                                timestamp
-                        cls.indicator_files[model_name].timestamp = timestamp
-                        data_timestamp_file.timestamp = timestamp
-        self.__class__.rest_data_timestamp_reference = Timestamp
+
+            def update(self, model_name='Data', user_id=1):
+                now = DateTime.now()
+# # python3.5
+# #                 timestamp = now.timestamp(
+# #                 ) + builtins.float(now.microsecond) / 1000 ** 2
+                timestamp = make_time(now.timetuple(
+                )) + now.microsecond / 1000 ** 2
+# #
+                if model_name == 'Data':
+                    for model_name, date_state in self:
+                        self.states[model_name] = DateState(
+                            name=model_name, timestamp=timestamp,
+                            user_id=user_id)
+                else:
+                    self.states[model_name] = DateState(
+                        name=model_name, timestamp=timestamp, user_id=user_id)
+                    self.states['Data'] = DateState(
+                        name='Data', timestamp=timestamp, user_id=user_id)
+        self.__class__.state = DataState()
         '''Initialize cache timestamps for all models.'''
         for model_name, model in builtins.filter(
             lambda model: builtins.isinstance(
@@ -2000,8 +2003,8 @@ class Main(Class, Runnable):
             ) and builtins.issubclass(model[1], self.model.Model),
             Module.get_defined_objects(self.model)
         ):
-            self.rest_data_timestamp_reference.set_timestamp(model_name)
-        self.rest_data_timestamp_reference.set_timestamp(model_name='File')
+            self.state.update(model_name)
+        self.state.update(model_name='File')
         if self.debug:
             self.clear_web_cache()
         if self.controller is not None:

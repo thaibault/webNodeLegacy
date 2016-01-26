@@ -244,7 +244,8 @@ class Response(Class):
             self.handle_database_exception(exception, session)
         session.close()
         if model_name:
-            self.web_node.remove_model_cache(model_name, flat)
+            self.web_node.remove_model_cache(
+                model_name, flat, user_id=self.web_node.authorized_user_id)
         return self
 
     def handle_database_exception(self, exception, session):
@@ -331,16 +332,15 @@ class Response(Class):
                 else:
                     result = self._handle_data_exchange()
             self.web_node.request['handler'].send_response(200)
-            for model_name, timestamp in \
-            self.web_node.rest_data_timestamp_reference.timestamp.items():
+            for model_name, date_state in self.web_node.state:
                 key = String(self.web_node.options[
-                    'last_data_write_date_time_header_name'
+                    'last_data_write_header_name'
                 ]).get_camel_case_to_delimited(delimiter='-').substitute(
                     '-([a-z])',
                     lambda match: '-%s' % match.group(1).upper()
                 ).camel_case_capitalize.content.replace('Data', model_name)
-                self.web_node.request['handler'].send_header(key, builtins.str(
-                    timestamp))
+                self.web_node.request['handler'].send_header(key, '%d-%d' % (
+                    date_state.timestamp, date_state.user_id))
         return self.process_output(output=result, cache_file=cache_file)
 
     # # endregion
@@ -563,7 +563,9 @@ class Response(Class):
         file = FileHandler(location=get['path'])
         if file.is_file():
             if file.remove_file():
-                self.web_node.remove_model_cache(model_name='File', flat=flat)
+                self.web_node.remove_model_cache(
+                    model_name='File', flat=flat,
+                    user_id=self.web_node.authorized_user_id)
                 return [{'path': file.path}]
             return None
         return []
@@ -586,7 +588,9 @@ class Response(Class):
                         convert_to_string(new_file._path), 'wb'))
                     modified = True
         if modified:
-            self.web_node.remove_model_cache(model_name='File', flat=flat)
+            self.web_node.remove_model_cache(
+                model_name='File', flat=flat,
+                user_id=self.web_node.authorized_user_id)
         return result
 
     def put_copy_model(self, get, data, flat):
