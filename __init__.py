@@ -19,7 +19,7 @@ __copyright__ = 'see module docstring'
 __credits__ = 'Torben Sickert',
 __license__ = 'see module docstring'
 __maintainer__ = 'Torben Sickert'
-__maintainer_email__ = 't.sickert["~at~"]gmail.com'
+__maintainer_email__ = 'info["~at~"]torben.website'
 __status__ = 'stable'
 __version__ = '1.0'
 
@@ -155,7 +155,7 @@ class Main(Class, Runnable):
 
     # # # region getter
 
-    @classmethod
+    @builtins.classmethod
     def get_web_asset_file_paths(cls, path=None):
         '''
             Determine a list of relative file paths needed for the web \
@@ -177,7 +177,7 @@ class Main(Class, Runnable):
                 paths.append(file.path[cls._root_asset_path_len:])
         return paths
 
-    @classmethod
+    @builtins.classmethod
     def get_timestamps(cls, path):
         '''
             Generates a string consisting of any file timestamp of web \
@@ -196,7 +196,7 @@ class Main(Class, Runnable):
 
     # # # region boolean
 
-    @classmethod
+    @builtins.classmethod
     def is_valid_web_asset(cls, file):
         '''Checks if the given file is a valid web application asset.'''
         return not ((
@@ -211,7 +211,7 @@ class Main(Class, Runnable):
 
     # # # region helper
 
-    @classmethod
+    @builtins.classmethod
     def consolidate_field(cls, value, specification):
         '''Checks if given data is valid against given specification.'''
         if None not in (value, specification):
@@ -239,7 +239,7 @@ class Main(Class, Runnable):
                 return converted_value
         return value
 
-    @classmethod
+    @builtins.classmethod
     def validate_field(cls, value, specification):
         '''Checks if given data is valid against given specification.'''
         if specification is not None:
@@ -275,7 +275,7 @@ class Main(Class, Runnable):
                 return False
         return True
 
-    @classmethod
+    @builtins.classmethod
     def send_e_mail(cls, content, configuration={}, **keywords):
         '''Sends given message via mail.'''
         # TODO use this method in eMail Plugin!!
@@ -330,7 +330,7 @@ class Main(Class, Runnable):
         server.quit()
         return message
 
-    @classmethod
+    @builtins.classmethod
     def determine_referenced_models(cls, model_name):
         '''Determines all linked model names for given model name.'''
         if builtins.hasattr(cls.model, model_name):
@@ -355,7 +355,7 @@ class Main(Class, Runnable):
                     yield model_name
                     break
 
-    @classmethod
+    @builtins.classmethod
     def remove_model_cache(
         cls, model_name, flat=False, properties=(), preserve_timestamp=False,
         removed_models=None, user_id=1
@@ -399,7 +399,7 @@ class Main(Class, Runnable):
                     removed_models=removed_models, user_id=user_id)
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def extend_options(
         cls, options, consolidate=True, remove_no_wrap_indicator=False
     ):
@@ -412,7 +412,7 @@ class Main(Class, Runnable):
                 cls.consolidate_options(remove_no_wrap_indicator)
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def consolidate_options(cls, remove_no_wrap_indicator=False):
         '''Merges, renders and resolves internal option dependencies.'''
         '''
@@ -431,38 +431,8 @@ class Main(Class, Runnable):
             remove_no_wrap_indicator=False
         ).content
         cls.options['frontend'] = frontend_options
-        mockup_template = TemplateParser('', string=True)
-        escape_pattern = regularExpression.compile(
-            '(^|[^\\\\])\\\\([^\\\\]|$)')
-        '''
-            NOTE: A check for left template code delimiter avoids parsing \
-            plain strings as templates and lose many performance.
-        '''
-        def value_wrapper(key, value):
-# # python3.5
-# #             while builtins.isinstance(
-# #                 value, builtins.str
-# #             ) and mockup_template.left_code_delimiter in value:
-            while builtins.isinstance(
-                value, builtins.unicode
-            ) and mockup_template.left_code_delimiter in value:
-# #
-                value = TemplateParser(
-                    escape_pattern.sub('\\1\\\\\\2', value).replace('%s%s' % (
-                        mockup_template.left_code_delimiter,
-                        mockup_template.right_escaped
-                    ), '%s%s%s' % (
-                        mockup_template.left_code_delimiter,
-                        mockup_template.right_escaped,
-                        mockup_template.right_escaped
-                    )), string=True
-                ).render(
-                    mapping=cls.options, module_name=__name__, main=cls
-                ).output
-            return value
-        cls.options = Dictionary(content=cls.options).convert(
-            value_wrapper=value_wrapper, remove_no_wrap_indicator=False
-        ).content
+        cls.options = Dictionary(content=cls.options).get_rendered(
+            mapping=cls.options, module_name=__name__, main=cls)
         frontend_options = cls.options['frontend']
         del cls.options['frontend']
         '''
@@ -479,7 +449,7 @@ class Main(Class, Runnable):
         cls.options['frontend'] = frontend_options
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def render_templates(cls, all=False, initialize=False):
         '''Renders all template files.'''
         mapping = cls.controller.get_template_scope(scope=deepcopy({
@@ -496,7 +466,7 @@ class Main(Class, Runnable):
         cls._render_html_templates(mapping)
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def clear_web_cache(cls):
         '''Clears all web cache files.'''
         web_cache = FileHandler(location=cls.options['location']['web_cache'])
@@ -519,7 +489,7 @@ class Main(Class, Runnable):
                 file.remove_deep()
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def convert_for_client(cls, key, value=Null):
         '''Returns the serialized version of given value.'''
         if value is Null:
@@ -544,7 +514,7 @@ class Main(Class, Runnable):
 # #
         return Object(content=value).compatible_type
 
-    @classmethod
+    @builtins.classmethod
     def convert_for_backend(cls, key, value=Null):
         '''Converts data from client to python specific data objects.'''
         if value is Null:
@@ -575,7 +545,7 @@ class Main(Class, Runnable):
         except NativeError:
             return value
 
-    @classmethod
+    @builtins.classmethod
     def extend_user_authorization(cls, user_id, session_token, location=None):
         '''
             Extends user authorization time. If successfully the user id will \
@@ -655,7 +625,7 @@ class Main(Class, Runnable):
 
     # # region protected
 
-    @classmethod
+    @builtins.classmethod
     def _reinitialize_proxy_server(cls):
         '''
             Restarts of reloads an existing proxy server. This is needed \
@@ -681,16 +651,18 @@ class Main(Class, Runnable):
                     cls.options['proxy_server_system_reload_command'])
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _render_template(cls, file, mapping, initialize):
         '''
             Renders each template and distinguishes between backend and \
             frontend templates.
         '''
-        if(file.name.startswith(('.', '_')) or file.is_symbolic_link() or
-           file.path in cls.options['location']['template_ignore'] or
-           not initialize and
-           file.path in cls.options['location']['template_once']):
+        if(
+            file.name.startswith(('.', '_')) or file.is_symbolic_link() or
+            file.path in cls.options['location']['template_ignore'] or
+            not initialize and
+            file.path in cls.options['location']['template_once']
+        ):
             '''Don't enter ignored locations or parse ignored files.'''
             return None
 # # python3.5
@@ -713,7 +685,7 @@ class Main(Class, Runnable):
                 output_file, file, scope=mapping)
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _render_html_templates(cls, mapping):
         '''Renders all frontend html templates.'''
         if cls.html_template_file.is_file():
@@ -734,7 +706,7 @@ class Main(Class, Runnable):
                         scope=mapping)
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _render_template_helper(cls, file, mapping, force_backend=False):
         '''Renders a concrete template file.'''
         is_backend = force_backend
@@ -771,7 +743,7 @@ class Main(Class, Runnable):
                 'default_indent_level']
         ).render(mapping=mapping).output, mapping
 
-    @classmethod
+    @builtins.classmethod
     def _check_dead_soft_references(cls):
         '''Searches for unneeded database entities.'''
         everything_accepted = False
@@ -800,7 +772,7 @@ class Main(Class, Runnable):
         session.close()
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _check_dead_soft_references_in_model(
         cls, session, model_name, model, property_names, everything_accepted
     ):
@@ -829,7 +801,7 @@ class Main(Class, Runnable):
                         return everything_accepted
         return everything_accepted
 
-    @classmethod
+    @builtins.classmethod
     def _check_dead_soft_references_in_model_instance(
         cls, session, model, model_instance, reference_value, property,
         property_names, referencing_model, everything_accepted
@@ -883,7 +855,7 @@ class Main(Class, Runnable):
                     session.commit()
         return everything_accepted
 
-    @classmethod
+    @builtins.classmethod
     def _check_database_file_references(cls):
         '''
             Checks if all file references saved in database records exists. \
@@ -925,7 +897,7 @@ class Main(Class, Runnable):
         session.close()
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _handle_dead_file_reference(
         cls, session, model, model_instance, property, file,
         everything_accepted
@@ -958,7 +930,7 @@ class Main(Class, Runnable):
             session.commit()
         return everything_accepted
 
-    @classmethod
+    @builtins.classmethod
     def _check_database_schema_version(cls, database_backup_file):
         '''Checke if the database schema has changed.'''
         if cls.model is None:
@@ -1012,7 +984,7 @@ class Main(Class, Runnable):
         return cls._save_database_backup(
             database_schema_file, serialized_schema, database_backup_file)
 
-    @classmethod
+    @builtins.classmethod
     def _migrate_model(
         cls, model_name, model, models, migration_successful, session,
         old_schemas, new_schemas
@@ -1102,7 +1074,7 @@ class Main(Class, Runnable):
         session.commit()
         return migration_successful
 
-    @classmethod
+    @builtins.classmethod
     def _save_database_backup(
         cls, database_schema_file, serialized_schema, database_backup_file
     ):
@@ -1126,7 +1098,7 @@ class Main(Class, Runnable):
             database_backup_file.copy(target=long_term_database_file)
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _save_database_schema(cls, database_schema_file, session, new_schemas):
         '''Load all existing table names from current database.'''
         cls.model.Model.metadata.reflect(cls.engine)
@@ -1148,7 +1120,7 @@ class Main(Class, Runnable):
 # #
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _append_model_informations_to_options(cls):
         '''Appends validation strings to the global options object.'''
         '''
@@ -1174,7 +1146,7 @@ class Main(Class, Runnable):
                     cls._determine_property_information(property)
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _determine_property_information(cls, property):
         result = copy(property.info) if property.info else {}
         result['maximum_length'] = property.type.length if builtins.hasattr(
@@ -1214,7 +1186,7 @@ class Main(Class, Runnable):
                     key=property.name, value=result['default_value'])
         return result
 
-    @classmethod
+    @builtins.classmethod
     def _merge_options(cls):
         '''Merge frontend and backend options.'''
         cls.options = Dictionary(content=cls.options).update(
@@ -1225,7 +1197,7 @@ class Main(Class, Runnable):
         ).update(cls.options['frontend']).content
         return cls
 
-    @classmethod
+    @builtins.classmethod
     def _set_options(cls):
         '''Renders backend and frontend options.'''
         configuration_file = FileHandler(location=cls.CONFIGURATION_FILE_PATH)
@@ -1252,7 +1224,7 @@ class Main(Class, Runnable):
                 cursor.execute(command)
             cursor.close()
 
-    @classmethod
+    @builtins.classmethod
     def _initialize_model_module(cls):
         '''Imports and loads the model informations.'''
         '''Export options dictionary for early access to other modules.'''
@@ -1267,7 +1239,7 @@ class Main(Class, Runnable):
                 raise
         return cls._append_model_informations_to_options()
 
-    @classmethod
+    @builtins.classmethod
     def _initialize_model(cls):
         '''Initializes the model.'''
         if 'coreBackendNoAutomaticModelMigration' not in \
