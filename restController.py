@@ -304,9 +304,11 @@ class Response(Class):
     def get_output(self):
         '''Computes the json response object.'''
         cache_file = None
-        if(self.web_node.given_command_line_arguments.web_cache and
-           self.allow_cache and self.web_node.request['type'] == 'get' and
-           self.cache_key is not None):
+        if(
+            self.web_node.given_command_line_arguments.web_cache and
+            self.allow_cache and self.web_node.request['type'] == 'get' and
+            self.cache_key is not None
+        ):
             cache_file = FileHandler(location='%s/%d-%s.json' % (
                 self.web_node.options['location']['web_cache'],
                 0 if self.web_node.authorized_user_id is None or \
