@@ -263,6 +263,18 @@ class Main(Class, Runnable):
                 'minimum' in specification and
                 value < specification['minimum']
             ) or (
+                'number_type' in specification and (
+                    'integer' == specification['number_type'] and
+                    not builtins.isinstance(
+                        value, builtins.int
+                    ) or 'float' == specification['number_type'] and
+                    not builtins.isinstance(
+                        value, builtins.float
+                    ) or 'number' == specification['number_type'] and
+                    not builtins.isinstance(value, (
+                        builtins.float, builtins.int))
+                )
+            ) or (
                 'maximum' in specification and value > specification['maximum']
             ) or ('pattern' in specification and regularExpression.compile(
 # # python3.5
