@@ -243,8 +243,8 @@ class Main(Class, Runnable):
     def validate_field(cls, value, specification):
         '''Checks if given data is valid against given specification.'''
         if specification is not None:
-            if 'required' in specification and value is None:
-                return specification['required']
+            if value is None:
+                return not specification.get('required', False)
             if 'choices' in specification:
                 for item in specification['choices']:
                     if 'key' in item:
