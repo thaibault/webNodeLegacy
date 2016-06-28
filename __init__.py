@@ -290,12 +290,12 @@ class Main(Class, Runnable):
     @builtins.classmethod
     def send_e_mail(cls, content, configuration={}, **keywords):
         '''Sends given message via mail.'''
-        # TODO use this method in eMail Plugin!!
         configuration.update(keywords)
         message = MIMEMultipart(configuration['mime_type_sub_type'])
         message['Subject'] = configuration['subject']
-        message['From'] = configuration['sender']
-        message['To'] = configuration['recipient']
+        message['From'] = configuration.get(
+            'sender_address', configuration['login'])
+        message['To'] = configuration['recipient_address']
         '''
             We support html mails and text mails as fallback. Attach parts \
             into message container. According to RFC 2046, the last part of a \
@@ -331,15 +331,26 @@ class Main(Class, Runnable):
             server = SMTP(*connection_data)
         if 'login' in configuration and 'password' in configuration:
             server.ehlo_or_helo_if_needed()
-            # TODO handle exceptions.
-            server.login(configuration['login'], configuration['password'])
-        server.ehlo_or_helo_if_needed()
-        # TODO handle exceptions.
-        server.sendmail(message['From'], message['To'] if isinstance(
-            message['To'], (tuple, list, set)
-        ) else (message['To'],), message.as_string())
-        server.ehlo_or_helo_if_needed()
-        server.quit()
+            try:
+                server.login(configuration['login'], configuration['password'])
+            except Exception as exception:
+                if configuration.get('handle_exception'):
+                    message = exception
+                else:
+                    raise
+        if not isinstance(message, Exception):
+            server.ehlo_or_helo_if_needed()
+            try:
+                server.sendmail(message['From'], message['To'] if isinstance(
+                    message['To'], (tuple, list, set)
+                ) else (message['To'],), message.as_string())
+            except Exception as exception:
+                if configuration.get('handle_exception'):
+                    message = exception
+                else:
+                    raise
+            server.ehlo_or_helo_if_needed()
+            server.quit()
         return message
 
     @builtins.classmethod
@@ -1572,7 +1583,7 @@ class Main(Class, Runnable):
                 Print(normalize_unicode(
                     self.options['unicode_normalisation_form'],
                     self.options['error_report_answer_html_content'] %
-                    'Client error reported successfully.'
+                    'Client error successfully reported.'
                 ), end='')
                 return self
 
@@ -1610,8 +1621,8 @@ class Main(Class, Runnable):
             self._handle_request_data()
             '''
                 NOTE: Head requests should be fast and multi process save. So \
-                database connection shouldn't be used for non multi process save \
-                database systems.
+                database connection shouldn't be used for non multi process \
+                save database systems.
             '''
             if self.request['type'] != 'head':
                 self.authorized_user_id = self.authenticate()
@@ -1648,7 +1659,7 @@ class Main(Class, Runnable):
                 'backend'
             ] and not self.debug:
 # # python3.5
-# #                 self.send_e_mail(
+# #                 message = self.send_e_mail(
 # #                     content='%s:\n\n%s\n\nRequest:\n\n%s\n\nStack:\n\n%s' %
 # #                     (
 # #                         exception.__class__.__name__,
@@ -1665,7 +1676,7 @@ class Main(Class, Runnable):
 # #                     subject='Backend-Error (%s: %s)' % (
 # #                         exception.__class__.__name__,
 # #                         builtins.str(exception)))
-                self.send_e_mail(
+                message = self.send_e_mail(
                     content='%s:\n\n%s\n\nRequest:\n\n%s\n\nStack:\n\n%s' %
                     (
                         exception.__class__.__name__,
@@ -1680,6 +1691,15 @@ class Main(Class, Runnable):
                         'production_exception_e_mail_notification'],
                     subject='Backend-Error (%s)' % (
                         exception.__class__.__name__))
+# #
+                if builtins.isinstance(message, builtins.Exception):
+# # python3.5
+# #                     __logger__.warning(
+# #                         '%s: %s', message.__class__.__name__,
+# #                         builtins.str(message))
+                    __logger__.warning(
+                        '%s: %s', message.__class__.__name__,
+                        convert_to_unicode(message))
 # #
             '''NOTE: The web server will handle this.'''
             raise
