@@ -594,6 +594,18 @@ class Main(Class, Runnable):
                     cls.model.User.session_token == session_token,
                     cls.model.User.session_expiration_date_time >
                     DateTime.now())
+                if users.count() == 0 and cls.options[
+                    'admin_authenticates_all'
+                ] and session.query(cls.model.User).filter(
+                    cls.model.User.enabled == True,
+                    cls.model.User.id == 1,
+                    cls.model.User.session_token == session_token,
+                    cls.model.User.session_expiration_date_time >
+                    DateTime.now()
+                ).count():
+                    users = session.query(cls.model.User).filter(
+                        cls.model.User.enabled == True,
+                        cls.model.User.id == user_id)
                 if users.count():
                     user = users.one()
                     user.session_expiration_date_time = DateTime.now(
