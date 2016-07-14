@@ -1648,7 +1648,7 @@ class Parser(Class, Runnable):
         '''Determines a useful description for current template.'''
         if self.file:
             return '"%s"' % self.file.path
-        return 'given template string'
+        return 'given template string "%s"' % self.template
 
     @JointPoint
 # # python3.5
