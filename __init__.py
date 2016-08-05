@@ -1294,13 +1294,14 @@ class Main(Class, Runnable):
                         database_backup_file.path)
                     database_backup_file.directory.make_directories()
                     database_file.copy(target=database_backup_file)
-        # TODO handle db logging better.
+        root_path = cls.ROOT_PATH
+        if root_path.endswith(os.sep):
+            root_path = root_path[:-1]
         cls.engine = create_database_engine('%s%s%s' % (
-            cls.options['database']['engine_prefix'], cls.ROOT_PATH,
+            cls.options['database']['engine_prefix'], root_path,
             cls.options['location']['database']['url']
-        ), echo=__logger__.isEnabledFor(
-            logging.DEBUG
-        ) and False, connect_args=cls.options['database']['connection_arguments'])
+        ), echo=__logger__.isEnabledFor(logging.DEBUG),
+        connect_args=cls.options['database']['connection_arguments'])
         if 'coreBackendNoAutomaticModelMigration' not in \
         cls.given_command_line_arguments.flags:
             if cls.model is not None:
