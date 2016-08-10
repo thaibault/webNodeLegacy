@@ -163,7 +163,7 @@ class Main(Class, Runnable):
         '''
         paths = []
         if path is None:
-            path = cls.options['location']['web_asset']
+            path = cls.options['location']['webAsset']
             cls._root_asset_path_len = builtins.len(FileHandler(
                 location=path
             ).path)
@@ -204,7 +204,7 @@ class Main(Class, Runnable):
             FileHandler(location='%s%s' % (
                 file.directory.path, file.basename
             )).extension
-        ) or Iterable(cls.options['web_asset_pattern_ignore']).is_in_pattern(
+        ) or Iterable(cls.options['webAssetPatternIgnore']).is_in_pattern(
             value=file.path))
 
     # # # endregion
@@ -217,8 +217,8 @@ class Main(Class, Runnable):
         if None not in (value, specification):
             if(
                 specification.get('type') == 'string' or
-                'minimum_length' in specification or
-                'maximum_length' in specification
+                'minimumLength' in specification or
+                'maximumLength' in specification
             ):
 # # python3.5                 return builtins.str(value)
                 return convert_to_unicode(value)
@@ -254,23 +254,23 @@ class Main(Class, Runnable):
                         return True
                 return False
             if((
-                'minimum_length' in specification and
-                builtins.len(value) < specification['minimum_length']
+                'minimumLength' in specification and
+                builtins.len(value) < specification['minimumLength']
             ) or (
-                'maximum_length' in specification and
-                builtins.len(value) > specification['maximum_length']
+                'maximumLength' in specification and
+                builtins.len(value) > specification['maximumLength']
             ) or (
                 'minimum' in specification and
                 value < specification['minimum']
             ) or (
-                'number_type' in specification and (
-                    'integer' == specification['number_type'] and
+                'numberType' in specification and (
+                    'integer' == specification['numberType'] and
                     not builtins.isinstance(
                         value, builtins.int
-                    ) or 'float' == specification['number_type'] and
+                    ) or 'float' == specification['numberType'] and
                     not builtins.isinstance(
                         value, builtins.float
-                    ) or 'number' == specification['number_type'] and
+                    ) or 'number' == specification['numberType'] and
                     not builtins.isinstance(value, (
                         builtins.float, builtins.int))
                 )
@@ -404,7 +404,7 @@ class Main(Class, Runnable):
                                         property
                                     ).delimited_to_camel_case.content)
                             ).match(file.basename), properties))
-            )), FileHandler(location=cls.options['location']['web_cache'])
+            )), FileHandler(location=cls.options['location']['webCache'])
         ):
             file.remove_file()
         if not flat:
@@ -463,9 +463,6 @@ class Main(Class, Runnable):
             the values after rendering phase.
         '''
         cls.options = Dictionary(content=cls.options).convert(
-            key_wrapper=lambda key, value: String(
-                key
-            ).camel_case_to_delimited.content,
             value_wrapper=cls.convert_for_backend,
             remove_no_wrap_indicator=remove_no_wrap_indicator
         ).content
@@ -492,12 +489,12 @@ class Main(Class, Runnable):
     @builtins.classmethod
     def clear_web_cache(cls):
         '''Clears all web cache files.'''
-        web_cache = FileHandler(location=cls.options['location']['web_cache'])
+        web_cache = FileHandler(location=cls.options['location']['webCache'])
         if web_cache.is_directory():
             __logger__.info('Clear web cache in "%s".', web_cache.path)
             web_cache.remove_deep()
         template_cache = FileHandler(
-            location=cls.options['location']['template_cache'])
+            location=cls.options['location']['templateCache'])
         if template_cache.is_directory():
             __logger__.info(
                 'Clear template cache in "%s".', template_cache.path)
@@ -542,26 +539,10 @@ class Main(Class, Runnable):
         '''Converts data from client to python specific data objects.'''
         if value is Null:
             value = key
-        if 'data_keys_ignore' in cls.options and key in cls.options[
-            'data_keys_ignore'
+        if 'dataKeysIgnore' in cls.options and key in cls.options[
+            'dataKeysIgnore'
         ]:
             return value
-# # python3.5
-# #         if builtins.isinstance(
-# #             key, builtins.str
-# #         ) and (key == 'language' or key.endswith('_language') or
-# #         key.endswith('Language')) and regularExpression.compile(
-# #             '[a-z]{2}[A-Z]{2}'
-# #         ).fullmatch(value):
-        if builtins.isinstance(key, (
-            builtins.unicode, builtins.str
-        )) and (key == 'language' or key.endswith(
-            '_language'
-        ) or key.endswith('Language')) and regularExpression.compile(
-            '[a-z]{2}[A-Z]{2}$'
-        ).match(value):
-# #
-            return String(value).camel_case_to_delimited.content
         try:
             return Object(content=value).get_known_type(
                 description=None if key == value else key)
@@ -591,36 +572,34 @@ class Main(Class, Runnable):
                 users = session.query(cls.model.User).filter(
                     cls.model.User.enabled == True,
                     cls.model.User.id == user_id,
-                    cls.model.User.session_token == session_token,
-                    cls.model.User.session_expiration_date_time >
-                    DateTime.now())
+                    cls.model.User.sessionToken == session_token,
+                    cls.model.User.sessionExpirationDateTime > DateTime.now())
                 if users.count() == 0 and cls.options[
-                    'admin_authenticates_all'
+                    'adminAuthenticatesAll'
                 ] and session.query(cls.model.User).filter(
                     cls.model.User.enabled == True,
                     cls.model.User.id == 1,
-                    cls.model.User.session_token == session_token,
-                    cls.model.User.session_expiration_date_time >
-                    DateTime.now()
+                    cls.model.User.sessionToken == session_token,
+                    cls.model.User.sessionExpirationDateTime > DateTime.now()
                 ).count():
                     users = session.query(cls.model.User).filter(
                         cls.model.User.enabled == True,
                         cls.model.User.id == user_id)
                 if users.count():
                     user = users.one()
-                    user.session_expiration_date_time = DateTime.now(
-                    ) + cls.options['session']['expiration_time_delta']
+                    user.sessionExpirationDateTime = DateTime.now(
+                    ) + cls.options['session']['expirationTimeDelta']
                     __logger__.info(
                         'Authorize user with id %d for %.2f hours.', user.id, (
                             cls.options['session'][
-                                'expiration_time_delta'
+                                'expirationTimeDelta'
                             ].total_seconds() / 60) / 60)
                     if location is not None and user.location != location:
                         user.location = location
                         cls.remove_model_cache(
                             model_name=cls.model.User.__name__, flat=True,
                             preserve_timestamp=not cls.options['session'][
-                                'clear_cache_on_users_location_change'])
+                                'clearCacheOnUsersLocationChange'])
                     result = user.id
                     session.commit()
             except OperationalError as exception:
@@ -667,14 +646,14 @@ class Main(Class, Runnable):
             after configuration file updates for example.
         '''
         if(
-            cls.options['proxy_server_system_reload_command'] and
+            cls.options['proxyServerSystemReloadCommand'] and
             cls.proxy_port is not None
         ):
             __logger__.debug(
-                'Run "%s".', cls.options['proxy_server_system_reload_command'])
+                'Run "%s".', cls.options['proxyServerSystemReloadCommand'])
             try:
                 Platform.run(
-                    command=cls.options['proxy_server_system_reload_command'],
+                    command=cls.options['proxyServerSystemReloadCommand'],
                     shell=True)
             except BoostNodeSystemError as exception:
                 __logger__.warning(
@@ -683,7 +662,7 @@ class Main(Class, Runnable):
                     'proxy server. Command was "%s".',
                     exception.__class__.__name__, builtins.str(exception),
                     cls.proxy_port,
-                    cls.options['proxy_server_system_reload_command'])
+                    cls.options['proxyServerSystemReloadCommand'])
         return cls
 
     @builtins.classmethod
@@ -694,9 +673,9 @@ class Main(Class, Runnable):
         '''
         if(
             file.name.startswith(('.', '_')) or file.is_symbolic_link() or
-            file.path in cls.options['location']['template_ignore'] or
+            file.path in cls.options['location']['templateIgnore'] or
             not initialize and
-            file.path in cls.options['location']['template_once']
+            file.path in cls.options['location']['templateOnce']
         ):
             '''Don't enter ignored locations or parse ignored files.'''
             return None
@@ -715,7 +694,7 @@ class Main(Class, Runnable):
                 file.directory.path, file.name[:-builtins.len('%s%s' % (
                     os.extsep, TemplateParser.DEFAULT_FILE_EXTENSION))]))
             output_file.content = normalize_unicode(
-                cls.options['unicode_normalisation_form'], result)
+                cls.options['unicodeNormalisationForm'], result)
             cls.controller.post_template_file_rendering(
                 output_file, file, scope=mapping)
         return cls
@@ -735,7 +714,7 @@ class Main(Class, Runnable):
                         force_backend=site == 'backend')
                     output_file = builtins.getattr(cls, '%s_html_file' % site)
                     output_file.content = normalize_unicode(
-                        cls.options['unicode_normalisation_form'], result)
+                        cls.options['unicodeNormalisationForm'], result)
                     cls.controller.post_template_file_rendering(
                         output_file, file=cls.html_template_file,
                         scope=mapping)
@@ -775,7 +754,7 @@ class Main(Class, Runnable):
         mapping = cls.controller.get_template_file_scope(file, scope=mapping)
         return TemplateParser(
             file, template_context_default_indent=cls.options[
-                'default_indent_level']
+                'defaultIndentLevel']
         ).render(mapping=mapping).output, mapping
 
     @builtins.classmethod
@@ -813,11 +792,12 @@ class Main(Class, Runnable):
     ):
         '''Searches for unneeded database entities in given model.'''
         for property in builtins.filter(
-            lambda property: property.name.endswith('_id'),
-            model.__table__.columns
+            lambda property: property.name.endswith(
+                '_id'
+            ) or property.name.endswith('ID'), model.__table__.columns
         ):
             referencing_model = getattr(cls.model, String(property.name[:-len(
-                '_id'
+                '_id' if property.name.endswith('_id') else 'ID'
             )]).delimited_to_camel_case.camel_case_capitalize.content, None)
             if referencing_model is not None and all(map(
                 lambda property_name: hasattr(
@@ -973,7 +953,7 @@ class Main(Class, Runnable):
         old_schemas = {}
         serialized_schema = ''
         database_schema_file = FileHandler(
-            location=cls.options['location']['database']['schema_file'])
+            location=cls.options['location']['database']['schemaFile'])
         if database_schema_file:
             serialized_schema = database_schema_file.content
             old_schemas = json.loads(
@@ -1006,6 +986,10 @@ class Main(Class, Runnable):
                    new_schemas[model.__tablename__]):
 # #
                     __logger__.info('Model "%s" has changed.', model_name)
+                    __logger__.debug(
+                        'Old schema was "%s" and new schema is "%s".',
+                        old_schemas[model.__tablename__],
+                        new_schemas[model.__tablename__])
                     migration_successful = cls._migrate_model(
                         model_name, model, models, migration_successful,
                         session, old_schemas, new_schemas)
@@ -1082,7 +1066,7 @@ class Main(Class, Runnable):
                 migration_successful = False
         session.commit()
         if(migration_successful and
-           cls.options['database']['engine_prefix'].startswith('sqlite:')):
+           cls.options['database']['enginePrefix'].startswith('sqlite:')):
             __logger__.info('Drop old table "%s".', model.__tablename__)
             '''NOTE: We have to temporary remove foreign key checks.'''
             # TODO Check
@@ -1148,10 +1132,10 @@ class Main(Class, Runnable):
 # # python3.5
 # #         database_schema_file.content = json.dumps(
 # #             new_schemas, sort_keys=True,
-# #             indent=cls.options['default_indent_level'])
+# #             indent=cls.options['defaultIndentLevel'])
         database_schema_file.content = json.dumps(
             new_schemas, encoding=cls.options['encoding'],
-            sort_keys=True, indent=cls.options['default_indent_level'])
+            sort_keys=True, indent=cls.options['defaultIndentLevel'])
 # #
         return cls
 
@@ -1164,7 +1148,7 @@ class Main(Class, Runnable):
         '''
         cls.options['type'] = {'__no_wrapping__': {}}
         option_target = cls.options['type']['__no_wrapping__']
-        if cls.options['final_option_consolidation']:
+        if cls.options['finalOptionConsolidation']:
             option_target = cls.options['type'] = {}
         for model_name, model in builtins.filter(
             lambda model: builtins.isinstance(
@@ -1184,11 +1168,11 @@ class Main(Class, Runnable):
     @builtins.classmethod
     def _determine_property_information(cls, property):
         result = copy(property.info) if property.info else {}
-        result['maximum_length'] = property.type.length if builtins.hasattr(
+        result['maximumLength'] = property.type.length if builtins.hasattr(
             property.type, 'length'
         ) and builtins.isinstance(
             property.type.length, builtins.int
-        ) else cls.options['database']['maximum_field_size']
+        ) else cls.options['database']['maximumFieldSize']
         result['required'] = not (builtins.hasattr(
             property, 'nullable'
         ) and property.nullable)
@@ -1196,16 +1180,16 @@ class Main(Class, Runnable):
             property, 'default'
         ) and property.default is not None:
             result['required'] = False
-            result['default_value'] = property.default.arg
-            if builtins.callable(result['default_value']):
+            result['defaultValue'] = property.default.arg
+            if builtins.callable(result['defaultValue']):
                 if builtins.hasattr(
                     cls.model, 'determine_language_specific_default_value'
                 ) and result[
-                    'default_value'
+                    'defaultValue'
                 ] == cls.model.determine_language_specific_default_value:
-                    result['default_value'] = Dictionary(
+                    result['defaultValue'] = Dictionary(
                         content=cls.options['model']['generic'][
-                            'language_specific'
+                            'languageSpecific'
                         ]['default'][property.name]).convert(
                             key_wrapper=lambda key, value: cls
                             .convert_for_client(String(
@@ -1213,12 +1197,12 @@ class Main(Class, Runnable):
                             ).delimited_to_camel_case.content)
                         ).content
                 else:
-                    result['default_value'] = cls.convert_for_client(
+                    result['defaultValue'] = cls.convert_for_client(
                         key=property.name, value=property.default.arg(
                             DefaultExecutionContext()))
             else:
-                result['default_value'] = cls.convert_for_client(
-                    key=property.name, value=result['default_value'])
+                result['defaultValue'] = cls.convert_for_client(
+                    key=property.name, value=result['defaultValue'])
         return result
 
     @builtins.classmethod
@@ -1248,14 +1232,14 @@ class Main(Class, Runnable):
                     'finalOptionConsolidation',
                     cls.options['backend']['finalOptionConsolidation']))
         return cls.consolidate_options(
-            remove_no_wrap_indicator=cls.options['final_option_consolidation'])
+            remove_no_wrap_indicator=cls.options['finalOptionConsolidation'])
 
     @SqlalchemyEvent.listens_for(SqlalchemyEngine, 'connect')
     def _set_database_initialisation(dbapi_connection, connection_record):
         '''Activates configured database features.'''
         if builtins.isinstance(dbapi_connection, SQLite3Connection):
             cursor = dbapi_connection.cursor()
-            for command in OPTIONS['database']['initialisation_commands']:
+            for command in OPTIONS['database']['initialisationCommands']:
                 cursor.execute(command)
             cursor.close()
 
@@ -1281,7 +1265,7 @@ class Main(Class, Runnable):
         cls.given_command_line_arguments.flags:
             database_backup_file = FileHandler(location='%sDataBackup.sql' % (
                 cls.options['location']['database']['backup']))
-            if cls.options['database']['engine_prefix'].startswith('sqlite:'):
+            if cls.options['database']['enginePrefix'].startswith('sqlite:'):
                 database_file = FileHandler(
                     location=cls.options['location']['database']['url'])
                 database_backup_file = FileHandler(location='%s%sBackup%s' % (
@@ -1298,10 +1282,10 @@ class Main(Class, Runnable):
         if root_path.endswith(os.sep):
             root_path = root_path[:-1]
         cls.engine = create_database_engine('%s%s%s' % (
-            cls.options['database']['engine_prefix'], root_path,
+            cls.options['database']['enginePrefix'], root_path,
             cls.options['location']['database']['url']
         ), echo=__logger__.isEnabledFor(logging.DEBUG),
-        connect_args=cls.options['database']['connection_arguments'])
+        connect_args=cls.options['database']['connectionArguments'])
         if 'coreBackendNoAutomaticModelMigration' not in \
         cls.given_command_line_arguments.flags:
             if cls.model is not None:
@@ -1323,7 +1307,11 @@ class Main(Class, Runnable):
         self.__class__.web_server = WebServer(
             port=self.given_command_line_arguments.port,
             host_name=self.given_command_line_arguments.host_name,
-            **self.options['web_server'])
+            **Dictionary(self.options['webServer']).convert(
+                key_wrapper=lambda key, value: String(
+                    key
+                ).camel_case_to_delimited.content
+            ).content)
         if builtins.callable(builtins.getattr(
             self.controller, 'initialize_frontend', False
         )):
@@ -1370,9 +1358,9 @@ class Main(Class, Runnable):
         if self.new_cookie:
             self.request['handler'].send_cookie(
                 self.new_cookie, maximum_age_in_seconds=self.options[
-                    'maximum_cookie_age_in_seconds'])
+                    'maximumCookieAgeInSeconds'])
         Print(normalize_unicode(
-            self.options['unicode_normalisation_form'], output
+            self.options['unicodeNormalisationForm'], output
         ), end='')
         return self
 
@@ -1390,19 +1378,19 @@ class Main(Class, Runnable):
             if users.count():
                 user = users.one()
                 manifest_name = user.id
-        elif(self.options['session']['key']['user_id'] in
+        elif(self.options['session']['key']['userID'] in
            self.request['cookie'] and
            self.options['session']['key']['token'] in self.request['cookie']):
             session = create_database_session(bind=self.engine)()
             users = session.query(self.model.User).filter(
                 self.model.User.id == self.request['cookie'][
-                    self.options['session']['key']['user_id']])
+                    self.options['session']['key']['userID']])
             if users.count():
                 user = users.one()
                 manifest_name = user.id
             session.close()
         cache_file = FileHandler(location='%s%s/%s.appcache' % (
-            self.options['location']['web_cache'], self.request['host'],
+            self.options['location']['webCache'], self.request['host'],
             manifest_name))
         # TODO only use web_cache in nginx conf if cli option is set.
         if(self.given_command_line_arguments.web_cache and
@@ -1465,13 +1453,13 @@ class Main(Class, Runnable):
                     asset_files.add(file)
                 return True
         FileHandler(
-            location=self.options['location']['web_asset']
+            location=self.options['location']['webAsset']
         ).iterate_directory(add_asset_file, recursive=True)
         scope = {
             'options': self.options['frontend'], 'assetFileHashs': {},
             'assetFiles': asset_files, 'htmlFile': self.frontend_html_file,
             'assetVersion': self.get_timestamps(
-                self.options['location']['web_asset']
+                self.options['location']['webAsset']
             ), 'version': '%s - %s' % (__version__, FileHandler(
                 location=Module.get_name(
                     path=True, extension=True, frame=inspect.currentframe())
@@ -1480,8 +1468,7 @@ class Main(Class, Runnable):
         }
         return TemplateParser(
             self.offline_manifest_template_file,
-            template_context_default_indent=self.options[
-                'default_indent_level']
+            template_context_default_indent=self.options['defaultIndentLevel']
         ).render(mapping=self.controller.get_manifest_scope(
             scope, web_node=self, user=user
         )).output
@@ -1528,9 +1515,9 @@ class Main(Class, Runnable):
         if self.debug and '__authentication_skip__' in self.request['get']:
             return 1
         user_id = session_token = location = None
-        if self.options['authentication_method'] == 'header':
+        if self.options['authenticationMethod'] == 'header':
             user_id = self.request['handler'].headers.get(String(
-                self.options['session']['key']['user_id']
+                self.options['session']['key']['userID']
             ).get_camel_case_to_delimited(delimiter='-').content)
             session_token = self.request['handler'].headers.get(String(
                 self.options['session']['key']['token']
@@ -1539,9 +1526,9 @@ class Main(Class, Runnable):
                 location = self.request['handler'].headers.get(String(
                     self.options['session']['key']['location']
                 ).get_camel_case_to_delimited(delimiter='-').content)
-        elif self.options['authentication_method'] == 'cookie':
+        elif self.options['authenticationMethod'] == 'cookie':
             user_id = self.request['cookie'].get(
-                self.options['session']['key']['user_id'])
+                self.options['session']['key']['userID'])
             session_token = self.request['cookie'].get(
                 self.options['session']['key']['token'])
             if self.request['type'] != 'head':
@@ -1562,7 +1549,7 @@ class Main(Class, Runnable):
 
             # region handle error reports
 
-            if __request_arguments__['external_uri'] == '/__error_report__':
+            if __request_arguments__['externalURI'] == '/__error_report__':
                 error_report_message = json.dumps(
                     __request_arguments__, skipkeys=True, ensure_ascii=False,
                     check_circular=True, allow_nan=True, indent=4,
@@ -1573,29 +1560,29 @@ class Main(Class, Runnable):
 # #                     error_report_file = FileHandler(
 # #                         location='%s%s.json' % (
 # #                             self.options['location'][
-# #                                 'reported_client_error'],
+# #                                 'reportedClientError'],
 # #                             builtins.str(DateTime.now())))
                     error_report_file = FileHandler(
                         location='%s%s.json' % (
                             self.options['location'][
-                                'reported_client_error'],
+                                'reportedClientError'],
                             convert_to_unicode(DateTime.now())))
 # #
                     while error_report_file:
                         error_report_file = FileHandler(
                             location=error_report_file.path + '-')
                     error_report_file.content = error_report_message
-                if self.options['production_exception_e_mail_notification'][
+                if self.options['productionExceptionEMailNotification'][
                     'frontend'
                 ] and not self.debug:
                     self.send_e_mail(
                         content=error_report_message,
                         configuration=self.options[
-                            'production_exception_e_mail_notification'],
+                            'productionExceptionEMailNotification'],
                         subject='Frontend-Error')
                 Print(normalize_unicode(
-                    self.options['unicode_normalisation_form'],
-                    self.options['error_report_answer_html_content'] %
+                    self.options['unicodeNormalisationForm'],
+                    self.options['errorReportAnswerHTMLContent'] %
                     'Client error successfully reported.'
                 ), end='')
                 return self
@@ -1607,30 +1594,9 @@ class Main(Class, Runnable):
             self.request = __request_arguments__
             self.new_cookie = {}
             '''Normalize get and payload data.'''
-# # python3.5
-# #             self.request['get'] = Dictionary(
-# #                 content=self.request['get']
-# #             ).convert(
-# #                 key_wrapper=lambda key, value: self.convert_for_backend(
-# #                     String(
-# #                         key
-# #                     ).camel_case_to_delimited.content if \
-# #                         builtins.isinstance(key, builtins.str) else key
-# #                 ), value_wrapper=self.convert_for_backend
-# #             ).content
             self.request['get'] = Dictionary(
                 content=self.request['get']
-            ).convert(
-                key_wrapper=lambda key, value: self.convert_for_backend(
-                    String(
-                        key
-                    ).camel_case_to_delimited.content if \
-                        builtins.isinstance(key, (
-                            builtins.unicode, builtins.str
-                        )) else key
-                ), value_wrapper=self.convert_for_backend
-            ).content
-# #
+            ).convert(value_wrapper=self.convert_for_backend).content
             self._handle_request_data()
             '''
                 NOTE: Head requests should be fast and multi process save. So \
@@ -1668,7 +1634,7 @@ class Main(Class, Runnable):
         except (socket.herror, socket.gaierror, socket.timeout, socket.error):
             pass
         except builtins.Exception as exception:
-            if self.options['production_exception_e_mail_notification'][
+            if self.options['productionExceptionEMailNotification'][
                 'backend'
             ] and not self.debug:
 # # python3.5
@@ -1685,7 +1651,7 @@ class Main(Class, Runnable):
 # #                         ), traceback.format_exc()
 # #                     ), content=convert_to_unicode(exception),
 # #                     configuration=self.options[
-# #                         'production_exception_e_mail_notification'],
+# #                         'productionExceptionEMailNotification'],
 # #                     subject='Backend-Error (%s: %s)' % (
 # #                         exception.__class__.__name__,
 # #                         builtins.str(exception)))
@@ -1701,7 +1667,7 @@ class Main(Class, Runnable):
                             default=lambda object: '__not_serializable__'
                         ), convert_to_unicode(traceback.format_exc())
                     ), configuration=self.options[
-                        'production_exception_e_mail_notification'],
+                        'productionExceptionEMailNotification'],
                     subject='Backend-Error (%s)' % (
                         exception.__class__.__name__))
 # #
@@ -1755,9 +1721,9 @@ class Main(Class, Runnable):
         if not (__test_mode__ or module_import_error is None):
             raise module_import_error
         self._set_options()
-        command_line_arguments = self.options['command_line_arguments']
+        command_line_arguments = self.options['commandLineArguments']
         if not builtins.isinstance(command_line_arguments, builtins.list):
-            command_line_arguments = self.options['command_line_arguments'][
+            command_line_arguments = self.options['commandLineArguments'][
                 '__no_wrapping__']
         self.__class__.given_command_line_arguments = \
             CommandLine.argument_parser(
@@ -1833,10 +1799,10 @@ class Main(Class, Runnable):
         if not self.given_command_line_arguments.reload:
             self._register_authentication_handler()
         FileHandler(
-            location=self.options['location']['reported_client_error']
+            location=self.options['location']['reportedClientError']
         ).directory.make_directories()
         FileHandler(
-            location=self.options['location']['proxy_server_log']
+            location=self.options['location']['proxyServerLog']
         ).directory.make_directories()
         self._initialize_templates()
         self._initialize_data_structure()
@@ -1846,74 +1812,32 @@ class Main(Class, Runnable):
         '''Consolidates posted data given by client.'''
         if builtins.isinstance(self.request['data'], builtins.list):
             for index, item in builtins.enumerate(self.request['data']):
-# # python3.5
-# #                 self.request['data'][index] = Dictionary(
-# #                     content=item
-# #                 ).convert(key_wrapper=lambda key, value:
-# #                     self.convert_for_backend(String(
-# #                         key
-# #                     ).camel_case_to_delimited.content if
-# #                         builtins.isinstance(key, builtins.str) else key
-# #                     ), value_wrapper=self.convert_for_backend
-# #                 ).content
                 self.request['data'][index] = Dictionary(
                     content=item
-                ).convert(key_wrapper=lambda key, value:
-                    self.convert_for_backend(String(
-                        key
-                    ).camel_case_to_delimited.content if
-                        builtins.isinstance(key, (
-                            builtins.unicode, builtins.str
-                        )) else key
-                    ), value_wrapper=self.convert_for_backend
-                ).content
-# #
+                ).convert(value_wrapper=self.convert_for_backend).content
         else:
-            if self.options['remove_duplicated_request_key']:
+            if self.options['removeDuplicatedRequestKey']:
                 for key, value in self.request['data'].items():
                     if builtins.isinstance(value, builtins.list):
                         if builtins.len(value) > 0:
                             self.request['data'][key] = value[0]
                         else:
                             self.request['data'][key] = None
-# # pythoin3.4
-# #             self.request['data'] = Dictionary(
-# #                 content=self.request['data']
-# #             ).convert(
-# #                 key_wrapper=lambda key, value: self.convert_for_backend(
-# #                     String(
-# #                         key
-# #                     ).camel_case_to_delimited.content if \
-# #                     builtins.isinstance(
-# #                         key, builtins.str
-# #                     ) else key
-# #                 ), value_wrapper=self.convert_for_backend
-# #             ).content
             self.request['data'] = Dictionary(
                 content=self.request['data']
-            ).convert(
-                key_wrapper=lambda key, value: self.convert_for_backend(
-                    String(
-                        key
-                    ).camel_case_to_delimited.content if \
-                    builtins.isinstance(
-                        key, (builtins.unicode, builtins.str)
-                    ) else key
-                ), value_wrapper=self.convert_for_backend
-            ).content
-# #
+            ).convert(value_wrapper=self.convert_for_backend).content
         return self
 
     def _initialize_templates(self):
         '''Determines templates files and renders them.'''
         self.__class__.frontend_html_file = FileHandler(
-            location=self.options['location']['html_file']['frontend'])
+            location=self.options['location']['htmlFile']['frontend'])
         self.__class__.backend_html_file = FileHandler(
-            location=self.options['location']['html_file']['backend'])
+            location=self.options['location']['htmlFile']['backend'])
         self.__class__.html_template_file = FileHandler(
-            location=self.options['location']['html_file']['template'])
+            location=self.options['location']['htmlFile']['template'])
         self.__class__.offline_manifest_template_file = FileHandler(
-            location=self.options['location']['offline_manifest_template_file']
+            location=self.options['location']['offlineManifestTemplateFile']
         )
         self.__class__.options['frontend'] = Dictionary(
             content=self.options['frontend']
@@ -1921,7 +1845,7 @@ class Main(Class, Runnable):
         if(
             'coreBackendNoTemplateRendering' not in \
             self.given_command_line_arguments.flags and
-            self.options['initial_template_rendering'] or
+            self.options['initialTemplateRendering'] or
             self.given_command_line_arguments.reload
         ):
             __logger__.info('Render template files.')
@@ -1932,22 +1856,22 @@ class Main(Class, Runnable):
         '''Registers a basic http authentication handler to webserver.'''
 # # python3.5
 # #         if self.controller is not None and builtins.isinstance(
-# #             self.options['web_server'].get('authentication_handler'),
+# #             self.options['webServer'].get('authenticationHandler'),
 # #             builtins.str
 # #         ):
-# #             self.options['web_server']['authentication_handler'] = \
+# #             self.options['webServer']['authenticationHandler'] = \
 # #                 builtins.eval(
-# #                     self.options['web_server']['authentication_handler'], {
+# #                     self.options['webServer']['authenticationHandler'], {
 # #                         'controller': self.controller,
 # #                         'Controller': Controller,
 # #                         'RestController': RestResponse})
         if self.controller is not None and builtins.isinstance(
-            self.options['web_server'].get('authentication_handler'),
+            self.options['webServer'].get('authenticationHandler'),
             (builtins.unicode, builtins.str)
         ):
-            self.options['web_server']['authentication_handler'] = \
+            self.options['webServer']['authenticationHandler'] = \
                 builtins.eval(
-                    self.options['web_server']['authentication_handler'], {
+                    self.options['webServer']['authenticationHandler'], {
                         'controller': self.controller,
                         'Controller': Controller,
                         'RestController': RestResponse})
@@ -1957,7 +1881,7 @@ class Main(Class, Runnable):
     def _initialize_data_structure(self):
         '''Initializes database and file based caching layer.'''
         if self.options['location']['database'][
-            'state_type_reference'
+            'stateTypeReference'
         ] == '__memory__':
             class DateState:
                 def __init__(self, name, timestamp, user_id):
@@ -1966,7 +1890,7 @@ class Main(Class, Runnable):
         else:
             state_location = FileHandler(
                 location=self.options['location']['database'][
-                    'state_type_reference'])
+                    'stateTypeReference'])
             state_location.make_directories()
             class DateState(Class):
                 file = None
@@ -2029,7 +1953,7 @@ class Main(Class, Runnable):
         if self.given_command_line_arguments.dead_file_reference_check:
             self._check_database_file_references()
         # TODO default is empty here (which is right) but it should be
-        # "template_name" as specified in options.json
+        # "templateName" as specified in options.json
         if self.given_command_line_arguments.\
         dead_soft_reference_check_properties:
             self._check_dead_soft_references()

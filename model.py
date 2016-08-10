@@ -51,7 +51,7 @@ def determine_language_specific_default_value(context):
         Determines a language specific default value depending on given \
         context.
     '''
-    language = OPTIONS['default_language']
+    language = OPTIONS['defaultLanguage']
     if('language' in context.current_parameters and
        context.current_parameters['language'] is not None):
         language = context.current_parameters['language']
@@ -63,13 +63,13 @@ def determine_language_specific_default_value(context):
         if(column.default.arg is builtins.globals()[inspect.stack()[0][3]] and
            context.current_parameters[column.name] is None):
 # # python3.5
-# #              return OPTIONS['model']['generic']['language_specific'][
+# #              return OPTIONS['model']['generic']['languageSpecific'][
 # #                 'default'
 # #             ][column.name][language]
 
-             return OPTIONS['model']['generic']['language_specific']['default'][
-                column.name
-            ][language].decode(OPTIONS['encoding'])
+            return OPTIONS['model']['generic']['languageSpecific'][
+                'default'
+            ][column.name][language].decode(OPTIONS['encoding'])
 # #
 
 # endregion
@@ -136,9 +136,9 @@ class UpdateTriggerModel(builtins.object):
         table.
     '''
 
-    creation_date_time = Column(
+    creationDateTime = Column(
         DateTime, nullable=False, default=DateTimeNative.now)
-    last_update_date_time = Column(
+    lastUpdateDateTime = Column(
         DateTime, nullable=False, default=DateTimeNative.now,
         onupdate=DateTimeNative.now)
 
@@ -152,30 +152,30 @@ class AuthenticationModel(BaseAuthenticationModel, UpdateTriggerModel):
 
     id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
-    session_token = Column(
+    sessionToken = Column(
         String(
-            2 * OPTIONS['model']['authentication']['session_token']['length']),
+            2 * OPTIONS['model']['authentication']['sessionToken']['length']),
         unique=True, default=None)
-    session_token_application = Column(
+    sessionTokenApplication = Column(
         String(
-            2 * OPTIONS['model']['authentication']['session_token']['length']),
+            2 * OPTIONS['model']['authentication']['sessionToken']['length']),
         unique=True, default=None)
-    session_expiration_date_time = Column(
+    sessionExpirationDateTime = Column(
         DateTime, default=DateTimeNative.now, nullable=False)
     location = Column(
-        String(OPTIONS['model']['generic']['url']['maximum_length']),
+        String(OPTIONS['model']['generic']['url']['maximumLength']),
         nullable=True, info=OPTIONS['model']['generic']['url'])
-    password_salt = Column(
+    passwordSalt = Column(
         String(2 * OPTIONS['model']['authentication']['password']['salt'][
             'length']
         ), nullable=False)
-    password_hash = Column(String(
+    passwordHash = Column(String(
         160 + 2 * OPTIONS['model']['authentication']['password']['salt'][
             'length'
         ] + builtins.len(
             OPTIONS['model']['authentication']['password']['pepper'])
     ), nullable=False)
-    _password_information = OPTIONS['model']['authentication']['password']
+    _passwordInformation = OPTIONS['model']['authentication']['password']
 
 Model = ModelFactory(cls=BaseModel, metaclass=ApplicationMetaModel)
 

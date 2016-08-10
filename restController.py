@@ -119,7 +119,7 @@ class Response(Class):
         '''
         ignored = False
         if Iterable(
-            cls.web_node.options['web_asset_pattern_ignore']
+            cls.web_node.options['webAssetPatternIgnore']
         ).is_in_pattern(value=file.name):
             ignored = True
         if ignored:
@@ -134,8 +134,8 @@ class Response(Class):
             if name == 'hash':
                 if file.is_file():
                     value = file.get_hash(algorithm=cls.web_node.options[
-                        'file_hash_algorithm'])
-                    name = cls.web_node.options['file_hash_algorithm']
+                        'fileHashAlgorithm'])
+                    name = cls.web_node.options['fileHashAlgorithm']
                 else:
                     continue
             elif name == 'content':
@@ -193,7 +193,7 @@ class Response(Class):
             del self.web_node.request['get']['__cache__']
         self.json_padding = ''
         for jsonp_get_parameter_indicator in \
-        self.web_node.options['jsonp_get_parameter_indicator']:
+        self.web_node.options['jsonpGetParameterIndicator']:
             if jsonp_get_parameter_indicator in self.web_node.request['get']:
                 self.json_padding = self.web_node.request['get'][
                     jsonp_get_parameter_indicator]
@@ -204,26 +204,9 @@ class Response(Class):
                 Converter keywords to wrap each respond to client. Can be \
                 overridden in subclasses.
             '''
-# # python3.5
-# #             self.data_wrapper = {
-# #                 'key_wrapper': lambda key, value:
-# #                     self.web_node.convert_for_client(String(
-# #                         key
-# #                     ).delimited_to_camel_case.content if \
-# #                         builtins.isinstance(
-# #                             key, builtins.str
-# #                         ) else key),
-# #                 'value_wrapper': self.web_node.convert_for_client}
             self.data_wrapper = {
-                'key_wrapper': lambda key, value:
-                    self.web_node.convert_for_client(String(
-                        key
-                    ).delimited_to_camel_case.content if \
-                        builtins.isinstance(key, (
-                            builtins.unicode, builtins.str
-                        )) else key),
+                'key_wrapper': lambda key, value: key,
                 'value_wrapper': self.web_node.convert_for_client}
-# #
         if self.model is not None:
             del self.web_node.request['get']['__model__']
 
@@ -278,7 +261,7 @@ class Response(Class):
             if self.json_padding:
                 output = '%s({});' % self.json_padding
             else:
-                output = self.web_node.options['rest_response_template'] % '{}'
+                output = self.web_node.options['restResponseTemplate'] % '{}'
         else:
             output = json.dumps(
                 output, skipkeys=True, ensure_ascii=False, check_circular=True,
@@ -287,7 +270,7 @@ class Response(Class):
             if self.json_padding:
                 output = '%s(%s);' % (self.json_padding, output)
             else:
-                output = self.web_node.options['rest_response_template'] % \
+                output = self.web_node.options['restResponseTemplate'] % \
                     output
             if(self.web_node.given_command_line_arguments.web_cache and not (
                 self.model is None or cache_file is None
@@ -310,7 +293,7 @@ class Response(Class):
             self.cache_key is not None
         ):
             cache_file = FileHandler(location='%s/%d-%s.json' % (
-                self.web_node.options['location']['web_cache'],
+                self.web_node.options['location']['webCache'],
                 0 if self.web_node.authorized_user_id is None or \
                 not self.web_node.request['handler'].headers.get(
                     'Admin', False
@@ -318,7 +301,7 @@ class Response(Class):
                     self.model.__name__[0].lower() + self.model.__name__[1:],
                     {}
                 ).get('__needs_authentication__', False) else 1,
-                self.web_node.request['external_uri'].replace(os.sep, '')
+                self.web_node.request['externalURI'].replace(os.sep, '')
             ))
         result = None
         if cache_file:
@@ -336,7 +319,7 @@ class Response(Class):
             self.web_node.request['handler'].send_response(200)
             for model_name, date_state in self.web_node.state:
                 key = String(self.web_node.options[
-                    'last_data_write_header_name'
+                    'lastDataWriteHeaderName'
                 ]).get_camel_case_to_delimited(delimiter='-').substitute(
                     '-([a-z])',
                     lambda match: '-%s' % match.group(1).upper()
@@ -371,34 +354,34 @@ class Response(Class):
             get = self._filter_special_keys(get)
             data = self._filter_special_keys(data)
             result = None
-            if 'has_password' in data:
-                value = data['has_password']
-                del data['has_password']
+            if 'hasPassword' in data:
+                value = data['hasPassword']
+                del data['hasPassword']
                 session = create_database_session(bind=self.web_node.engine)()
                 try:
                     users = session.query(self.model).filter_by(**data)
                 except(SQLAlchemyError, builtins.ValueError) as exception:
                     self.handle_database_exception(exception, session)
                 user = users.one() if users.count() else None
-                if user is not None and user.enabled and user.has_password(
+                if user is not None and user.enabled and user.hasPassword(
                     value
                 ):
                     '''Save session token in database with expiration time.'''
 # # python3.5
-# #                     user.session_token = base64_encode(os.urandom(
+# #                     user.sessionToken = base64_encode(os.urandom(
 # #                         self.web_node.options['model']['authentication'][
-# #                             'session_token'
+# #                             'sessionToken'
 # #                         ]['length']
 # #                     )).decode().strip()
-                    user.session_token = convert_to_unicode(base64_encode(
+                    user.sessionToken = convert_to_unicode(base64_encode(
                         os.urandom(self.web_node.options['model'][
                             'authentication'
-                        ]['session_token']['length'])
+                        ]['sessionToken']['length'])
                     ).strip())
 # #
-                    user.session_expiration_date_time = DateTime.now(
+                    user.sessionExpirationDateTime = DateTime.now(
                     ) + self.web_node.options['session'][
-                        'expiration_time_delta']
+                        'expirationTimeDelta']
                     '''
                         NOTE: Model data has to be rendered before session is \
                         committed, to avoid temporary lose data.
@@ -726,9 +709,6 @@ class Response(Class):
         for property_name in builtins.filter(
             lambda name: name, data.pop('__select__').split(',')
         ):
-            property_name = String(
-                property_name
-            ).camel_case_to_delimited.content
             filtered = False
             for prefix in builtins.filter(
                 lambda prefix: property_name.startswith(prefix), prefix_filter
@@ -755,9 +735,7 @@ class Response(Class):
             for model in models:
                 keys = {}
                 for primary_key in self.model.__mapper__.primary_key:
-                    keys[String(
-                        primary_key.name
-                    ).delimited_to_camel_case.content] = builtins.getattr(
+                    keys[primary_key.name] = builtins.getattr(
                         model, primary_key.name)
                 result.append(keys)
         return result
