@@ -1284,8 +1284,10 @@ class Main(Class, Runnable):
         cls.engine = create_database_engine('%s%s%s' % (
             cls.options['database']['enginePrefix'], root_path,
             cls.options['location']['database']['url']
-        ), echo=__logger__.isEnabledFor(logging.DEBUG),
-        connect_args=cls.options['database']['connectionArguments'])
+        ), echo=__logger__.isEnabledFor(
+            'coreBackendDatabaseLogging' in \
+            cls.given_command_line_arguments.flags
+        ), connect_args=cls.options['database']['connectionArguments'])
         if 'coreBackendNoAutomaticModelMigration' not in \
         cls.given_command_line_arguments.flags:
             if cls.model is not None:
