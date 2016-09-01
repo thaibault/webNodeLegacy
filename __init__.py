@@ -117,7 +117,7 @@ class Main(Class, Runnable):
     web_server = None
     '''Saves the web server instance.'''
     debug = False
-    '''Indicates weather the application is currently in debug mode.'''
+    '''Indicates whether the application is currently in debug mode.'''
     given_command_line_arguments = None
     '''Holds all given commend line arguments in a named tuple.'''
     options = {}

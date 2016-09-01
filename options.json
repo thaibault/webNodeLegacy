@@ -371,7 +371,7 @@
                 "specification": {
                     "action": "store_true",
                     "default": false,
-                    "help": "Indicates weather the application should simply render all templates and reload all configurations.",
+                    "help": "Indicates whether the application should simply render all templates and reload all configurations.",
                     "dest": "reload"
                 }
             }, {
