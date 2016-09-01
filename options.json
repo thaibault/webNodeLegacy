@@ -1,212 +1,17 @@
 {
-    "frontend": {
-        "debug": "<% main.debug %>",
-        "offlineManifest": {
-            "integrateSites": true,
-            "pathPatternToIgnore": "^$",
-            "pathPatternToIntegrate": "(https?://)|(.*\\.(css|js|png|svg|jpg|jpeg|gif|ico|woff|woff2|html|json|xml)$)"
-        },
-        "requestFileName": "<% moduleName %>",
-        "freeSpaceInByte": "<% FileHandler(location='/').free_space %>",
-        "usedSpaceInByte": "<% FileHandler(location='/').disk_used_space %>",
-        "startTimeStamp": "<% __time_stamp__ %>",
-        "requestRetries": {
-            "409": {"number": 3, "statusPattern": "^.*locked.*$"},
-            "504": {"number": 3, "statusPattern": "^.*$"},
-            "502": {"number": 3, "statusPattern": "^.*$"}
-        }
-    },
-    "both": {
-        "fileHashAlgorithm": "md5",
-        "lastDataWriteDateTimeHeaderName": "<% session['dataDescriptionPrefix'] %>LastDataWriteDateTime",
-        "session": {
-            "dataDescriptionPrefix": "application",
-            "expirationTimeDelta": 3600,
-            "key": {
-                "token": "<% session['dataDescriptionPrefix'] %>SessionToken",
-                "userID": "<% session['dataDescriptionPrefix'] %>UserID",
-                "expiration": "<% session['dataDescriptionPrefix'] %>SessionExpirationDateTime",
-                "location": "<% session['dataDescriptionPrefix'] %>Location"
-            }
-        },
-
-        "location": {
-            "webAsset": "/webAsset/",
-            "template": "<% location['webAsset'] %>template/",
-            "medium": "<% location['webAsset'] %>medium/"
-        },
-
-        "encoding": "utf_8",
-
-        "defaultLanguage": "enUS",
-        "model": {
-            "authentication": {
-                "password": {
-                    "minimumLength": 4,
-                    "maximumLength": 100,
-                    "pattern": "....+"
-                },
-                "simplePassword": {
-                    "minimumLength": 1,
-                    "maximumLength": 50,
-                    "pattern": "[a-zA-Z0-9_-]+"
-                }
-            }
-        },
-        "allowedLinkProtocols": ["http", "https", "", "file", "ftp", "ftps"],
-        "allowedTypes": {
-            "image": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "image/jpg", "image/jpeg", "image/pjpeg",
-                        "image/png", "image/svg+xml", "image/svg",
-                        "image/vnd.microsoft.icon", "image/x-icon",
-                        "image/gif", "image/tiff", "image/vnd.wap.wbmp",
-                        "image/x-icon", "image/x-jng", "image/x-ms-bmp",
-                        "image/svg+xml", "image/webp"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": [
-                        "jpg", "jpeg", "png", "svg", "ico", "gif", "tiff",
-                        "bmp", "webp"
-                    ]
-                }
-            },
-            "audio": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "audio/midi", "audio/mpeg", "audio/ogg", "audio/x-m4a",
-                        "audio/x-realaudio"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": ["midi", "mpeg", "ogg", "m4a"]
-                }
-            },
-            "video": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "video/webm", "video/3gpp", "video/mp2t", "video/mp4",
-                        "video/mpeg", "video/quicktime", "video/x-flv",
-                        "video/x-m4v", "video/x-mng", "video/x-ms-asf",
-                        "video/x-ms-wmv", "video/x-msvideo",
-                        "application/x-shockwave-flash"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": [
-                        "webm", "3gpp", "mp2t", "mp4", "mpeg", "mov", "qt",
-                        "flv", "m4v", "mng", "asf", "wmv"
-                    ]
-                }
-            },
-            "data": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "application/xml", "text/csv", "text/xml",
-                        "application/atom+xml", "application/rss+xml",
-                        "application/json",
-                        "application/vnd.google-earth.kml+xml",
-                        "application/vnd.google-earth.kmz",
-                        "application/xhtml+xml", "application/xspf+xml"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": ["xml", "csv", "json", "kml"]
-                }
-            },
-            "document": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "text/plain", "text/html", "text/jade", "text/css",
-                        "text/mathml", "text/vnd.wap.wml", "application/pdf",
-                        "application/postscript", "application/rtf",
-                        "application/vnd.apple.mpegurl",
-                        "application/vnd.ms-excel",
-                        "application/vnd.ms-powerpoint",
-                        "application/vnd.wap.wmlc", "application/msword",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": [
-                        "txt", "html", "css", "pdf", "rtf", "ps", "doc",
-                        "docx", "jade"
-                    ]
-                }
-            },
-            "script": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "application/javascript", "application/x-cocoa",
-                        "application/x-perl", "text/x-python"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": ["js", "pl", "py"]
-                }
-            },
-            "font": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "application/vnd.ms-fontobject",
-                        "application/font-woff"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": ["woff", "woff2", "eot", "ttf"]
-                }
-            },
-            "binary": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "application/java-archive",
-                        "application/x-7z-compressed",
-                        "application/zip", "application/octet-stream",
-                        "application/octet-stream",
-                        "application/x-rar-compressed"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": ["java", "zip", "rar", "7z"]
-                }
-            },
-            "knownOther": {
-                "mimeType": {
-                    "__no_wrapping__": [
-                        "text/x-component", "text/vnd.sun.j2me.app-descriptor",
-                        "application/mac-binhex40",
-                        "application/x-java-archive-diff",
-                        "application/x-java-jnlp-file",
-                        "application/x-makeself",
-                        "application/x-pilot",
-                        "application/x-redhat-package-manager",
-                        "application/x-sea", "application/x-stuffit",
-                        "application/x-tcl", "application/x-x509-ca-cert",
-                        "application/x-xpinstall"
-                    ]
-                },
-                "extension": {
-                    "__no_wrapping__": []
-                }
-            }
-        }
-    },
     "backend": {
+        "adminAuthenticatesAll": true,
         "productionExceptionEMailNotification": {
             "mimeTypeSubType": "alternative",
             "smtpServer": {"url": "example.domain.com", "port": 993},
             "encryption": "ssl",
             "login": "login",
             "password": "password",
-            "sender": "example@domain.com",
-            "recipient": "example@domain.com",
+            "recipientAddress": "example@domain.com",
             "html": false,
             "backend": false,
-            "frontend": false
+            "frontend": false,
+            "handleException": true
         },
         "errorReportAnswerHTMLContent": "<html><head><meta charset=\"utf-8\" /><title>errorReport</title><meta name=\"robots\" content=\"noindex, nofollow\" /></head><body>%s</body></html>",
         "unicodeNormalisationForm": "NFC",
@@ -238,19 +43,27 @@
                 "filePath": {
                     "minimumLength": 1, "maximumLength": 32000,
                     "pattern": ".+",
-                    "fileReference": "<% location['medium'] %>%s"
+                    "fileReference": {
+                        "__execute__": "<% location['medium'] %>%s"
+                    }
                 },
                 "fileName": {
-                    "minimumLength": "<% model['generic']['filePath']['minimumLength'] %>",
+                    "minimumLength": {
+                        "__execute__": "<% model['generic']['filePath']['minimumLength'] %>"
+                    },
                     "maximumLength": 255,
-                    "pattern": "<% model['generic']['filePath']['pattern'] %>",
-                    "fileReference": "<% location['medium'] %>%s"
+                    "pattern": {
+                        "__execute__": "<% model['generic']['filePath']['pattern'] %>"
+                    },
+                    "fileReference": {
+                        "__execute__": "<% location['medium'] %>%s"
+                    }
                 },
                 "name": {
                     "default": "",
                     "pattern": "[a-zA-Z -]+",
                     "minimumLength": 1,
-                    "maximumLength": 100
+                    "maximumLength": 255
                 },
                 "text": {"pattern": "(\\s|.)*"},
                 "url": {
@@ -260,8 +73,10 @@
                 },
                 "urlProtocol": {
                     "minimumLength": 0,
-                    "maximumLength": 100,
-                    "pattern": "<% '|'.join(allowedLinkProtocols) %>"
+                    "maximumLength": 255,
+                    "pattern": {
+                        "__execute__": "<% '|'.join(allowedLinkProtocols) %>"
+                    }
                 },
                 "urlParameter": {
                     "default": "",
@@ -269,14 +84,21 @@
                     "maximumLength": 2000,
                     "pattern": ".*"
                 },
+                "language": {
+                    "minimumLength": 4,
+                    "maximumLength": 4,
+                    "pattern": "[a-z]{2}[A-Z]{2}$"
+                },
                 "loginEMailAddress": {
                     "minimumLength": 5,
-                    "maximumLength": 100,
-                    "pattern": "((admin)|(<% model['generic']['eMailAddress']['pattern'] %>))"
+                    "maximumLength": 255,
+                    "pattern": {
+                        "__execute__": "((admin)|(<% model['generic']['eMailAddress']['pattern'] %>))"
+                    }
                 },
                 "eMailAddress": {
                     "minimumLength": 6,
-                    "maximumLength": 100,
+                    "maximumLength": 255,
                     "pattern": "[_A-Za-z0-9\\-+]+(\\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[A-Za-z]{2,})"
                 },
                 "phoneNumber": {
@@ -296,9 +118,7 @@
             },
             "authentication": {
                 "sessionToken": {"length": 32},
-                "password": {
-                    "salt": {"length": 32}, "pepper": "pepperExample"
-                }
+                "password": {"salt": {"length": 32}, "pepper": "pepperExample"}
             }
         },
         "defaultIndentLevel": 4,
@@ -306,59 +126,87 @@
 
         "delimiterPattern": "(!|\\?)",
         "webServer": {
-            "root": "/", "default": "<% location['htmlFile']['frontend'] %>",
+            "root": "/",
+            "default": {
+                "__execute__": "<% location['htmlFile']['frontend'] %>"
+            },
             "requestWhitelist": [
-                "GET|POST|DELETE|PUT|PATCH:/<% StringExtension(moduleName).regex_validated.content %><% delimiterPattern %>.+",
-                "GET:(/|(<% StringExtension(location['webAsset']).regex_validated.content %>.+))",
-                "PUT:<% StringExtension(location['medium']).regex_validated.content %>?"
+                {"__execute__": "GET|POST|DELETE|PUT|PATCH:/<% StringExtension(moduleName).regex_validated.content %><% delimiterPattern %>.+"},
+                {"__execute__": "GET:(/|(<% StringExtension(location['webAsset']).regex_validated.content %>.+))"},
+                {"__execute__": "PUT:<% StringExtension(location['medium']).regex_validated.content %>?"}
             ],
-            "requestParameterDelimiter": "<% delimiterPattern %>",
-            "authentication": false, "moduleLoading": "<% moduleName %>",
+            "requestParameterDelimiter": {
+                "__execute__": "<% delimiterPattern %>"
+            },
+            "authentication": false,
+            "moduleLoading": {"__execute__": "<% moduleName %>"},
             "stopOrder": "", "directoryListing": false,
             "maximumNumberOfProcesses": 0
         },
         "location": {
             "htmlFile": {
                 "frontend": "/index.html", "backend": "/admin.html",
-                "template": "<% location['template'] %>index.html.tpl"
+                "template": {
+                    "__execute__": "<% location['template'] %>index.html.tpl"
+                }
             },
             "nginxConfiguration": {
                 "folder": "/backendNginxConfiguration/",
-                "login": "<% location['nginxConfiguration']['folder'] %>login.txt.tpl"
+                "login": {
+                    "__execute__": "<% location['nginxConfiguration']['folder'] %>login.txt.tpl"
+                }
             },
             "proxyServerLog": "/log/proxyServer.txt",
             "reportedClientError": "/log/reportedClientError/",
-            "offlineManifestTemplateFile": "<% location['template'] %>offlineManifest.tpl",
+            "offlineManifestTemplateFile": {
+                "__execute__": "<% location['template'] %>offlineManifest.tpl"
+            },
             "cache": "/cache/",
-            "webCache": "<% location['cache'] %>web/",
-            "templateCache": "<% location['cache'] %>template/",
+            "webCache": {"__execute__": "<% location['cache'] %>web/"},
+            "templateCache": {
+                "__execute__": "<% location['cache'] %>template/"
+            },
             "certificate": {
                 "folder": "/certificate/",
-                "pem": "<% location['certificate']['folder'] %>localhost.pem",
-                "key": "<% location['certificate']['folder'] %>localhost.key",
-                "crt": "<% location['certificate']['folder'] %>localhost.crt",
-                "intermediatePem": "<% location['certificate']['folder'] %>localhost.intermediate.pem"
+                "pem": {
+                    "__execute__": "<% location['certificate']['folder'] %>localhost.pem"
+                },
+                "key": {
+                    "__execute__": "<% location['certificate']['folder'] %>localhost.key"
+                },
+                "crt": {
+                    "__execute__": "<% location['certificate']['folder'] %>localhost.crt"
+                },
+                "intermediatePem": {
+                    "__execute__": "<% location['certificate']['folder'] %>localhost.intermediate.pem"
+                }
             },
             "backup": "/backup/",
             "database": {
                 "folder": "/database/",
-                "url": "<% location['database']['folder'] %>data",
-                "restDataTimestampReference": "__memory__",
-                "schemaFile": "<% location['database']['folder'] %>schema.json",
-                "backup": "<% location['backup'] %>database/"
+                "url": {
+                    "__execute__": "<% location['database']['folder'] %>data"
+                },
+                "stateTypeReference": "__memory__",
+                "schemaFile": {
+                    "__execute__": "<% location['database']['folder'] %>schema.json"
+                },
+                "backup": {"__execute__": "<% location['backup'] %>database/"}
             },
             "templateIgnore": [
-                "<% location['nginxConfiguration']['login'] %>",
-                "<% location['backup'] %>", "<% location['webCache'] %>",
+                {"__execute__": "<% location['nginxConfiguration']['login'] %>"},
+                {"__execute__": "<% location['backup'] %>"},
+                {"__execute__": "<% location['webCache'] %>"},
                 "/boostNode/", "/webNode/", "/database/"
             ],
             "templateOnce": []
         },
         "webAssetPatternIgnore": [
-            "(.*/)?[_.][^/]+(/.*)?", ".*\\.swp", ".*[/.]example(/.*|\\.[^/]*)?"
+            "(.*/)?[_.][^/]+(/.*)?", ".*\\.swp",
+            ".*[/.]example(/.*|\\.[^/]*)?", "(.*/)?node_modules/.*"
         ],
-        "commandLineArguments": {
-            "__no_wrapping__": [{
+        "commandLineArguments": [
+            {
                 "arguments": ["-w", "--web-cache"],
                 "specification": {
                     "action": "store_true",
@@ -466,7 +314,7 @@
                 "specification": {
                     "action": "store",
                     "nargs": "*",
-                    "default": ["template_name"],
+                    "default": ["templateName"],
                     "help": "Checks for dead soft referenced database entities with given property names.",
                     "dest": "dead_soft_reference_check_properties",
                     "metavar": "PROPERTY_NAMES"
@@ -481,7 +329,183 @@
                     "dest": "dead_soft_reference_check_exceptions",
                     "metavar": "MODEL_NAMES"
                 }
-            }]
+            }
+        ]
+    },
+    "frontend": {
+        "debug": {"__execute__": "<% main.debug %>"},
+        "offline": {
+            "integrateSites": true,
+            "pathPatternToIgnore": "^$",
+            "pathPatternToIntegrate": "(https?://)|(.*\\.(css|js|png|svg|jpg|jpeg|gif|ico|woff|woff2|html|json|xml)$)"
+        },
+        "requestFileName": {"__execute__": "<% moduleName %>"},
+        "freeSpaceInByte": {
+            "__execute__": "<% FileHandler(location='/').free_space %>"
+        },
+        "usedSpaceInByte": {
+            "__execute__": "<% FileHandler(location='/').disk_used_space %>"
+        },
+        "startTimeStamp": {
+            "__execute__": "<% __time_stamp__ %>"
+        },
+        "requestRetries": {
+            "409": {"number": 3, "statusPattern": "^.*locked.*$"},
+            "504": {"number": 3, "statusPattern": "^.*$"},
+            "502": {"number": 3, "statusPattern": "^.*$"}
+        }
+    },
+    "both": {
+        "fileHashAlgorithm": "md5",
+        "lastDataWriteHeaderName": {
+            "__execute__": "<% session['dataDescriptionPrefix'] %>LastDataWrite"
+        },
+        "session": {
+            "dataDescriptionPrefix": "application",
+            "expirationTimeDelta": 3600,
+            "clearCacheOnUsersLocationChange": true,
+            "key": {
+                "token": {
+                    "__execute__": "<% session['dataDescriptionPrefix'] %>SessionToken"
+                },
+                "userID": {
+                    "__execute__": "<% session['dataDescriptionPrefix'] %>UserID"
+                },
+                "expiration": {
+                    "__execute__": "<% session['dataDescriptionPrefix'] %>SessionExpirationDateTime"
+                },
+                "location": {
+                    "__execute__": "<% session['dataDescriptionPrefix'] %>Location"
+                }
+            }
+        },
+
+        "location": {
+            "webAsset": "/webAsset/",
+            "template": {"__execute__": "<% location['webAsset'] %>template/"},
+            "medium": {"__execute__": "<% location['webAsset'] %>medium/"}
+        },
+
+        "encoding": "utf_8",
+
+        "defaultLanguage": "enUS",
+        "model": {
+            "authentication": {
+                "password": {
+                    "minimumLength": 4,
+                    "maximumLength": 100,
+                    "pattern": "....+"
+                },
+                "simplePassword": {
+                    "minimumLength": 1,
+                    "maximumLength": 50,
+                    "pattern": "[a-zA-Z0-9_-]+"
+                }
+            }
+        },
+        "allowedLinkProtocols": ["http", "https", "", "file", "ftp", "ftps"],
+        "allowedTypes": {
+            "image": {
+                "mimeType": [
+                    "image/jpg", "image/jpeg", "image/pjpeg",
+                    "image/png", "image/svg+xml", "image/svg",
+                    "image/vnd.microsoft.icon", "image/x-icon",
+                    "image/gif", "image/tiff", "image/vnd.wap.wbmp",
+                    "image/x-icon", "image/x-jng", "image/x-ms-bmp",
+                    "image/svg+xml", "image/webp"
+                ],
+                "extension": [
+                    "jpg", "jpeg", "png", "svg", "ico", "gif", "tiff", "bmp",
+                    "webp"
+                ]
+            },
+            "audio": {
+                "mimeType": [
+                    "audio/midi", "audio/mpeg", "audio/ogg", "audio/x-m4a",
+                    "audio/x-realaudio"
+                ],
+                "extension": ["midi", "mpeg", "ogg", "m4a"]
+            },
+            "video": {
+                "mimeType": [
+                    "video/webm", "video/x-webm", "text/x-webm", "video/3gpp",
+                    "video/mp2t", "video/mp4", "video/mpeg", "video/quicktime",
+                    "video/flv", "video/x-flv", "video/m4v", "video/x-m4v",
+                    "video/mng", "video/x-mng", "video/x-ms-as",
+                    "video/x-ms-wmv", "video/x-msvideo",
+                    "application/shockwave-flash",
+                    "application/x-shockwave-flash"
+                ],
+                "extension": [
+                    "webm", "3gpp", "mp2t", "mp4", "mpeg", "mov", "qt", "flv",
+                    "m4v", "mng", "asf", "wmv"
+                ]
+            },
+            "data": {
+                "mimeType": [
+                    "application/xml", "text/csv", "text/xml",
+                    "application/atom+xml", "application/rss+xml",
+                    "application/json",
+                    "application/vnd.google-earth.kml+xml",
+                    "application/vnd.google-earth.kmz",
+                    "application/xhtml+xml", "application/xspf+xml"
+                ],
+                "extension": ["xml", "csv", "json", "kml"]
+            },
+            "document": {
+                "mimeType": [
+                    "text/plain", "text/html", "text/jade", "text/css",
+                    "text/mathml", "text/vnd.wap.wml", "application/pdf",
+                    "application/postscript", "application/rtf",
+                    "application/vnd.apple.mpegurl",
+                    "application/vnd.ms-excel",
+                    "application/vnd.ms-powerpoint",
+                    "application/vnd.wap.wmlc", "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                ],
+                "extension": [
+                    "txt", "html", "css", "pdf", "rtf", "ps", "doc", "docx",
+                    "jade"
+                ]
+            },
+            "script": {
+                "mimeType": [
+                    "application/javascript", "application/x-cocoa",
+                    "application/x-perl", "text/x-python"
+                ],
+                "extension": ["js", "pl", "py"]
+            },
+            "font": {
+                "mimeType": [
+                    "application/vnd.ms-fontobject", "application/font-woff"
+                ],
+                "extension": ["woff", "woff2", "eot", "ttf"]
+            },
+            "binary": {
+                "mimeType": [
+                    "application/java-archive", "application/x-7z-compressed",
+                    "application/zip", "application/octet-stream",
+                    "application/octet-stream", "application/x-rar-compressed"
+                ],
+                "extension": ["java", "zip", "rar", "7z"]
+            },
+            "knownOther": {
+                "mimeType": [
+                    "text/x-component", "text/vnd.sun.j2me.app-descriptor",
+                    "application/mac-binhex40",
+                    "application/x-java-archive-diff",
+                    "application/x-java-jnlp-file",
+                    "application/x-makeself",
+                    "application/x-pilot",
+                    "application/x-redhat-package-manager",
+                    "application/x-sea", "application/x-stuffit",
+                    "application/x-tcl", "application/x-x509-ca-cert",
+                    "application/x-xpinstall"
+                ],
+                "extension": []
+            }
         }
     }
 }
