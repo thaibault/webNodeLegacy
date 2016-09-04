@@ -227,7 +227,7 @@ class Main(Class, Runnable):
                 'minimum' in specification or 'maximum' in specification
             ):
                 converted_value = String(value).get_number(default=False)
-                if converted_value == False:
+                if converted_value is False:
 # # python3.5
 # #                     raise builtins.ValueError(
 # #                         'Given value "%s" couldn\'t be interpreted as '
