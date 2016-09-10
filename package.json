@@ -4,5 +4,11 @@
         "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->",
         "trackingCode": "UA-40192634-9",
         "languages": ["deDE", "enUS"]
+    },
+    "scripts": {
+        "updateDocumentation": "documentationWebsite"
+    },
+    "devDependencies": {
+        "documentation-website": "latest"
     }
 }
