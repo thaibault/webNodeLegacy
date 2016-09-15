@@ -11,5 +11,20 @@
     },
     "devDependencies": {
         "documentation-website": "latest"
-    }
+    },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/thaibault/webNode"
+      },
+  "keywords": [
+    "python",
+    "web",
+    "framework",
+    "rest",
+    "api",
+    "backend"
+  ],
+  "homepage": "http://torben.website/webNode",
+
+  "license": "CC-BY-3.0"
 }
