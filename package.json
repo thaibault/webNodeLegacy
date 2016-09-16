@@ -1,5 +1,6 @@
 {
     "name": "webnode",
+    "description": "a high reliable python web library",
     "documentationWebsite": {
         "name": "webNode",
         "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->",
