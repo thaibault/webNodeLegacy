@@ -20,16 +20,15 @@ depends=('python' 'python-sqlalchemy' 'boostnode')
 makedepends=('git' 'findutils')
 optdepends=('sqlite: for sqlite database support'
             'nginx: for autoconfiguring them as proxy server')
-source=('https://raw.githubusercontent.com/thaibault/webNode/master/webNode')
-source=('git+https://github.com/thaibault/webNode')
+source=('.')
 md5sums=('SKIP')
 
 package() {
     install --directory --mode 755 "${pkgdir}/usr/lib/python3.5"
-    cp --recursive --force "${srcdir}/webNode" "${pkgdir}/usr/lib/python3.5"
-    find "$pkgdir" -type f -not -name '*.py' -delete
-    rm "${pkgdir}/usr/lib/python3.5/webNode/.git" --recursive --force
-    rm "${pkgdir}/usr/lib/python3.5/webNode/documentation" --recursive --force
+    find "$scrdir" -type f -not -name '*.py' -delete
+    rm "${scrdir}/.git" --recursive --force
+    rm "${scrdir}/documentation" --recursive --force
+    cp --recursive --force "${srcdir}" "${pkgdir}/usr/lib/python3.5"
 }
 # region vim modline
 # vim: set tabstop=4 shiftwidth=4 expandtab:
