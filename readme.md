@@ -16,10 +16,10 @@ endregion -->
 Use case
 --------
 
-webNode is a high level python library. This library supports python2.7+ and
+webnode is a high level python library. This library supports python2.7+ and
 python3.4+ environments.
 <!--deDE:
-    webNode ist eine sehr einfach zu verwendende intuitive python Bibliothek.
+    webnode ist eine sehr einfach zu verwendende intuitive python Bibliothek.
     Momentan unterstützt sie sowohl python2.7+ als auch python3.4+ Umgebungen.
 -->
 
@@ -34,7 +34,7 @@ Content
 Features
 --------
 
-<ul><li>Based on boostNode.<!--deDE:Basiert auf boostNode.--></li></ul>
+<ul><li>Based on boostnode.<!--deDE:Basiert auf boostnode.--></li></ul>
 
 <!--|deDE:Verwendung-->
 Usage
@@ -48,31 +48,29 @@ Copy this folder to your projects directory and write something like:
 
     #!/usr/bin/env python
 
-    from webNode import Main
+    from webnode import Main
 
     if __name__ == '__main__':
         Main.run()
 
-Have Fun with webNode!
-<!--deDE:Viel Spass mit webNode!-->
+Have Fun with webnode!
+<!--deDE:Viel Spass mit webnode!-->
 
 <!--|deDE:Urheberrecht-->
 Copyright
 ---------
 
-see header in boostNode/\_\_init\_\_.py
-<!--deDE:Siehe Header in boostNode/\_\_init\_\_.py-->
+see header in boostnode/\_\_init\_\_.py
+<!--deDE:Siehe Header in boostnode/\_\_init\_\_.py-->
 
 <!--|deDE:Lizenz-->
 License
 -------
 
-see header in boostNode/\_\_init\_\_.py
-<!--deDE:Siehe Header in boostNode/\_\_init\_\_.py-->
+see header in boostnode/\_\_init\_\_.py
+<!--deDE:Siehe Header in boostnode/\_\_init\_\_.py-->
 
 <!-- region vim modline
-
 vim: set tabstop=4 shiftwidth=4 expandtab:
 vim: foldmethod=marker foldmarker=region,endregion:
-
 endregion -->

@@ -32,14 +32,14 @@ from sqlalchemy.orm import validates
 from sqlalchemy.schema import Column
 from sqlalchemy.types import Boolean, DateTime, String, Integer
 
-from boostNode.extension.native import Module
-from boostNode.extension.native import Model as BaseModel
-from boostNode.extension.native import AuthenticationModel as \
+from boostnode.extension.native import Module
+from boostnode.extension.native import Model as BaseModel
+from boostnode.extension.native import AuthenticationModel as \
     BaseAuthenticationModel
-from boostNode.extension.type import Model as MetaModel
-from boostNode.paradigm.aspectOrientation import FunctionDecorator
+from boostnode.extension.type import Model as MetaModel
+from boostnode.paradigm.aspectOrientation import FunctionDecorator
 
-from webNode import OPTIONS
+from webnode import OPTIONS
 
 # endregion
 
@@ -201,8 +201,6 @@ Module.default(
 # endregion
 
 # region vim modline
-
 # vim: set tabstop=4 shiftwidth=4 expandtab:
 # vim: foldmethod=marker foldmarker=region,endregion:
-
 # endregion

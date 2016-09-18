@@ -10,7 +10,7 @@
     "restController.py"
   ],
   "documentationWebsite": {
-    "name": "webNode",
+    "name": "webnode",
     "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->",
     "trackingCode": "UA-40192634-9",
     "languages": [
@@ -32,7 +32,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/thaibault/webNode"
+    "url": "https://github.com/thaibault/webnode"
   },
   "keywords": [
     "python",
@@ -42,6 +42,6 @@
     "api",
     "backend"
   ],
-  "homepage": "http://torben.website/webNode",
+  "homepage": "http://torben.website/webnode",
   "license": "CC-BY-3.0"
 }

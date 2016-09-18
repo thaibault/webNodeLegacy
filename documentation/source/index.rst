@@ -1,9 +1,9 @@
-.. webNode documentation master file
+.. webnode documentation master file
 
-webNode
+webnode
 =========
 
-`Project Page <http://torben.website/webNode>`_
+`Project Page <http://torben.website/webnode>`_
 
 Contents
 --------
@@ -12,5 +12,5 @@ Contents
     :maxdepth: 10
 
     init
-    boostNode
-    boostNode.highPerformanceModification
+    boostnode
+    boostnode.highPerformanceModification

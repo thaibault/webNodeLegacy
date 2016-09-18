@@ -24,9 +24,9 @@ __version__ = '1.0'
 import __builtin__ as builtins
 import inspect
 
-from boostNode.extension.native import Module
+from boostnode.extension.native import Module
 # # python3.5 pass
-from boostNode.extension.native import Dictionary
+from boostnode.extension.native import Dictionary
 
 # endregion
 
@@ -128,8 +128,6 @@ Module.default(name=__name__, frame=inspect.currentframe())
 # endregion
 
 # region vim modline
-
 # vim: set tabstop=4 shiftwidth=4 expandtab:
 # vim: foldmethod=marker foldmarker=region,endregion:
-
 # endregion

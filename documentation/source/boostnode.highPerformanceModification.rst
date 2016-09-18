@@ -1,6 +1,6 @@
 ===============================================================================
-webNode.boostNode
+webnode.boostnode.highPerformanceModification
 ===============================================================================
 
-.. automodule:: webNode.boostNode
+.. automodule:: webnode.boostnode.highPerformanceModification
     :members:

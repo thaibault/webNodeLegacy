@@ -36,13 +36,13 @@ from sqlalchemy.orm import sessionmaker as create_database_session
 from sqlalchemy.orm import load_only as select_database_records
 
 # # python3.5 pass
-from boostNode import convert_to_string, convert_to_unicode
-from boostNode.extension.file import Handler as FileHandler
-from boostNode.extension.native import Object, Iterable, Dictionary, Module, \
+from boostnode import convert_to_string, convert_to_unicode
+from boostnode.extension.file import Handler as FileHandler
+from boostnode.extension.native import Object, Iterable, Dictionary, Module, \
     InstancePropertyInitializer
-from boostNode.extension.native import String
-from boostNode.paradigm.objectOrientation import Class
-from boostNode.runnable.template import Parser as TemplateParser
+from boostnode.extension.native import String
+from boostnode.paradigm.objectOrientation import Class
+from boostnode.runnable.template import Parser as TemplateParser
 
 # endregion
 
@@ -852,8 +852,6 @@ Module.default(name=__name__, frame=inspect.currentframe())
 # endregion
 
 # region vim modline
-
 # vim: set tabstop=4 shiftwidth=4 expandtab:
 # vim: foldmethod=marker foldmarker=region,endregion:
-
 # endregion

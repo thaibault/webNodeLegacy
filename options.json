@@ -197,7 +197,7 @@
                 {"__execute__": "<% location['nginxConfiguration']['login'] %>"},
                 {"__execute__": "<% location['backup'] %>"},
                 {"__execute__": "<% location['webCache'] %>"},
-                "/boostNode/", "/webNode/", "/database/"
+                "/boostnode/", "/webnode/", "/database/"
             ],
             "templateOnce": []
         },
