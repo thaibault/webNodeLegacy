@@ -1,36 +1,39 @@
 {
-    "name": "webnode",
-    "version": "1.0.0",
-    "description": "a high reliable python web library",
-      "main": "__init__,py",
-      "files": [
-        "controller.py",
-        "model.py",
-        "options.json",
-        "restController.py"
-      ],
-    "documentationWebsite": {
-        "name": "webNode",
-        "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->",
-        "trackingCode": "UA-40192634-9",
-        "languages": ["deDE", "enUS"]
-    },
-    "scripts": {
-        "document": "runnable/generateAPIDocumentation.py",
-        "update": "npm run clear && npm version patch && npm publish",
-        "updateDocumentation": "documentationWebsite --log-level info",
-        "clear": "rm apiDocumentation --recursive --force && find './' -type f -name '*.pyc' -delete && find './' -type f -name '*.pyo' -delete"
-    },
-    "dependencies": {
-        "boostnode": "latest"
-    },
-    "devDependencies": {
-        "documentation-website": "latest"
-    },
-      "repository": {
-        "type": "git",
-        "url": "https://github.com/thaibault/webNode"
-      },
+  "name": "webnode",
+  "version": "1.0.1",
+  "description": "a high reliable python web library",
+  "main": "__init__,py",
+  "files": [
+    "controller.py",
+    "model.py",
+    "options.json",
+    "restController.py"
+  ],
+  "documentationWebsite": {
+    "name": "webNode",
+    "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->",
+    "trackingCode": "UA-40192634-9",
+    "languages": [
+      "deDE",
+      "enUS"
+    ]
+  },
+  "scripts": {
+    "document": "runnable/generateAPIDocumentation.py",
+    "update": "npm run clear && npm version patch && npm publish",
+    "updateDocumentation": "documentationWebsite --log-level info",
+    "clear": "rm apiDocumentation --recursive --force && find './' -type f -name '*.pyc' -delete && find './' -type f -name '*.pyo' -delete"
+  },
+  "dependencies": {
+    "boostnode": "latest"
+  },
+  "devDependencies": {
+    "documentation-website": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thaibault/webNode"
+  },
   "keywords": [
     "python",
     "web",
