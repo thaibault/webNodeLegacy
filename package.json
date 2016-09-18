@@ -1,6 +1,6 @@
 {
   "name": "web-node",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "a high reliable python web library",
   "main": "__init__,py",
   "files": [
