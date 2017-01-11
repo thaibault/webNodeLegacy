@@ -1579,8 +1579,11 @@ class Main(Class, Runnable):
                 ] and not self.debug:
                     self.send_e_mail(
                         content=error_report_message,
-                        configuration=self.options[
-                            'productionExceptionEMailNotification'],
+                        configuration=Dictionary(self.options[
+                            'productionExceptionEMailNotification'
+                        ]).convert(key_wrapper=lambda key, value: String(
+                            key
+                        ).camel_case_to_delimited.content).content,
                         subject='Frontend-Error')
                 Print(normalize_unicode(
                     self.options['unicodeNormalisationForm'],
@@ -1652,8 +1655,11 @@ class Main(Class, Runnable):
 # #                             default=lambda object: '__not_serializable__'
 # #                         ), traceback.format_exc()
 # #                     ), content=convert_to_unicode(exception),
-# #                     configuration=self.options[
-# #                         'productionExceptionEMailNotification'],
+# #                     configuration=Dictionary(self.options[
+# #                         'productionExceptionEMailNotification'
+# #                     ]).convert(key_wrapper=lambda key, value: String(
+# #                         key
+# #                     ).camel_case_to_delimited.content).content,
 # #                     subject='Backend-Error (%s: %s)' % (
 # #                         exception.__class__.__name__,
 # #                         builtins.str(exception)))
@@ -1668,8 +1674,11 @@ class Main(Class, Runnable):
                             separators=(',', ': '), sort_keys=True,
                             default=lambda object: '__not_serializable__'
                         ), convert_to_unicode(traceback.format_exc())
-                    ), configuration=self.options[
-                        'productionExceptionEMailNotification'],
+                    ), configuration=Dictionary(self.options[
+                        'productionExceptionEMailNotification'
+                    ]).convert(key_wrapper=lambda key, value: String(
+                        key
+                    ).camel_case_to_delimited.content).content,
                     subject='Backend-Error (%s)' % (
                         exception.__class__.__name__))
 # #
