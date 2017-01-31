@@ -12,8 +12,7 @@
   "documentationWebsite": {
     "languages": ["deDE", "enUS"],
     "name": "webnode",
-    "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->",
-    "trackingCode": "UA-40192634-9"
+    "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->"
   },
   "scripts": {
     "document": "node_modules/boostnode/runnable/generateAPIDocumentation.py",
