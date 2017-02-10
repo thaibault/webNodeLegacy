@@ -39,8 +39,7 @@ from sqlalchemy.orm import load_only as select_database_records
 from boostnode import convert_to_string, convert_to_unicode
 from boostnode.extension.file import Handler as FileHandler
 from boostnode.extension.native import Object, Iterable, Dictionary, Module, \
-    InstancePropertyInitializer
-from boostnode.extension.native import String
+    InstancePropertyInitializer, String
 from boostnode.paradigm.objectOrientation import Class
 from boostnode.runnable.template import Parser as TemplateParser
 
@@ -583,16 +582,18 @@ class Response(Class):
         keys = copy(get)
         del keys['source']
         keys = Dictionary(keys).convert(
-            key_wrapper=lambda key, value: '%s_%s' % (
-                get['source'].lower(), key)
+            key_wrapper=lambda key, value: String('%s_%s' % (
+                get['source'].lower(), key
+            )).delimited_to_camel_case.content
         ).content
         '''
             Prepare a pattern for newly created linked records with \
             corresponding linked attribute names and values.
         '''
         data = Dictionary(data).convert(
-            key_wrapper=lambda key, value: '%s_%s' % (get['source'].lower(
-            ), key)
+            key_wrapper=lambda key, value: String('%s_%s' % (
+                get['source'].lower(), key
+            )).delimited_to_camel_case.content
         ).content
         session = create_database_session(
             bind=self.web_node.engine, expire_on_commit=False

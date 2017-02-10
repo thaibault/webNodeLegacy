@@ -30,6 +30,7 @@ from datetime import datetime as DateTime
 from datetime import time as Time
 from datetime import date as Date
 from datetime import timedelta as TimeDelta
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from httplib import HTTPConnection
@@ -255,6 +256,25 @@ class Main(Class, Runnable):
                     elif item == value:
                         return True
                 return False
+            if specification.get('type') == 'file':
+                if not isinstance(value, dict) or specification.get(
+                    'required', False
+                ) and not value.get('data', False):
+                    return False
+                if (
+                    'maximum' in specification and 'size' not in value or
+                    specification['maximum'] < value['size'] or
+                    specification['maximum'] < 10 * len(value['data'])
+                ):
+                    return False
+                if (
+                   'pattern' in specification and 'mimeType' not in value or
+                    regularExpression.compile(
+                        '(?:%s)$' % specification['pattern']
+                    ).match(value['mimeType']) is None
+                ):
+                    return False
+                return True
             if((
                 'minimumLength' in specification and
                 builtins.len(value) < specification['minimumLength']
@@ -264,19 +284,16 @@ class Main(Class, Runnable):
             ) or (
                 'minimum' in specification and
                 value < specification['minimum']
-            ) or (
-                'numberType' in specification and (
-                    'integer' == specification['numberType'] and
-                    not builtins.isinstance(
-                        value, builtins.int
-                    ) or 'float' == specification['numberType'] and
-                    not builtins.isinstance(
-                        value, builtins.float
-                    ) or 'number' == specification['numberType'] and
-                    not builtins.isinstance(value, (
-                        builtins.float, builtins.int))
-                )
-            ) or (
+            ) or ('numberType' in specification and (
+                'integer' == specification['numberType'] and
+                not builtins.isinstance(
+                    value, builtins.int
+                ) or 'float' == specification['numberType'] and
+                not builtins.isinstance(
+                    value, builtins.float
+                ) or 'number' == specification['numberType'] and
+                not builtins.isinstance(value, (builtins.float, builtins.int))
+            )) or (
                 'maximum' in specification and value > specification['maximum']
             ) or ('pattern' in specification and regularExpression.compile(
 # # python3.5
@@ -290,7 +307,9 @@ class Main(Class, Runnable):
         return True
 
     @builtins.classmethod
-    def send_e_mail(cls, content, configuration={}, **keywords):
+    def send_e_mail(
+        cls, content, configuration={}, attachments=[], **keywords
+    ):
         '''Sends given message via mail.'''
         configuration.update(keywords)
         message = MIMEMultipart(configuration['mime_type_sub_type'])
@@ -319,6 +338,11 @@ class Main(Class, Runnable):
                 content
             ), 'plain', cls.options['encoding']))
 # #
+        for file in attachments:
+            attachment = MIMEApplication(file['data'], Name=file['name'])
+            attachment['Content-Disposition'] = 'attachment; filename="%s"' % \
+                file['name']
+            message.attach(attachment)
         '''Send the message specified SMTP server.'''
         connection_data = (
             configuration['smtp_server']['url'],
@@ -1588,7 +1612,7 @@ class Main(Class, Runnable):
                         ]).convert(key_wrapper=lambda key, value: String(
                             key
                         ).camel_case_to_delimited.content).content,
-                        subject='Frontend-Error')
+                        attachments=[], subject='Frontend-Error')
                 Print(normalize_unicode(
                     self.options['unicodeNormalisationForm'],
                     self.options['errorReportAnswerHTMLContent'] %
@@ -1664,7 +1688,7 @@ class Main(Class, Runnable):
 # #                     ]).convert(key_wrapper=lambda key, value: String(
 # #                         key
 # #                     ).camel_case_to_delimited.content).content,
-# #                     subject='Backend-Error (%s: %s)' % (
+# #                     attachments=[], subject='Backend-Error (%s: %s)' % (
 # #                         exception.__class__.__name__,
 # #                         builtins.str(exception)))
                 message = self.send_e_mail(
@@ -1683,7 +1707,7 @@ class Main(Class, Runnable):
                     ]).convert(key_wrapper=lambda key, value: String(
                         key
                     ).camel_case_to_delimited.content).content,
-                    subject='Backend-Error (%s)' % (
+                    attachments=[], subject='Backend-Error (%s)' % (
                         exception.__class__.__name__))
 # #
                 if builtins.isinstance(message, builtins.Exception):
