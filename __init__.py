@@ -222,6 +222,8 @@ class Main(Class, Runnable):
             ):
 # # python3.5                 return builtins.str(value)
                 return convert_to_unicode(value)
+            elif(specification.get('type') == 'file'):
+                return value
             elif(
                 specification.get('type') == 'number' or
                 'minimum' in specification or 'maximum' in specification
@@ -1098,8 +1100,10 @@ class Main(Class, Runnable):
         cls, database_schema_file, serialized_schema, database_backup_file
     ):
         '''Saves a database backup of current database state.'''
-        if(database_schema_file.content != serialized_schema and
-           database_backup_file):
+        if (
+            database_schema_file.content != serialized_schema and
+            database_backup_file
+        ):
             now = DateTime.now()
 # # python3.5
 # #             timestamp = now.timestamp() + now.microsecond / 1000 ** 2
