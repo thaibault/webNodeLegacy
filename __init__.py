@@ -257,23 +257,24 @@ class Main(Class, Runnable):
                         return True
                 return False
             if specification.get('type') == 'file':
-                if not isinstance(value, dict) or specification.get(
-                    'required', False
-                ) and not value.get('data', False):
-                    return False
-                if (
-                    'maximum' in specification and 'size' not in value or
-                    specification['maximum'] < value['size'] or
-                    specification['maximum'] < 10 * len(value['data'])
-                ):
-                    return False
-                if (
-                   'pattern' in specification and 'mimeType' not in value or
-                    regularExpression.compile(
-                        '(?:%s)$' % specification['pattern']
-                    ).match(value['mimeType']) is None
-                ):
-                    return False
+                if specification.get('required', False):
+                    if not isinstance(value, dict) or not value.get(
+                        'data', False
+                    ):
+                        return False
+                    if (
+                        'maximum' in specification and 'size' not in value or
+                        specification['maximum'] < value['size'] or
+                        specification['maximum'] < 10 * len(value['data'])
+                    ):
+                        return False
+                    if (
+                       'pattern' in specification and
+                        'mimeType' not in value or regularExpression.compile(
+                            '(?:%s)$' % specification['pattern']
+                        ).match(value['mimeType']) is None
+                    ):
+                        return False
                 return True
             if((
                 'minimumLength' in specification and
