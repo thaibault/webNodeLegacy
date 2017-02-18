@@ -13,6 +13,7 @@ __pycache__
 # Runtime data
 database
 log.txt
+.local
 
 # Temporary compile files
 *.compiled.*
