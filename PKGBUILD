@@ -9,9 +9,9 @@
 # This library written by Torben Sickert stand under a creative commons naming
 # 3.0 unported license. see http://creativecommons.org/licenses/by/3.0/deed.de
 # endregion
-pkgname=webnode
-pkgver=1.0.8
-pkgrel=15
+pkgname=webnodelegacy
+pkgver=1.0.9
+pkgrel=16
 pkgdesc='a high reliable python web library'
 arch=('any')
 url="http://torben.website/${pkgname}"
