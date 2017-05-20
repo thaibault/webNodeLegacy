@@ -1020,7 +1020,7 @@ class Main(Class, Runnable):
                     migration_successful = cls._migrate_model(
                         model_name, model, models, migration_successful,
                         session, old_schemas, new_schemas)
-            elif model.__tablename__ not in old_schemas:
+            else:
                 __logger__.info('New model "%s" detected.', model_name)
                 '''NOTE: sqlalchemy will create this table automatically.'''
         cls._save_database_schema(database_schema_file, session, new_schemas)
