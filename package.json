@@ -15,10 +15,10 @@
     "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->"
   },
   "scripts": {
+    "clear": "rm apiDocumentation --recursive --force && find './' -type f -name '*.pyc' -delete && find './' -type f -name '*.pyo' -delete",
     "document": "node_modules/boostnode/runnable/generateAPIDocumentation.py",
     "update": "npm run clear && npm version patch && npm publish",
-    "updateDocumentation": "documentationWebsite --log-level info",
-    "clear": "rm apiDocumentation --recursive --force && find './' -type f -name '*.pyc' -delete && find './' -type f -name '*.pyo' -delete"
+    "update:documentation": "documentationWebsite --log-level info"
   },
   "dependencies": {
     "boostnode": "latest"
