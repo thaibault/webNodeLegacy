@@ -10,7 +10,10 @@
     "restController.py"
   ],
   "documentationWebsite": {
-    "languages": ["deDE", "enUS"],
+    "languages": [
+      "deDE",
+      "enUS"
+    ],
     "name": "webnode",
     "tagline": "a high reliable python web library<!--deDE:eine Pythonbibliothek für hochzuverlässigkeits Ansprüche im Web-->"
   },
@@ -21,10 +24,10 @@
     "update:documentation": "documentationWebsite --log-level info"
   },
   "dependencies": {
-    "boostnode": "latest"
+    "boostnode": "^1.0.6"
   },
   "devDependencies": {
-    "documentation-website": "latest"
+    "documentation-website": "^1.0.61"
   },
   "repository": {
     "type": "git",
