@@ -1,5 +1,5 @@
 {
-  "name": "web-node",
+  "name": "webnodelegacy",
   "version": "1.0.5",
   "description": "a high reliable python web library",
   "main": "__init__.py",
